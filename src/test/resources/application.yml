@@ -1,0 +1,16 @@
+models:
+  chatgpt:
+    chat-url: https://api.openai.com/v1/chat/completions
+    chat-key: ${CHATGPT_KEY:}
+  doubao:
+    chat-url: https://ark.cn-beijing.volces.com/api/v3/chat/completions
+    chat-key: ${DOUBAO_KEY:}
+  aliyun:
+    chat-url: https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation
+    chat-key: ${ALIYUN_KEY:}
+  moonshot:
+    chat-url: https://api.moonshot.cn/v1/chat/completions
+    chat-key: ${MOONSHOT_KEY:}
+  ollama:
+    chat-url: http://localhost:11434/api/chat
+    chat-key: ${OLLAMA_KEY1:}
