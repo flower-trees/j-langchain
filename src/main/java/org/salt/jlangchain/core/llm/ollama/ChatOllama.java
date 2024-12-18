@@ -17,8 +17,9 @@ package org.salt.jlangchain.core.llm.ollama;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
-import org.salt.jlangchain.ai.strategy.AiChatActuator;
+import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.vendor.ollama.OllamaActuator;
+import org.salt.jlangchain.core.llm.BaseChatModel;
 
 import java.util.Map;
 
@@ -28,7 +29,7 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChatOllama extends BaseChatOllama {
+public class ChatOllama extends BaseChatModel {
 
     protected String model = "qwen2.5:0.5b";
     protected String temperature = "0.7";

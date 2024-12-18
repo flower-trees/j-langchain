@@ -12,23 +12,37 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.vendor.moonshot.param;
+package org.salt.jlangchain.ai.chat.openai.param;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.util.List;
 
 @Data
-public class MoonshotRequest {
+public class OpenAIResponse {
 
+    private String id;
+    private String object;
+    private int created;
     private String model;
-    private List<Message> messages;
-    private double temperature;
-    private boolean stream;
+    @JsonProperty("system_fingerprint")
+    private String systemFingerprint;
+    private List<Choice> choices;
 
     @Data
-    public static class Message {
-        private String role;
-        private String content;
+    public static class Choice {
+        private int index;
+        private Delta delta;
+        private Object logprobs;
+        @JsonProperty("finish_reason")
+        private String finishReason;
+
+        @Data
+        public static class Delta {
+            private String role;
+            private String content;
+        }
     }
 }
+

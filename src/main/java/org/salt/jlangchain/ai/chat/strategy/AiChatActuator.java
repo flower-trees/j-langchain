@@ -12,31 +12,15 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.vendor.doubao.param;
+package org.salt.jlangchain.ai.chat.strategy;
 
-import lombok.Data;
+import org.salt.jlangchain.ai.common.param.AiChatInput;
+import org.salt.jlangchain.ai.common.param.AiChatOutput;
 
-import java.util.List;
+import java.util.function.Consumer;
 
-@Data
-public class DoubaoResponse {
-
-    private String id;
-    private String object;
-    private int created;
-    private String model;
-    private List<Choice> choices;
-
-    @Data
-    public static class Choice {
-        private int index;
-        private Delta delta;
-
-        @Data
-        public static class Delta {
-            private String role;
-            private String content;
-        }
-    }
+public interface AiChatActuator {
+    AiChatOutput invoke(AiChatInput aiChatInput);
+    AiChatOutput stream(AiChatInput aiChatInput, Consumer<AiChatOutput> responder);
+    void astream(AiChatInput aiChatInput, Consumer<AiChatOutput> responder);
 }
-

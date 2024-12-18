@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.strategy;
+package org.salt.jlangchain.ai.chat.strategy;
 
 import org.apache.commons.lang3.StringUtils;
 import org.salt.jlangchain.ai.common.param.AiChatInput;

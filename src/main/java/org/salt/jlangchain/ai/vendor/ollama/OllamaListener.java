@@ -19,7 +19,7 @@ import org.salt.jlangchain.ai.common.enums.AiChatCode;
 import org.salt.jlangchain.ai.common.enums.MessageType;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
-import org.salt.jlangchain.ai.strategy.DoListener;
+import org.salt.jlangchain.ai.chat.strategy.DoListener;
 import org.salt.jlangchain.ai.vendor.ollama.param.OllamaResponse;
 import org.salt.jlangchain.utils.JsonUtil;
 

@@ -12,14 +12,14 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.vendor.chatgpt;
+package org.salt.jlangchain.ai.chat.openai;
 
 import org.jetbrains.annotations.NotNull;
-import org.salt.jlangchain.ai.vendor.chatgpt.param.ChatGPTResponse;
-import org.salt.jlangchain.ai.strategy.DoListener;
-import org.salt.jlangchain.ai.common.param.AiChatInput;
+import org.salt.jlangchain.ai.chat.openai.param.OpenAIResponse;
+import org.salt.jlangchain.ai.chat.strategy.DoListener;
 import org.salt.jlangchain.ai.common.enums.AiChatCode;
 import org.salt.jlangchain.ai.common.enums.MessageType;
+import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
 import org.salt.jlangchain.utils.JsonUtil;
 import org.springframework.util.CollectionUtils;
@@ -29,15 +29,15 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-public class ChatGPTListener extends DoListener  {
+public class OpenAIListener extends DoListener  {
 
-    public ChatGPTListener(AiChatInput aiChatInput, Consumer<AiChatOutput> responder, BiConsumer<AiChatInput, AiChatOutput> completeCallback) {
+    public OpenAIListener(AiChatInput aiChatInput, Consumer<AiChatOutput> responder, BiConsumer<AiChatInput, AiChatOutput> completeCallback) {
         super(aiChatInput, responder, completeCallback);
     }
 
     @Override
     protected AiChatOutput convertMsg(String msg) {
-        ChatGPTResponse response = JsonUtil.fromJson(msg, ChatGPTResponse.class);
+        OpenAIResponse response = JsonUtil.fromJson(msg, OpenAIResponse.class);
         if (response != null) {
             AiChatOutput aiChatOutput = new AiChatOutput();
 
@@ -61,11 +61,11 @@ public class ChatGPTListener extends DoListener  {
         return null;
     }
 
-    private static @NotNull List<AiChatOutput.Message> getMessages(ChatGPTResponse response) {
+    private static @NotNull List<AiChatOutput.Message> getMessages(OpenAIResponse response) {
         List<AiChatOutput.Message> messages = new ArrayList<>();
         if (!CollectionUtils.isEmpty(response.getChoices()) && response.getChoices().get(0).getDelta() != null) {
             AiChatOutput.Message message = new AiChatOutput.Message();
-            ChatGPTResponse.Choice.Delta delta = response.getChoices().get(0).getDelta();
+            OpenAIResponse.Choice.Delta delta = response.getChoices().get(0).getDelta();
             message.setRole(delta.getRole());
             message.setContent(delta.getContent());
             message.setType(MessageType.MARKDOWN.getCode());

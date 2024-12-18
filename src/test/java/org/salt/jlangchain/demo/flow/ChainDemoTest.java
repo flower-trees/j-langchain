@@ -20,10 +20,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.function.flow.FlowEngine;
 import org.salt.function.flow.FlowInstance;
+import org.salt.function.flow.Info;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
+import org.salt.jlangchain.core.llm.doubao.ChatDoubao;
+import org.salt.jlangchain.core.llm.moonshot.ChatMoonshot;
 import org.salt.jlangchain.core.llm.ollama.ChatOllama;
+import org.salt.jlangchain.core.llm.openai.ChatOpenAI;
 import org.salt.jlangchain.core.parser.StrOutputParser;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
 import org.salt.jlangchain.core.prompt.chat.ChatPromptTemplate;
@@ -58,7 +63,7 @@ public class ChainDemoTest {
     }
 
     @Test
-    public void ChainDemo() {
+    public void ChainStreamDemo() {
 
         BaseRunnable<ChatPromptValue, ?> prompt = ChatPromptTemplate.fromTemplate("tell me a joke about ${topic}");
 
@@ -82,6 +87,42 @@ public class ChainDemoTest {
             if (StringUtils.isNotEmpty(chunk.toString())) {
                 sb.append(chunk);
                 System.out.println("answer:" + sb);
+            }
+        }
+    }
+
+    @Test
+    public void ChainSwitchDemo() {
+
+        BaseRunnable<ChatPromptValue, ?> prompt = ChatPromptTemplate.fromTemplate("who are you?");
+
+        ChatOpenAI chatOpenAI = ChatOpenAI.builder().model("gpt-3.5-turbo").build();
+        ChatOllama chatOllama = ChatOllama.builder().model("qwen2.5:0.5b").build();
+        ChatAliyun chatAliyun = ChatAliyun.builder().model("qwq-32b-preview").build();
+        ChatDoubao chatDoubao = ChatDoubao.builder().model("ep-20240611104225-2d4ww").build();
+        ChatMoonshot chatMoonshot = ChatMoonshot.builder().model("moonshot-v1-8k").build();
+
+        StrOutputParser parser = new StrOutputParser();
+
+        FlowInstance chain = flowEngine.builder().next(prompt).next(
+                Info.c("vendor == 'chatgpt'", chatOpenAI),
+                Info.c("vendor == null || vendor == 'ollama'", chatOllama),
+                Info.c("vendor == 'doubao'", chatDoubao),
+                Info.c("vendor == 'aliyun'", chatAliyun),
+                Info.c("vendor == 'moonshot'", chatMoonshot)
+        ).next(parser).build();
+
+        ChatGenerationChunk result = chainActor.stream(chain, Map.of("vendor", "moonshot"));
+
+        StringBuilder sb = new StringBuilder();
+
+        while (result.getIterator().hasNext()) {
+            try {
+                ChatGenerationChunk chunk = result.getIterator().next();
+                sb.append(chunk);
+                System.out.println("answer:" + sb);
+            } catch (TimeoutException e) {
+                throw new RuntimeException(e);
             }
         }
     }

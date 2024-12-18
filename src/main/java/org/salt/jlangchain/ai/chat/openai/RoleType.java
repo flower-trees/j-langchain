@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.common.enums;
+package org.salt.jlangchain.ai.chat.openai;
 
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;

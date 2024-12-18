@@ -12,62 +12,6 @@
  * limitations under the License.
  */
 
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.salt.jlangchain.ai.client.stream;
 
 import lombok.Data;
@@ -76,7 +20,7 @@ import okhttp3.*;
 import okio.BufferedSource;
 import org.apache.commons.lang3.StringUtils;
 import org.salt.jlangchain.ai.client.AiException;
-import org.salt.jlangchain.ai.strategy.ListenerStrategy;
+import org.salt.jlangchain.ai.chat.strategy.ListenerStrategy;
 import org.salt.jlangchain.utils.JsonUtil;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.scheduling.annotation.Async;
@@ -124,37 +68,37 @@ public class HttpStreamClient implements InitializingBean {
         okHttpClient.dispatcher().setMaxRequestsPerHost(maxConnectionsPerHost);
     }
 
-    @Async
-    public <T> void call(String url, T body, Map<String, String> headers, List<ListenerStrategy> strategyList) {
-        request(url, body, headers, strategyList);
+    public <T, R> R request(String url, T body, Map<String, String> headers, Class<R> clazz) {
+        log.debug("http request call start");
+
+        Request request = buildRequest(url, body, headers);
+
+        try (Response response = okHttpClient.newCall(request).execute()) {
+            if (response.isSuccessful() && response.body() != null) {
+                log.debug("http stream request open");
+                return JsonUtil.fromJson(response.body().string(), clazz);
+            } else {
+                throw new RuntimeException("Request failed with code: " + response.code());
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public <T> void request(String url, T body, Map<String, String> headers, List<ListenerStrategy> strategyList) {
+    @Async
+    public <T> void astream(String url, T body, Map<String, String> headers, List<ListenerStrategy> strategyList) {
+        stream(url, body, headers, strategyList);
+    }
+
+    public <T> void stream(String url, T body, Map<String, String> headers, List<ListenerStrategy> strategyList) {
 
         log.debug("http stream call start");
         strategyList.forEach(ListenerStrategy::onInit);
 
-        String headersJson = JsonUtil.toJson(headers);
-        String bodyJson;
-        if (body instanceof String) {
-            bodyJson = (String) body;
-        } else {
-            bodyJson = JsonUtil.toJson(body);
-        }
+        Request request = buildRequest(url, body, headers);
 
-        assert bodyJson != null;
-        Request request = new Request.Builder()
-                .url(url)
-                .headers(Headers.of(headers))
-                .post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyJson))
-                .build();
-
-        log.debug("http stream call, url:{}, headers:{}, body:{}", url, headersJson, JsonUtil.toJson(body));
-
-        try {
-            Response response = okHttpClient.newCall(request).execute();
+        try (Response response = okHttpClient.newCall(request).execute()) {
             if (response.isSuccessful()) {
-
                 log.debug("http stream call open");
                 openForEach(strategyList);
 
@@ -173,7 +117,7 @@ public class HttpStreamClient implements InitializingBean {
                         if (lineComplete.startsWith("data:")) {
                             String content = getDateContent(lineComplete);
                             dealContent(content, strategyList);
-                        } else {
+                        } else if (lineComplete.startsWith("{")) {
                             dealContent(lineComplete, strategyList);
                         }
                     }
@@ -189,6 +133,27 @@ public class HttpStreamClient implements InitializingBean {
         } finally {
             completeForEach(strategyList);
         }
+    }
+
+    private <T> Request buildRequest(String url, T body, Map<String, String> headers) {
+
+        String bodyJson;
+        if (body instanceof String) {
+            bodyJson = (String) body;
+        } else {
+            bodyJson = JsonUtil.toJson(body);
+        }
+
+        assert bodyJson != null;
+        Request request = new Request.Builder()
+                .url(url)
+                .headers(Headers.of(headers))
+                .post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyJson))
+                .build();
+
+        log.debug("http stream call, url:{}, headers:{}, body:{}", url, headers, JsonUtil.toJson(body));
+
+        return request;
     }
 
     private String getDateContent(String lineComplete) {
