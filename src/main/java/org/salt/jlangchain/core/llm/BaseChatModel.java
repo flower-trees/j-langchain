@@ -44,16 +44,21 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
     @Override
     public AIMessage invoke(Object input) {
 
-        return null;
+        List<AiChatInput.Message> messages = convertMessage(input);
+        AiChatInput aiChatInput = AiChatInput.builder().messages(messages).stream(false).build();
+
+        otherInformation(aiChatInput);
+
+        AiChatOutput aiChatOutput = SpringContextUtil.getApplicationContext().getBean(getActuator()).invoke(aiChatInput);
+
+        return AIMessage.builder().content((String) aiChatOutput.getMessages().get(0).getContent()).build();
     }
 
     @Override
     public AIMessageChunk stream(Object input) {
 
         AIMessageChunk aiMessageChunk = new AIMessageChunk();
-
         List<AiChatInput.Message> messages = convertMessage(input);
-
         AiChatInput aiChatInput = AiChatInput.builder().messages(messages).stream(true).build();
 
         otherInformation(aiChatInput);

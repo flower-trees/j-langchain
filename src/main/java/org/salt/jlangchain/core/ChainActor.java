@@ -29,10 +29,13 @@ public class ChainActor {
     }
 
     public <O, I> O invoke(FlowInstance flow, I input) {
-        return flowEngine.execute(flow, input);
+        Map<String, Object> callInfo = Map.of(CallInfo.STREAM.name(), false);
+        return flowEngine.execute(flow, input, callInfo);
     }
 
     public <O, I> O invoke(FlowInstance flow, I input, Map<String, Object> transmitMap) {
+        Map<String, Object> callInfo = Map.of(CallInfo.STREAM.name(), false);
+        transmitMap.putAll(callInfo);
         return flowEngine.execute(flow, input, transmitMap);
     }
 

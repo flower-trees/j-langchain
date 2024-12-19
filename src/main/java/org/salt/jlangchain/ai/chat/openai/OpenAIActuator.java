@@ -15,18 +15,17 @@
 package org.salt.jlangchain.ai.chat.openai;
 
 import org.salt.jlangchain.ai.chat.openai.param.OpenAIRequest;
+import org.salt.jlangchain.ai.chat.openai.param.OpenAIResponse;
 import org.salt.jlangchain.ai.chat.strategy.BaseAiChatActuator;
 import org.salt.jlangchain.ai.chat.strategy.ListenerStrategy;
 import org.salt.jlangchain.ai.client.stream.HttpStreamClient;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
 
-import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
-public abstract class OpenAIActuator extends BaseAiChatActuator<OpenAIRequest> {
+public abstract class OpenAIActuator extends BaseAiChatActuator<OpenAIResponse, OpenAIRequest> {
 
     public OpenAIActuator(HttpStreamClient commonHttpClient) {
         super(commonHttpClient);
@@ -38,23 +37,16 @@ public abstract class OpenAIActuator extends BaseAiChatActuator<OpenAIRequest> {
     }
 
     @Override
-    public OpenAIRequest convert(AiChatInput aiChatInput) {
-        OpenAIRequest openAIRequest = new OpenAIRequest();
-        openAIRequest.setModel(aiChatInput.getModel());
-        openAIRequest.setStream(aiChatInput.isStream());
-
-        List<OpenAIRequest.Message> chatGPTMessages = aiChatInput.getMessages().stream()
-                .map(OpenAIActuator::convertMessage)
-                .collect(Collectors.toList());
-        openAIRequest.setMessages(chatGPTMessages);
-
-        return openAIRequest;
+    protected OpenAIRequest convertRequest(AiChatInput aiChatInput) {
+        return OpenAIConver.convertRequest(aiChatInput);
     }
 
-    private static OpenAIRequest.Message convertMessage(AiChatInput.Message aiChatMessage) {
-        OpenAIRequest.Message chatGPTMessage = new OpenAIRequest.Message();
-        chatGPTMessage.setRole(aiChatMessage.getRole());
-        chatGPTMessage.setContent(aiChatMessage.getContent());
-        return chatGPTMessage;
+    @Override
+    protected AiChatOutput convertResponse(OpenAIResponse response) {
+        return OpenAIConver.convertResponse(response);
+    }
+
+    protected Class<OpenAIResponse> responseType() {
+        return OpenAIResponse.class;
     }
 }

@@ -14,20 +14,19 @@
 
 package org.salt.jlangchain.ai.vendor.ollama;
 
+import org.salt.jlangchain.ai.chat.strategy.BaseAiChatActuator;
+import org.salt.jlangchain.ai.chat.strategy.ListenerStrategy;
 import org.salt.jlangchain.ai.client.stream.HttpStreamClient;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
-import org.salt.jlangchain.ai.chat.strategy.BaseAiChatActuator;
-import org.salt.jlangchain.ai.chat.strategy.ListenerStrategy;
 import org.salt.jlangchain.ai.vendor.ollama.param.OllamaRequest;
+import org.salt.jlangchain.ai.vendor.ollama.param.OllamaResponse;
 import org.springframework.beans.factory.annotation.Value;
 
-import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
-public class OllamaActuator extends BaseAiChatActuator<OllamaRequest> {
+public class OllamaActuator extends BaseAiChatActuator<OllamaResponse, OllamaRequest> {
 
     @Value("${models.ollama.chat-url}")
     private String chatUrl;
@@ -54,26 +53,16 @@ public class OllamaActuator extends BaseAiChatActuator<OllamaRequest> {
         return new OllamaListener(aiChatInput, responder, callback);
     }
 
-    public OllamaRequest convert(AiChatInput aiChatInput) {
-        OllamaRequest request = new OllamaRequest();
-        request.setModel(aiChatInput.getModel());
-        request.setStream(aiChatInput.isStream());
-
-        List<OllamaRequest.Message> doubaoMessages = aiChatInput.getMessages().stream()
-                .map(this::convertMessage)
-                .collect(Collectors.toList());
-        request.setMessages(doubaoMessages);
-        OllamaRequest.Options options = new OllamaRequest.Options();
-        options.setTemperature(0.3);
-        request.setOptions(options);
-
-        return request;
+    protected OllamaRequest convertRequest(AiChatInput aiChatInput) {
+        return OllamaConvert.convertRequest(aiChatInput);
     }
 
-    private OllamaRequest.Message convertMessage(AiChatInput.Message aiChatMessage) {
-        OllamaRequest.Message message = new OllamaRequest.Message();
-        message.setRole(aiChatMessage.getRole());
-        message.setContent(aiChatMessage.getContent());
-        return message;
+    @Override
+    protected AiChatOutput convertResponse(OllamaResponse response) {
+        return OllamaConvert.convertResponse(response);
+    }
+
+    protected Class<OllamaResponse> responseType() {
+        return OllamaResponse.class;
     }
 }

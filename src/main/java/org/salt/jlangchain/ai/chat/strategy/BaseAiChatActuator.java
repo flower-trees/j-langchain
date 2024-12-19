@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-public abstract class BaseAiChatActuator<I> implements AiChatActuator {
+public abstract class BaseAiChatActuator<O, I> implements AiChatActuator {
 
     HttpStreamClient commonHttpClient;
 
@@ -36,25 +36,26 @@ public abstract class BaseAiChatActuator<I> implements AiChatActuator {
     @Override
     public AiChatOutput invoke(AiChatInput aiChatInput) {
         Map<String, String> headers = buildHeaders();
-        I request = convert(aiChatInput);
+        I request = convertRequest(aiChatInput);
 
-        return commonHttpClient.request(getChatUrl(), JsonUtil.toJson(request), headers, AiChatOutput.class);
+        O response = commonHttpClient.request(getChatUrl(), JsonUtil.toJson(request), headers, responseType());
+        return convertResponse(response);
     }
 
     @Override
     public AiChatOutput stream(AiChatInput aiChatInput, Consumer<AiChatOutput> responder) {
         Map<String, String> headers = buildHeaders();
-        I request = convert(aiChatInput);
+        I request = convertRequest(aiChatInput);
 
         AtomicReference<AiChatOutput> r = new AtomicReference<>();
-        commonHttpClient.stream(getChatUrl(), JsonUtil.toJson(request), headers, List.of(getListenerStrategy(aiChatInput, responder, (aiChatDto, aiChatResponse) -> r.set(aiChatResponse))));
+        commonHttpClient.stream(getChatUrl(), JsonUtil.toJson(request), headers, List.of(getListenerStrategy(aiChatInput, responder, (input, output) -> r.set(output))));
         return r.get();
     }
 
     @Override
     public void astream(AiChatInput aiChatInput, Consumer<AiChatOutput> responder) {
         Map<String, String> headers = buildHeaders();
-        I request = convert(aiChatInput);
+        I request = convertRequest(aiChatInput);
 
         commonHttpClient.astream(getChatUrl(), JsonUtil.toJson(request), headers, List.of(getListenerStrategy(aiChatInput, responder, null)));
     }
@@ -69,5 +70,7 @@ public abstract class BaseAiChatActuator<I> implements AiChatActuator {
     protected abstract String getChatUrl();
     protected abstract String getChatKey();
     protected abstract ListenerStrategy getListenerStrategy(AiChatInput aiChatInput, Consumer<AiChatOutput> responder, BiConsumer<AiChatInput, AiChatOutput> callback);
-    protected abstract I convert(AiChatInput aiChatInput);
+    protected abstract I convertRequest(AiChatInput aiChatInput);
+    protected abstract AiChatOutput convertResponse(O response);
+    protected abstract Class<O> responseType();
 }

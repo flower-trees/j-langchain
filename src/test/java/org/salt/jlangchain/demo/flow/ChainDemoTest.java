@@ -31,6 +31,7 @@ import org.salt.jlangchain.core.llm.ollama.ChatOllama;
 import org.salt.jlangchain.core.llm.openai.ChatOpenAI;
 import org.salt.jlangchain.core.parser.StrOutputParser;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
+import org.salt.jlangchain.core.parser.generation.Generation;
 import org.salt.jlangchain.core.prompt.chat.ChatPromptTemplate;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
 import org.salt.jlangchain.utils.SpringContextUtil;
@@ -105,14 +106,14 @@ public class ChainDemoTest {
         StrOutputParser parser = new StrOutputParser();
 
         FlowInstance chain = flowEngine.builder().next(prompt).next(
-                Info.c("vendor == 'chatgpt'", chatOpenAI),
                 Info.c("vendor == null || vendor == 'ollama'", chatOllama),
+                Info.c("vendor == 'chatgpt'", chatOpenAI),
                 Info.c("vendor == 'doubao'", chatDoubao),
                 Info.c("vendor == 'aliyun'", chatAliyun),
                 Info.c("vendor == 'moonshot'", chatMoonshot)
         ).next(parser).build();
 
-        ChatGenerationChunk result = chainActor.stream(chain, Map.of("vendor", "moonshot"));
+        ChatGenerationChunk result = chainActor.stream(chain, Map.of("vendor", "ollama"));
 
         StringBuilder sb = new StringBuilder();
 
@@ -125,5 +126,8 @@ public class ChainDemoTest {
                 throw new RuntimeException(e);
             }
         }
+
+        Generation generation = chainActor.invoke(chain, Map.of("vendor", "ollama"));
+        System.out.println("invoke answer:" + generation);
     }
 }

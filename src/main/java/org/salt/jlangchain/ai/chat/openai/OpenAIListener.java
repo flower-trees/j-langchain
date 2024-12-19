@@ -14,18 +14,12 @@
 
 package org.salt.jlangchain.ai.chat.openai;
 
-import org.jetbrains.annotations.NotNull;
 import org.salt.jlangchain.ai.chat.openai.param.OpenAIResponse;
 import org.salt.jlangchain.ai.chat.strategy.DoListener;
-import org.salt.jlangchain.ai.common.enums.AiChatCode;
-import org.salt.jlangchain.ai.common.enums.MessageType;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
 import org.salt.jlangchain.utils.JsonUtil;
-import org.springframework.util.CollectionUtils;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -39,38 +33,8 @@ public class OpenAIListener extends DoListener  {
     protected AiChatOutput convertMsg(String msg) {
         OpenAIResponse response = JsonUtil.fromJson(msg, OpenAIResponse.class);
         if (response != null) {
-            AiChatOutput aiChatOutput = new AiChatOutput();
-
-            aiChatOutput.setId(response.getId());
-
-            //get messages
-            List<AiChatOutput.Message> messages = getMessages(response);
-            aiChatOutput.setMessages(messages);
-
-            //get finish reason
-            if (!CollectionUtils.isEmpty(response.getChoices())
-                    && response.getChoices().get(0).getFinishReason() != null
-                    && response.getChoices().get(0).getFinishReason().equals(AiChatCode.STOP.getCode())) {
-                aiChatOutput.setCode(AiChatCode.STOP.getCode());
-            } else {
-                aiChatOutput.setCode(AiChatCode.MESSAGE.getCode());
-            }
-
-            return aiChatOutput;
+            return OpenAIConver.convertResponse(response);
         }
         return null;
-    }
-
-    private static @NotNull List<AiChatOutput.Message> getMessages(OpenAIResponse response) {
-        List<AiChatOutput.Message> messages = new ArrayList<>();
-        if (!CollectionUtils.isEmpty(response.getChoices()) && response.getChoices().get(0).getDelta() != null) {
-            AiChatOutput.Message message = new AiChatOutput.Message();
-            OpenAIResponse.Choice.Delta delta = response.getChoices().get(0).getDelta();
-            message.setRole(delta.getRole());
-            message.setContent(delta.getContent());
-            message.setType(MessageType.MARKDOWN.getCode());
-            messages.add(message);
-        }
-        return messages;
     }
 }

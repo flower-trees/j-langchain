@@ -39,7 +39,7 @@ public class HttpStreamClientTest {
     HttpStreamClient commonHttpClient;
 
     @Test
-    public void chatgptCall() {
+    public void chatgptStream() {
 
         String url = "https://api.openai.com/v1/chat/completions";
 
@@ -57,7 +57,7 @@ public class HttpStreamClientTest {
     }
 
     @Test
-    public void doubaoCall() {
+    public void doubaoStream() {
 
         String url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
 
@@ -76,7 +76,7 @@ public class HttpStreamClientTest {
     }
 
     @Test
-    public void qwenCall() {
+    public void qwenStream() {
 
         String url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
 
@@ -99,7 +99,7 @@ public class HttpStreamClientTest {
     }
 
     @Test
-    public void qwenOpenAICall() {
+    public void qwenOpenAIStream() {
 
         String url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 
@@ -116,6 +116,27 @@ public class HttpStreamClientTest {
         );
 
         commonHttpClient.stream(url, body, headers, List.of(new ListenerStrategyTest()));
+    }
+
+    @Test
+    public void qwenOpenAIRequest() {
+
+        String url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
+
+        Map<String, ?> body = Map.of(
+                "model", "qwq-32b-preview",
+                "messages", List.of(Map.of("role", "system", "content", "You are a weather forecast assistant"), Map.of("role", "user", "content", "What's the weather like in Beijing today")),
+                "stream", true);
+
+        String key = System.getenv("ALIYUN_KEY");
+
+        Map<String, String> headers = Map.of(
+                "Content-Type", "application/json",
+                "Authorization", "Bearer " + key
+        );
+
+        String result = commonHttpClient.request(url, body, headers, String.class);
+        System.out.println(result);
     }
 
     static class ListenerStrategyTest implements ListenerStrategy {
