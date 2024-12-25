@@ -30,10 +30,10 @@ import org.salt.jlangchain.core.llm.moonshot.ChatMoonshot;
 import org.salt.jlangchain.core.llm.ollama.ChatOllama;
 import org.salt.jlangchain.core.llm.openai.ChatOpenAI;
 import org.salt.jlangchain.core.parser.StrOutputParser;
+import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
-import org.salt.jlangchain.core.parser.generation.Generation;
-import org.salt.jlangchain.core.prompt.chat.ChatPromptTemplate;
-import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
+import org.salt.jlangchain.core.prompt.string.PromptTemplate;
+import org.salt.jlangchain.core.prompt.value.StringPromptValue;
 import org.salt.jlangchain.utils.SpringContextUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
@@ -66,7 +66,7 @@ public class ChainDemoTest {
     @Test
     public void ChainStreamDemo() {
 
-        BaseRunnable<ChatPromptValue, ?> prompt = ChatPromptTemplate.fromTemplate("tell me a joke about ${topic}");
+        BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
 
         ChatOllama oll = ChatOllama.builder().model("qwen2.5:0.5b").build();
 
@@ -95,7 +95,7 @@ public class ChainDemoTest {
     @Test
     public void ChainSwitchDemo() {
 
-        BaseRunnable<ChatPromptValue, ?> prompt = ChatPromptTemplate.fromTemplate("who are you?");
+        BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("who are you?");
 
         ChatOpenAI chatOpenAI = ChatOpenAI.builder().model("gpt-3.5-turbo").build();
         ChatOllama chatOllama = ChatOllama.builder().model("qwen2.5:0.5b").build();
@@ -127,7 +127,7 @@ public class ChainDemoTest {
             }
         }
 
-        Generation generation = chainActor.invoke(chain, Map.of("vendor", "ollama"));
-        System.out.println("invoke answer:" + generation);
+        ChatGeneration generation = chainActor.invoke(chain, Map.of("vendor", "ollama"));
+        System.out.println("invoke answer:" + generation.getMessage().getContent());
     }
 }

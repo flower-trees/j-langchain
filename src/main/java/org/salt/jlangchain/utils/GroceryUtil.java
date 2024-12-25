@@ -32,4 +32,20 @@ public class GroceryUtil {
                 !clazz.isArray() &&
                 !clazz.equals(String.class);
     }
+
+    public static boolean isBaseType(Object obj) {
+        if (obj == null) {
+            return false; // 或者根据需求返回 true
+        }
+        Class<?> clazz = obj.getClass();
+        return clazz.equals(Boolean.class) ||
+                clazz.equals(Character.class) ||
+                clazz.equals(Byte.class) ||
+                clazz.equals(Short.class) ||
+                clazz.equals(Integer.class) ||
+                clazz.equals(Long.class) ||
+                clazz.equals(Float.class) ||
+                clazz.equals(Double.class) ||
+                clazz.equals(String.class);
+    }
 }

@@ -37,6 +37,7 @@ public class OpenAIResponse {
         private Object logprobs;
         @JsonProperty("finish_reason")
         private String finishReason;
+        private Delta message;
 
         @Data
         public static class Delta {

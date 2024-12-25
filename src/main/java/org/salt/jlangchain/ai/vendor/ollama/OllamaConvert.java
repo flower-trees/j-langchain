@@ -37,7 +37,7 @@ public class OllamaConvert {
                 .collect(Collectors.toList());
         request.setMessages(doubaoMessages);
         OllamaRequest.Options options = new OllamaRequest.Options();
-        options.setTemperature(0.3);
+        options.setTemperature(0.8);
         request.setOptions(options);
 
         return request;

@@ -78,6 +78,13 @@ public class OpenAIConver {
             message.setContent(delta.getContent());
             message.setType(MessageType.MARKDOWN.getCode());
             messages.add(message);
+        } else if (!CollectionUtils.isEmpty(response.getChoices()) && response.getChoices().get(0).getMessage()!= null) {
+            AiChatOutput.Message message = new AiChatOutput.Message();
+            OpenAIResponse.Choice.Delta chatGPTMessage = response.getChoices().get(0).getMessage();
+            message.setRole(chatGPTMessage.getRole());
+            message.setContent(chatGPTMessage.getContent());
+            message.setType(MessageType.MARKDOWN.getCode());
+            messages.add(message);
         }
         return messages;
     }

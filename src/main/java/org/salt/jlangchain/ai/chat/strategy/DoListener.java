@@ -79,12 +79,6 @@ public abstract class DoListener implements ListenerStrategy {
 
     public void onComplete() {
 
-//        if (!AiChatCode.ERROR.equalsV(response.getCode())) {
-//            AiChatOutput aiChatOutput = new AiChatOutput();
-//            aiChatOutput.setCode(AiChatCode.COMPLETE.getCode());
-//            responder.accept(aiChatOutput);
-//        }
-
         String msg = msgCache.toString();
         if (!StringUtils.isNotEmpty(msg)) {
             AiChatOutput.Message message = new AiChatOutput.Message();

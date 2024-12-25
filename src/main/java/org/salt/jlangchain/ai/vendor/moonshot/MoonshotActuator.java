@@ -17,9 +17,7 @@ package org.salt.jlangchain.ai.vendor.moonshot;
 import org.salt.jlangchain.ai.chat.openai.OpenAIActuator;
 import org.salt.jlangchain.ai.client.stream.HttpStreamClient;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
-@Component
 public class MoonshotActuator extends OpenAIActuator {
 
     @Value("${models.moonshot.chat-url}")

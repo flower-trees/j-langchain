@@ -12,13 +12,14 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.core.parser;
+package org.salt.jlangchain.core.message;
 
-import org.salt.jlangchain.core.parser.generation.Generation;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.experimental.SuperBuilder;
 
-public class StrOutputParser extends BaseTransformOutputParser {
-    @Override
-    protected Generation parse(Generation generation) {
-        return generation;
-    }
+@EqualsAndHashCode(callSuper = true)
+@Data
+@SuperBuilder
+public class PlaceholderMessage extends BaseMessage {
 }

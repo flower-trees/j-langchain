@@ -22,8 +22,7 @@ public enum AiChatCode {
 
     MESSAGE("message"),
     STOP("stop"),
-    ERROR("error"),
-    COMPLETE("complete")
+    ERROR("error")
     ;
 
     private final String code;

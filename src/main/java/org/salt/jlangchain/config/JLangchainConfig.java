@@ -20,6 +20,7 @@ import org.salt.jlangchain.ai.client.stream.HttpStreamClient;
 import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 import org.salt.jlangchain.ai.vendor.chatgpt.ChatGPTActuator;
 import org.salt.jlangchain.ai.vendor.doubao.DoubaoActuator;
+import org.salt.jlangchain.ai.vendor.moonshot.MoonshotActuator;
 import org.salt.jlangchain.ai.vendor.ollama.OllamaActuator;
 import org.salt.jlangchain.core.ChainActor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,5 +70,10 @@ public class JLangchainConfig {
     @Bean
     public AliyunActuator aliyunActuator(HttpStreamClient commonHttpClient) {
         return new AliyunActuator(commonHttpClient);
+    }
+
+    @Bean
+    public MoonshotActuator moonshotActuator(HttpStreamClient commonHttpClient) {
+        return new MoonshotActuator(commonHttpClient);
     }
 }

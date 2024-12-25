@@ -51,6 +51,9 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
 
         AiChatOutput aiChatOutput = SpringContextUtil.getApplicationContext().getBean(getActuator()).invoke(aiChatInput);
 
+        if (CollectionUtils.isEmpty(aiChatOutput.getMessages())) {
+            return AIMessage.builder().content("").build();
+        }
         return AIMessage.builder().content((String) aiChatOutput.getMessages().get(0).getContent()).build();
     }
 

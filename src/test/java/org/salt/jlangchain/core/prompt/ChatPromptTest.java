@@ -20,8 +20,8 @@ import org.junit.runner.RunWith;
 import org.salt.function.flow.FlowEngine;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.BaseRunnable;
-import org.salt.jlangchain.core.prompt.chat.ChatPromptTemplate;
-import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
+import org.salt.jlangchain.core.prompt.string.PromptTemplate;
+import org.salt.jlangchain.core.prompt.value.StringPromptValue;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -40,13 +40,13 @@ public class ChatPromptTest {
     @Test
     public void ChatPromptTemplateTest() {
 
-        BaseRunnable<ChatPromptValue, Object> prompt = ChatPromptTemplate.fromTemplate("tell me a joke about ${topic}");
+        BaseRunnable<StringPromptValue, Object> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
 
-        ChatPromptValue result = prompt.invoke(Map.of("topic", "dog"));
+        StringPromptValue result = prompt.invoke(Map.of("topic", "dog"));
 
         System.out.println(result.toJson());
 
-        Assert.assertEquals("tell me a joke about dog", result.getMessages().get(0).getContent());
+        Assert.assertEquals("tell me a joke about dog", result.getText());
     }
 
 }

@@ -19,8 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import okio.BufferedSource;
 import org.apache.commons.lang3.StringUtils;
-import org.salt.jlangchain.ai.client.AiException;
 import org.salt.jlangchain.ai.chat.strategy.ListenerStrategy;
+import org.salt.jlangchain.ai.client.AiException;
 import org.salt.jlangchain.utils.JsonUtil;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.scheduling.annotation.Async;
@@ -104,24 +104,27 @@ public class HttpStreamClient implements InitializingBean {
 
                 ResponseBody responseBody = response.body();
                 if (responseBody != null) {
-                    BufferedSource source = responseBody.source();
-                    while (!source.exhausted()) {
-                        String lineComplete = source.readUtf8LineStrict();
+                    try {
+                        BufferedSource source = responseBody.source();
+                        while (!source.exhausted()) {
+                            String lineComplete = source.readUtf8LineStrict();
 
-                        if (StringUtils.isBlank(lineComplete.trim())) {
-                            continue;
+                            if (StringUtils.isBlank(lineComplete.trim())) {
+                                continue;
+                            }
+
+                            log.debug("http stream call read, data: {}", lineComplete);
+
+                            if (lineComplete.startsWith("data:")) {
+                                String content = getDateContent(lineComplete);
+                                dealContent(content, strategyList);
+                            } else if (lineComplete.startsWith("{")) {
+                                dealContent(lineComplete, strategyList);
+                            }
                         }
-
-                        log.debug("http stream call read, data: {}", lineComplete);
-
-                        if (lineComplete.startsWith("data:")) {
-                            String content = getDateContent(lineComplete);
-                            dealContent(content, strategyList);
-                        } else if (lineComplete.startsWith("{")) {
-                            dealContent(lineComplete, strategyList);
-                        }
+                    } finally {
+                        responseBody.close();
                     }
-                    responseBody.close();
                 }
             } else {
                 log.error("http stream call fail, e:response code is {}", response.code());
