@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.vendor.aliyun.param;
+package org.salt.jlangchain.ai.chat.openai.param;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
@@ -20,27 +20,30 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class AliyunRequest {
+public class OpenAIResponse {
 
+    private String id;
+    private String object;
+    private int created;
     private String model;
-    private Input input;
-    private Parameters parameters;
+    @JsonProperty("system_fingerprint")
+    private String systemFingerprint;
+    private List<Choice> choices;
 
     @Data
-    public static class Input {
-        private List<Message> messages;
-    }
+    public static class Choice {
+        private int index;
+        private Delta delta;
+        private Object logprobs;
+        @JsonProperty("finish_reason")
+        private String finishReason;
+        private Delta message;
 
-    @Data
-    public static class Parameters {
-        @JsonProperty("incremental_output")
-        private boolean incrementalOutput ;
-    }
-
-    @Data
-    public static class Message {
-        private String role;
-        private String content;
+        @Data
+        public static class Delta {
+            private String role;
+            private String content;
+        }
     }
 }
 

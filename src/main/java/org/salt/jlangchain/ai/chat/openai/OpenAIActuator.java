@@ -12,57 +12,41 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.vendor.ollama;
+package org.salt.jlangchain.ai.chat.openai;
 
+import org.salt.jlangchain.ai.chat.openai.param.OpenAIRequest;
+import org.salt.jlangchain.ai.chat.openai.param.OpenAIResponse;
 import org.salt.jlangchain.ai.chat.strategy.BaseAiChatActuator;
 import org.salt.jlangchain.ai.chat.strategy.ListenerStrategy;
 import org.salt.jlangchain.ai.client.stream.HttpStreamClient;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
-import org.salt.jlangchain.ai.vendor.ollama.param.OllamaRequest;
-import org.salt.jlangchain.ai.vendor.ollama.param.OllamaResponse;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-public class OllamaActuator extends BaseAiChatActuator<OllamaResponse, OllamaRequest> {
+public abstract class OpenAIActuator extends BaseAiChatActuator<OpenAIResponse, OpenAIRequest> {
 
-    @Value("${models.ollama.chat-url}")
-    private String chatUrl;
-
-    @Value("${models.ollama.chat-key}")
-    private String chatKey;
-
-    public OllamaActuator(HttpStreamClient commonHttpClient) {
+    public OpenAIActuator(HttpStreamClient commonHttpClient) {
         super(commonHttpClient);
     }
 
     @Override
-    protected String getChatUrl() {
-        return chatUrl;
-    }
-
-    @Override
-    protected String getChatKey() {
-        return chatKey;
-    }
-
-    @Override
     protected ListenerStrategy getListenerStrategy(AiChatInput aiChatInput, Consumer<AiChatOutput> responder, BiConsumer<AiChatInput, AiChatOutput> callback) {
-        return new OllamaListener(aiChatInput, responder, callback);
-    }
-
-    protected OllamaRequest convertRequest(AiChatInput aiChatInput) {
-        return OllamaConvert.convertRequest(aiChatInput);
+        return new OpenAIListener(aiChatInput, responder, callback);
     }
 
     @Override
-    protected AiChatOutput convertResponse(OllamaResponse response) {
-        return OllamaConvert.convertResponse(response);
+    protected OpenAIRequest convertRequest(AiChatInput aiChatInput) {
+        return OpenAIConver.convertRequest(aiChatInput);
     }
 
-    protected Class<OllamaResponse> responseType() {
-        return OllamaResponse.class;
+    @Override
+    protected AiChatOutput convertResponse(OpenAIResponse response) {
+        return OpenAIConver.convertResponse(response);
+    }
+
+    protected Class<OpenAIResponse> responseType() {
+        return OpenAIResponse.class;
     }
 }

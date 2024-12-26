@@ -17,15 +17,31 @@ package org.salt.jlangchain.config;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.function.flow.FlowEngine;
 import org.salt.jlangchain.ai.client.stream.HttpStreamClient;
+import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 import org.salt.jlangchain.ai.vendor.chatgpt.ChatGPTActuator;
+import org.salt.jlangchain.ai.vendor.doubao.DoubaoActuator;
+import org.salt.jlangchain.ai.vendor.moonshot.MoonshotActuator;
+import org.salt.jlangchain.ai.vendor.ollama.OllamaActuator;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.utils.SpringContextUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import javax.annotation.PostConstruct;
 
 @Slf4j
 @Configuration
 public class JLangchainConfig {
+
+    @Autowired
+    private ApplicationContext context;
+
+    @PostConstruct
+    void init() {
+        SpringContextUtil.setApplicationContext(context);
+    }
 
     @Bean
     public HttpStreamClient chatGPTHttpClient() {
@@ -41,15 +57,35 @@ public class JLangchainConfig {
     }
 
     @Bean
-    public ChatGPTActuator chatGPTActuator() {
-        return new ChatGPTActuator();
-    }
-
-    @Bean
     public ChainActor chain(@Autowired(required = false) FlowEngine flowEngine) {
         if (flowEngine == null) {
             throw new RuntimeException("flowEngine is null");
         }
         return new ChainActor(flowEngine);
+    }
+
+    @Bean
+    public ChatGPTActuator chatGPTActuator(HttpStreamClient chatGPTHttpClient) {
+        return new ChatGPTActuator(chatGPTHttpClient);
+    }
+
+    @Bean
+    public OllamaActuator ollamaActuator(HttpStreamClient commonHttpClient) {
+        return new OllamaActuator(commonHttpClient);
+    }
+
+    @Bean
+    public DoubaoActuator doubaoActuator(HttpStreamClient commonHttpClient) {
+        return new DoubaoActuator(commonHttpClient);
+    }
+
+    @Bean
+    public AliyunActuator aliyunActuator(HttpStreamClient commonHttpClient) {
+        return new AliyunActuator(commonHttpClient);
+    }
+
+    @Bean
+    public MoonshotActuator moonshotActuator(HttpStreamClient commonHttpClient) {
+        return new MoonshotActuator(commonHttpClient);
     }
 }

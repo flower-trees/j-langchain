@@ -24,15 +24,22 @@ public class ChainActor {
 
     FlowEngine flowEngine;
 
+    public FlowEngine.Builder builder() {
+        return flowEngine.builder();
+    }
+
     public ChainActor(FlowEngine flowEngine) {
         this.flowEngine = flowEngine;
     }
 
     public <O, I> O invoke(FlowInstance flow, I input) {
-        return flowEngine.execute(flow, input);
+        Map<String, Object> callInfo = Map.of(CallInfo.STREAM.name(), false);
+        return flowEngine.execute(flow, input, callInfo);
     }
 
     public <O, I> O invoke(FlowInstance flow, I input, Map<String, Object> transmitMap) {
+        Map<String, Object> callInfo = Map.of(CallInfo.STREAM.name(), false);
+        transmitMap.putAll(callInfo);
         return flowEngine.execute(flow, input, transmitMap);
     }
 

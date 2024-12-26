@@ -18,7 +18,7 @@ import org.salt.jlangchain.core.parser.generation.Generation;
 
 public class StrOutputParser extends BaseTransformOutputParser {
     @Override
-    protected Generation parse(Generation text) {
-        return text;
+    protected Generation parse(Generation generation) {
+        return generation;
     }
 }

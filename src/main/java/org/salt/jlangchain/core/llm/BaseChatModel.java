@@ -19,10 +19,10 @@ import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.salt.jlangchain.ai.common.enums.AiChatCode;
-import org.salt.jlangchain.ai.common.enums.RoleType;
+import org.salt.jlangchain.ai.chat.openai.RoleType;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
-import org.salt.jlangchain.ai.strategy.AiChatActuator;
+import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.message.*;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
@@ -44,16 +44,24 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
     @Override
     public AIMessage invoke(Object input) {
 
-        return null;
+        List<AiChatInput.Message> messages = convertMessage(input);
+        AiChatInput aiChatInput = AiChatInput.builder().messages(messages).stream(false).build();
+
+        otherInformation(aiChatInput);
+
+        AiChatOutput aiChatOutput = SpringContextUtil.getApplicationContext().getBean(getActuator()).invoke(aiChatInput);
+
+        if (CollectionUtils.isEmpty(aiChatOutput.getMessages())) {
+            return AIMessage.builder().content("").build();
+        }
+        return AIMessage.builder().content((String) aiChatOutput.getMessages().get(0).getContent()).build();
     }
 
     @Override
     public AIMessageChunk stream(Object input) {
 
         AIMessageChunk aiMessageChunk = new AIMessageChunk();
-
         List<AiChatInput.Message> messages = convertMessage(input);
-
         AiChatInput aiChatInput = AiChatInput.builder().messages(messages).stream(true).build();
 
         otherInformation(aiChatInput);

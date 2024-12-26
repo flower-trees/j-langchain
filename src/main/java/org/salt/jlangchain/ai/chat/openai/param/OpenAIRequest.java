@@ -12,14 +12,14 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.vendor.doubao.param;
+package org.salt.jlangchain.ai.chat.openai.param;
 
 import lombok.Data;
 
 import java.util.List;
 
 @Data
-public class DoubaoRequest {
+public class OpenAIRequest {
 
     private String model;
     private List<Message> messages;

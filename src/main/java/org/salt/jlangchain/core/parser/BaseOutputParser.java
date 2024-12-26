@@ -17,6 +17,7 @@ package org.salt.jlangchain.core.parser;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.salt.jlangchain.core.message.BaseMessage;
+import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
 import org.salt.jlangchain.core.parser.generation.Generation;
 
@@ -30,7 +31,7 @@ public abstract class BaseOutputParser extends BaseLLMOutputParser<Generation> {
         if (input instanceof String stringPrompt){
             return parseResult(List.of(new Generation(stringPrompt)));
         } else if (input instanceof BaseMessage baseMessage){
-            return parseResult(List.of(new Generation(baseMessage.getContent())));
+            return parseResult(List.of(new ChatGeneration(baseMessage)));
         } else {
             throw new RuntimeException("Unsupported input type: " + input.getClass().getName());
         }

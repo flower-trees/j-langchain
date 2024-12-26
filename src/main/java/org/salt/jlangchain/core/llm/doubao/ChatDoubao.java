@@ -12,13 +12,13 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.core.llm.openai;
+package org.salt.jlangchain.core.llm.doubao;
 
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
-import org.salt.jlangchain.ai.vendor.chatgpt.ChatGPTActuator;
+import org.salt.jlangchain.ai.vendor.doubao.DoubaoActuator;
 import org.salt.jlangchain.core.llm.BaseChatModel;
 
 import java.util.Map;
@@ -29,9 +29,9 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChatOpenAI extends BaseChatModel {
+public class ChatDoubao extends BaseChatModel {
 
-    protected String model = "gpt-4";
+    protected String model = "ep-20240611104225-2d4ww";
     protected String temperature = "0.7";
     protected Map<String, Object> modelKwargs;
 
@@ -40,8 +40,7 @@ public class ChatOpenAI extends BaseChatModel {
         aiChatInput.setModel(model);
     }
 
-    @Override
     public Class<? extends AiChatActuator> getActuator() {
-        return ChatGPTActuator.class;
+        return DoubaoActuator.class;
     }
 }

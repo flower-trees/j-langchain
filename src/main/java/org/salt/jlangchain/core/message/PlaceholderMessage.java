@@ -12,23 +12,14 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.vendor.moonshot.param;
+package org.salt.jlangchain.core.message;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.experimental.SuperBuilder;
 
-import java.util.List;
-
+@EqualsAndHashCode(callSuper = true)
 @Data
-public class MoonshotRequest {
-
-    private String model;
-    private List<Message> messages;
-    private double temperature;
-    private boolean stream;
-
-    @Data
-    public static class Message {
-        private String role;
-        private String content;
-    }
+@SuperBuilder
+public class PlaceholderMessage extends BaseMessage {
 }

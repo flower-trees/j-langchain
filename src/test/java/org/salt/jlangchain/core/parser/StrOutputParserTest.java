@@ -14,19 +14,15 @@
 
 package org.salt.jlangchain.core.parser;
 
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.salt.function.flow.FlowEngine;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.message.AIMessageChunk;
 import org.salt.jlangchain.core.message.FinishReasonType;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
 import org.salt.jlangchain.utils.SpringContextUtil;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.test.context.junit4.SpringRunner;
 
@@ -36,17 +32,6 @@ import java.util.concurrent.TimeoutException;
 @SpringBootTest(classes = TestApplication.class)
 @SpringBootConfiguration
 public class StrOutputParserTest {
-
-    @Autowired
-    FlowEngine flowEngine;
-
-    @Autowired
-    private ApplicationContext context;
-
-    @Before
-    public void init() {
-        SpringContextUtil.setApplicationContext(context);
-    }
 
     @Test
     public void streamTest() {

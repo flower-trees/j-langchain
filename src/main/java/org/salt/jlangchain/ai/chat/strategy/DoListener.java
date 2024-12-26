@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.strategy;
+package org.salt.jlangchain.ai.chat.strategy;
 
 import org.apache.commons.lang3.StringUtils;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
@@ -78,12 +78,6 @@ public abstract class DoListener implements ListenerStrategy {
     }
 
     public void onComplete() {
-
-//        if (!AiChatCode.ERROR.equalsV(response.getCode())) {
-//            AiChatOutput aiChatOutput = new AiChatOutput();
-//            aiChatOutput.setCode(AiChatCode.COMPLETE.getCode());
-//            responder.accept(aiChatOutput);
-//        }
 
         String msg = msgCache.toString();
         if (!StringUtils.isNotEmpty(msg)) {

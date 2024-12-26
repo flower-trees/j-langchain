@@ -12,62 +12,6 @@
  * limitations under the License.
  */
 
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.salt.jlangchain.ai.client.stream;
 
 import lombok.Data;
@@ -75,8 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import okio.BufferedSource;
 import org.apache.commons.lang3.StringUtils;
+import org.salt.jlangchain.ai.chat.strategy.ListenerStrategy;
 import org.salt.jlangchain.ai.client.AiException;
-import org.salt.jlangchain.ai.strategy.ListenerStrategy;
 import org.salt.jlangchain.utils.JsonUtil;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.scheduling.annotation.Async;
@@ -124,17 +68,78 @@ public class HttpStreamClient implements InitializingBean {
         okHttpClient.dispatcher().setMaxRequestsPerHost(maxConnectionsPerHost);
     }
 
-    @Async
-    public <T> void call(String url, T body, Map<String, String> headers, List<ListenerStrategy> strategyList) {
-        request(url, body, headers, strategyList);
+    public <T, R> R request(String url, T body, Map<String, String> headers, Class<R> clazz) {
+        log.debug("http request call start");
+
+        Request request = buildRequest(url, body, headers);
+
+        try (Response response = okHttpClient.newCall(request).execute()) {
+            if (response.isSuccessful() && response.body() != null) {
+                log.debug("http stream request open");
+                return JsonUtil.fromJson(response.body().string(), clazz);
+            } else {
+                throw new RuntimeException("Request failed with code: " + response.code());
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public <T> void request(String url, T body, Map<String, String> headers, List<ListenerStrategy> strategyList) {
+    @Async
+    public <T> void astream(String url, T body, Map<String, String> headers, List<ListenerStrategy> strategyList) {
+        stream(url, body, headers, strategyList);
+    }
+
+    public <T> void stream(String url, T body, Map<String, String> headers, List<ListenerStrategy> strategyList) {
 
         log.debug("http stream call start");
         strategyList.forEach(ListenerStrategy::onInit);
 
-        String headersJson = JsonUtil.toJson(headers);
+        Request request = buildRequest(url, body, headers);
+
+        try (Response response = okHttpClient.newCall(request).execute()) {
+            if (response.isSuccessful()) {
+                log.debug("http stream call open");
+                openForEach(strategyList);
+
+                ResponseBody responseBody = response.body();
+                if (responseBody != null) {
+                    try {
+                        BufferedSource source = responseBody.source();
+                        while (!source.exhausted()) {
+                            String lineComplete = source.readUtf8LineStrict();
+
+                            if (StringUtils.isBlank(lineComplete.trim())) {
+                                continue;
+                            }
+
+                            log.debug("http stream call read, data: {}", lineComplete);
+
+                            if (lineComplete.startsWith("data:")) {
+                                String content = getDateContent(lineComplete);
+                                dealContent(content, strategyList);
+                            } else if (lineComplete.startsWith("{")) {
+                                dealContent(lineComplete, strategyList);
+                            }
+                        }
+                    } finally {
+                        responseBody.close();
+                    }
+                }
+            } else {
+                log.error("http stream call fail, e:response code is {}", response.code());
+                errorForEach(strategyList, new AiException(response.code(), JsonUtil.toJson(response)));
+            }
+        } catch (IOException e) {
+            log.error("http stream call io error, e:", e);
+            errorForEach(strategyList, e);
+        } finally {
+            completeForEach(strategyList);
+        }
+    }
+
+    private <T> Request buildRequest(String url, T body, Map<String, String> headers) {
+
         String bodyJson;
         if (body instanceof String) {
             bodyJson = (String) body;
@@ -149,46 +154,9 @@ public class HttpStreamClient implements InitializingBean {
                 .post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyJson))
                 .build();
 
-        log.debug("http stream call, url:{}, headers:{}, body:{}", url, headersJson, JsonUtil.toJson(body));
+        log.debug("http stream call, url:{}, headers:{}, body:{}", url, headers, JsonUtil.toJson(body));
 
-        try {
-            Response response = okHttpClient.newCall(request).execute();
-            if (response.isSuccessful()) {
-
-                log.debug("http stream call open");
-                openForEach(strategyList);
-
-                ResponseBody responseBody = response.body();
-                if (responseBody != null) {
-                    BufferedSource source = responseBody.source();
-                    while (!source.exhausted()) {
-                        String lineComplete = source.readUtf8LineStrict();
-
-                        if (StringUtils.isBlank(lineComplete.trim())) {
-                            continue;
-                        }
-
-                        log.debug("http stream call read, data: {}", lineComplete);
-
-                        if (lineComplete.startsWith("data:")) {
-                            String content = getDateContent(lineComplete);
-                            dealContent(content, strategyList);
-                        } else {
-                            dealContent(lineComplete, strategyList);
-                        }
-                    }
-                    responseBody.close();
-                }
-            } else {
-                log.error("http stream call fail, e:response code is {}", response.code());
-                errorForEach(strategyList, new AiException(response.code(), JsonUtil.toJson(response)));
-            }
-        } catch (IOException e) {
-            log.error("http stream call io error, e:", e);
-            errorForEach(strategyList, e);
-        } finally {
-            completeForEach(strategyList);
-        }
+        return request;
     }
 
     private String getDateContent(String lineComplete) {

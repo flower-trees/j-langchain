@@ -33,4 +33,12 @@ public class BaseMessage extends Serializable {
     protected Map<String, Object> responseMetadata;
     protected Map<String, Object> additionalKwargs;
     protected String finishReason;
+
+    public static BaseMessage fromMessage(String role, String message) {
+        return switch (MessageType.fromCode(role)) {
+            case SYSTEM -> SystemMessage.builder().content(message).build();
+            case AI -> AIMessage.builder().content(message).build();
+            case HUMAN -> HumanMessage.builder().content(message).build();
+        };
+    }
 }

@@ -18,13 +18,12 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.ai.client.stream.HttpStreamClient;
-import org.salt.jlangchain.ai.strategy.ListenerStrategy;
+import org.salt.jlangchain.ai.chat.strategy.ListenerStrategy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,54 +39,107 @@ public class HttpStreamClientTest {
     HttpStreamClient commonHttpClient;
 
     @Test
-    public void chatgptCall() {
+    public void chatgptStream() {
 
         String url = "https://api.openai.com/v1/chat/completions";
 
-        String body = "{\n" +
-                "    \"model\": \"gpt-3.5-turbo\",\n" +
-                "    \"messages\": [{\"role\": \"user\", \"content\": \"Hello, how are you?\"}],\n" +
-                "    \"stream\": true\n" +
-                "  }";
+        Map<String, ?> body = Map.of(
+                "model", "gpt-3.5-turbo",
+                "messages", List.of(Map.of("role", "user", "content", "Hello, how are you?")),
+                "stream", true);
 
         String key = System.getenv("CHATGPT_KEY");
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
-        headers.put("Authorization", "Bearer " + key);
+        Map<String, String> headers = Map.of(
+                "Content-Type", "application/json",
+                "Authorization", "Bearer " + key);
 
-        chatGPTHttpClient.call(url, body, headers, List.of(new ListenerStrategyTest()));
+        chatGPTHttpClient.stream(url, body, headers, List.of(new ListenerStrategyTest()));
     }
 
     @Test
-    public void doubaoCall() {
+    public void doubaoStream() {
 
         String url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
 
-        String body = "{\n" +
-                "    \"model\": \"ep-20240611104225-2d4ww\",\n" +
-                "    \"messages\": [\n" +
-                "      {\n" +
-                "        \"role\": \"system\",\n" +
-                "        \"content\": \"你是一个天气预报助手\"\n" +
-                "      },\n" +
-                "      {\n" +
-                "        \"role\": \"user\",\n" +
-                "        \"content\": \"今天北京天气怎么样\"\n" +
-                "      }\n" +
-                "    ],\n" +
-                "    \"stream\": true\n" +
-                "  }";
+        Map<String, ?> body = Map.of(
+                "model", "ep-20240611104225-2d4ww",
+                "messages", List.of(Map.of("role", "system", "content", "You are a weather forecast assistant"), Map.of("role", "user", "content", "What's the weather like in Beijing today")),
+                "stream", true);
 
         String key = System.getenv("DOUBAO_KEY");
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
-        headers.put("Authorization", "Bearer " + key);
 
-        commonHttpClient.call(url, body, headers, List.of(new ListenerStrategyTest()));
+        Map<String, String> headers = Map.of(
+                "Content-Type", "application/json",
+                "Authorization", "Bearer " + key);
+
+        commonHttpClient.stream(url, body, headers, List.of(new ListenerStrategyTest()));
+    }
+
+    @Test
+    public void qwenStream() {
+
+        String url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
+
+        Map<String, ?> body = Map.of(
+                "model", "qwq-32b-preview",
+                    "input", Map.of("messages",
+                                    List.of(Map.of("role", "system", "content", "You are a weather forecast assistant"),
+                                            Map.of("role", "user", "content", "What's the weather like in Beijing today"))),
+                "stream", true);
+
+        String key = System.getenv("ALIYUN_KEY");
+
+        Map<String, String> headers = Map.of(
+                "Content-Type", "application/json",
+                "Authorization", "Bearer " + key,
+                "X-DashScope-SSE", "enable"
+                );
+
+        commonHttpClient.stream(url, body, headers, List.of(new ListenerStrategyTest()));
+    }
+
+    @Test
+    public void qwenOpenAIStream() {
+
+        String url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
+
+        Map<String, ?> body = Map.of(
+                "model", "qwq-32b-preview",
+                "messages", List.of(Map.of("role", "system", "content", "You are a weather forecast assistant"), Map.of("role", "user", "content", "What's the weather like in Beijing today")),
+                "stream", true);
+
+        String key = System.getenv("ALIYUN_KEY");
+
+        Map<String, String> headers = Map.of(
+                "Content-Type", "application/json",
+                "Authorization", "Bearer " + key
+        );
+
+        commonHttpClient.stream(url, body, headers, List.of(new ListenerStrategyTest()));
+    }
+
+    @Test
+    public void qwenOpenAIRequest() {
+
+        String url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
+
+        Map<String, ?> body = Map.of(
+                "model", "qwq-32b-preview",
+                "messages", List.of(Map.of("role", "system", "content", "You are a weather forecast assistant"), Map.of("role", "user", "content", "What's the weather like in Beijing today")),
+                "stream", true);
+
+        String key = System.getenv("ALIYUN_KEY");
+
+        Map<String, String> headers = Map.of(
+                "Content-Type", "application/json",
+                "Authorization", "Bearer " + key
+        );
+
+        String result = commonHttpClient.request(url, body, headers, String.class);
+        System.out.println(result);
     }
 
     static class ListenerStrategyTest implements ListenerStrategy {
-
         public void onMessage(String msg) {
             System.out.println(msg);
         }

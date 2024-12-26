@@ -12,28 +12,28 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.vendor.ollama;
+package org.salt.jlangchain.ai.chat.openai;
 
+import org.salt.jlangchain.ai.chat.openai.param.OpenAIResponse;
 import org.salt.jlangchain.ai.chat.strategy.DoListener;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
-import org.salt.jlangchain.ai.vendor.ollama.param.OllamaResponse;
 import org.salt.jlangchain.utils.JsonUtil;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-public class OllamaListener extends DoListener {
+public class OpenAIListener extends DoListener  {
 
-    public OllamaListener(AiChatInput aiChatInput, Consumer<AiChatOutput> responder, BiConsumer<AiChatInput, AiChatOutput> callback) {
-        super(aiChatInput, responder, callback);
+    public OpenAIListener(AiChatInput aiChatInput, Consumer<AiChatOutput> responder, BiConsumer<AiChatInput, AiChatOutput> completeCallback) {
+        super(aiChatInput, responder, completeCallback);
     }
 
     @Override
     protected AiChatOutput convertMsg(String msg) {
-        OllamaResponse response = JsonUtil.fromJson(msg, OllamaResponse.class);
+        OpenAIResponse response = JsonUtil.fromJson(msg, OpenAIResponse.class);
         if (response != null) {
-            return OllamaConvert.convertResponse(response);
+            return OpenAIConver.convertResponse(response);
         }
         return null;
     }

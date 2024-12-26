@@ -12,13 +12,14 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.core.llm.openai;
+package org.salt.jlangchain.ai.chat.strategy;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import org.salt.jlangchain.core.llm.BaseChatModel;
+public interface ListenerStrategy {
 
-@EqualsAndHashCode(callSuper = true)
-@Data
-public abstract class BaseChatOpenAI extends BaseChatModel {
+    default void onInit() {}
+    default void onOpen() {}
+    default void onMessage(String msg) {}
+    default void onClosed() {}
+    default void onError(Throwable t) {}
+    default void onComplete() {}
 }

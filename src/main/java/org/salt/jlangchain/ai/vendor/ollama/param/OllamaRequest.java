@@ -34,6 +34,6 @@ public class OllamaRequest {
 
     @Data
     public static class Options {
-        private double temperature;
+        private Double temperature;
     }
 }
