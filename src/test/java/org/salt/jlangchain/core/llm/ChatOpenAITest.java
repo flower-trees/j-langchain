@@ -15,18 +15,13 @@
 package org.salt.jlangchain.core.llm;
 
 import org.apache.commons.lang3.StringUtils;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.salt.function.flow.FlowEngine;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.llm.openai.ChatOpenAI;
 import org.salt.jlangchain.core.message.AIMessageChunk;
-import org.salt.jlangchain.utils.SpringContextUtil;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.concurrent.TimeoutException;
@@ -35,17 +30,6 @@ import java.util.concurrent.TimeoutException;
 @SpringBootTest(classes = TestApplication.class)
 @SpringBootConfiguration
 public class ChatOpenAITest {
-
-    @Autowired
-    FlowEngine flowEngine;
-
-    @Autowired
-    private ApplicationContext context;
-
-    @Before
-    public void init() {
-        SpringContextUtil.setApplicationContext(context);
-    }
 
     @Test
     public void streamTest() {

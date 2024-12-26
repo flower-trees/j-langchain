@@ -23,13 +23,25 @@ import org.salt.jlangchain.ai.vendor.doubao.DoubaoActuator;
 import org.salt.jlangchain.ai.vendor.moonshot.MoonshotActuator;
 import org.salt.jlangchain.ai.vendor.ollama.OllamaActuator;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.utils.SpringContextUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import javax.annotation.PostConstruct;
 
 @Slf4j
 @Configuration
 public class JLangchainConfig {
+
+    @Autowired
+    private ApplicationContext context;
+
+    @PostConstruct
+    void init() {
+        SpringContextUtil.setApplicationContext(context);
+    }
 
     @Bean
     public HttpStreamClient chatGPTHttpClient() {

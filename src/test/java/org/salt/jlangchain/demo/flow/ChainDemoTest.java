@@ -15,10 +15,8 @@
 package org.salt.jlangchain.demo.flow;
 
 import org.apache.commons.lang3.StringUtils;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.salt.function.flow.FlowEngine;
 import org.salt.function.flow.FlowInstance;
 import org.salt.function.flow.Info;
 import org.salt.jlangchain.TestApplication;
@@ -34,11 +32,9 @@ import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
 import org.salt.jlangchain.core.prompt.string.PromptTemplate;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
-import org.salt.jlangchain.utils.SpringContextUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.Map;
@@ -50,18 +46,7 @@ import java.util.concurrent.TimeoutException;
 public class ChainDemoTest {
 
     @Autowired
-    FlowEngine flowEngine;
-
-    @Autowired
     ChainActor chainActor;
-
-    @Autowired
-    private ApplicationContext context;
-
-    @Before
-    public void init() {
-        SpringContextUtil.setApplicationContext(context);
-    }
 
     @Test
     public void ChainStreamDemo() {
@@ -72,7 +57,7 @@ public class ChainDemoTest {
 
         StrOutputParser parser = new StrOutputParser();
 
-        FlowInstance chain = flowEngine.builder().next(prompt).next(oll).next(parser).build();
+        FlowInstance chain = chainActor.builder().next(prompt).next(oll).next(parser).build();
 
         ChatGenerationChunk result = chainActor.stream(chain, Map.of("topic", "dog"));
 
@@ -105,7 +90,7 @@ public class ChainDemoTest {
 
         StrOutputParser parser = new StrOutputParser();
 
-        FlowInstance chain = flowEngine.builder().next(prompt).next(
+        FlowInstance chain = chainActor.builder().next(prompt).next(
                 Info.c("vendor == null || vendor == 'ollama'", chatOllama),
                 Info.c("vendor == 'chatgpt'", chatOpenAI),
                 Info.c("vendor == 'doubao'", chatDoubao),

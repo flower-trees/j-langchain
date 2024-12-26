@@ -24,6 +24,10 @@ public class ChainActor {
 
     FlowEngine flowEngine;
 
+    public FlowEngine.Builder builder() {
+        return flowEngine.builder();
+    }
+
     public ChainActor(FlowEngine flowEngine) {
         this.flowEngine = flowEngine;
     }

@@ -15,10 +15,8 @@
 package org.salt.jlangchain.demo.flow;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.salt.function.flow.FlowEngine;
 import org.salt.function.flow.FlowInstance;
 import org.salt.function.flow.Info;
 import org.salt.function.flow.context.ContextBus;
@@ -27,6 +25,7 @@ import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.llm.ollama.ChatOllama;
+import org.salt.jlangchain.core.llm.openai.ChatOpenAI;
 import org.salt.jlangchain.core.message.AIMessage;
 import org.salt.jlangchain.core.parser.StrOutputParser;
 import org.salt.jlangchain.core.parser.generation.ChatGeneration;
@@ -36,11 +35,9 @@ import org.salt.jlangchain.core.prompt.string.PromptTemplate;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
 import org.salt.jlangchain.utils.JsonUtil;
-import org.salt.jlangchain.utils.SpringContextUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.List;
@@ -52,47 +49,56 @@ import java.util.Map;
 public class ChainBuildDemo {
 
     @Autowired
-    FlowEngine flowEngine;
-
-    @Autowired
     ChainActor chainActor;
-
-    @Autowired
-    private ApplicationContext context;
-
-    @Before
-    public void init() {
-        SpringContextUtil.setApplicationContext(context);
-    }
 
     @Test
     public void SimpleDemo() {
 
         BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
-        ChatOllama oll = ChatOllama.builder().model("qwen2.5:0.5b").build();
+        ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
 
-        FlowInstance chain = flowEngine.builder().next(prompt).next(oll).next(new StrOutputParser()).build();
+        FlowInstance chain = chainActor.builder().next(prompt).next(llm).next(new StrOutputParser()).build();
 
         ChatGeneration result = chainActor.invoke(chain, Map.of("topic", "bears"));
         System.out.println(result);
     }
 
     @Test
+    public void SwitchDemo() {
+
+        BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
+        ChatOllama chatOllama = ChatOllama.builder().model("qwen2.5:0.5b").build();
+        ChatOpenAI chatOpenAI = ChatOpenAI.builder().model("gpt-4").build();
+
+        FlowInstance chain = chainActor.builder()
+                .next(prompt)
+                .next(
+                    Info.c("vendor == 'ollama'", chatOllama),
+                    Info.c("vendor == 'chatgpt'", chatOpenAI),
+                    Info.c(input -> "sorry, I don't know how to do that")
+                )
+                .next(new StrOutputParser()).build();
+
+        Generation result = chainActor.invoke(chain, Map.of("topic", "bears", "vendor", "ollama"));
+        System.out.println(result);
+    }
+
+    @Test
     public void ComposeDemo() {
 
-        ChatOllama oll = ChatOllama.builder().model("qwen2.5:0.5b").build();
+        ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
         StrOutputParser parser = new StrOutputParser();
 
         BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
-        FlowInstance chain = flowEngine.builder().next(prompt).next(oll).next(parser).build();
+        FlowInstance chain = chainActor.builder().next(prompt).next(llm).next(parser).build();
 
         BaseRunnable<StringPromptValue, ?> analysisPrompt = PromptTemplate.fromTemplate("is this a funny joke? ${joke}");
 
-        FlowInstance analysisChain = flowEngine.builder()
+        FlowInstance analysisChain = chainActor.builder()
                 .next(chain)
                 .next(input -> Map.of("joke", ((Generation)input).getText()))
                 .next(analysisPrompt)
-                .next(oll)
+                .next(llm)
                 .next(parser).build();
 
         ChatGeneration result = chainActor.invoke(analysisChain, Map.of("topic", "bears"));
@@ -101,15 +107,15 @@ public class ChainBuildDemo {
 
     @Test
     public void ParallelDemo() {
-        ChatOllama oll = ChatOllama.builder().model("qwen2.5:0.5b").build();
+        ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
 
         BaseRunnable<StringPromptValue, ?> joke = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
         BaseRunnable<StringPromptValue, ?> poem = PromptTemplate.fromTemplate("write a 2-line poem about ${topic}");
 
-        FlowInstance jokeChain = flowEngine.builder().next(joke).next(oll).build();
-        FlowInstance poemChain = flowEngine.builder().next(poem).next(oll).build();
+        FlowInstance jokeChain = chainActor.builder().next(joke).next(llm).build();
+        FlowInstance poemChain = chainActor.builder().next(poem).next(llm).build();
 
-        FlowInstance chain = flowEngine.builder().concurrent((IResult<Map<String, String>>) (iContextBus, isTimeout) -> {
+        FlowInstance chain = chainActor.builder().concurrent((IResult<Map<String, String>>) (iContextBus, isTimeout) -> {
             AIMessage jokeResult = iContextBus.getResult(jokeChain.getFlowId());
             AIMessage poemResult = iContextBus.getResult(poemChain.getFlowId());
             return Map.of("joke", jokeResult.getContent(), "poem", poemResult.getContent());
@@ -121,7 +127,7 @@ public class ChainBuildDemo {
 
     @Test
     public void RouteDemo() {
-        ChatOllama oll = ChatOllama.builder().model("qwen2.5:0.5b").build();
+        ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
 
         BaseRunnable<StringPromptValue, Object> prompt = PromptTemplate.fromTemplate(
                 """
@@ -137,9 +143,9 @@ public class ChainBuildDemo {
                 """
         );
 
-        FlowInstance chain = flowEngine.builder().next(prompt).next(oll).next(new StrOutputParser()).build();
+        FlowInstance chain = chainActor.builder().next(prompt).next(llm).next(new StrOutputParser()).build();
 
-        FlowInstance langchainChain = flowEngine.builder().next(PromptTemplate.fromTemplate(
+        FlowInstance langchainChain = chainActor.builder().next(PromptTemplate.fromTemplate(
                 """
                 You are an expert in langchain. \
                 Always answer questions starting with "As Harrison Chase told me". \
@@ -150,7 +156,7 @@ public class ChainBuildDemo {
                 """
         )).next(ChatOllama.builder().model("qwen2.5:0.5b").build()).build();
 
-        FlowInstance anthropicChain = flowEngine.builder().next(PromptTemplate.fromTemplate(
+        FlowInstance anthropicChain = chainActor.builder().next(PromptTemplate.fromTemplate(
                 """
                 You are an expert in anthropic. \
                 Always answer questions starting with "As Dario Amodei told me". \
@@ -161,7 +167,7 @@ public class ChainBuildDemo {
                 """
         )).next(ChatOllama.builder().model("qwen2.5:0.5b").build()).build();
 
-        FlowInstance generalChain = flowEngine.builder().next(PromptTemplate.fromTemplate(
+        FlowInstance generalChain = chainActor.builder().next(PromptTemplate.fromTemplate(
                 """
                 Respond to the following question:
             
@@ -170,7 +176,7 @@ public class ChainBuildDemo {
                 """
         )).next(ChatOllama.builder().model("qwen2.5:0.5b").build()).build();
 
-        FlowInstance fullChain = flowEngine.builder()
+        FlowInstance fullChain = chainActor.builder()
                 .next(chain)
                 .next(input -> Map.of("topic", input, "question", ((Map<?, ?>)ContextBus.get().getFlowParam()).get("question")))
                 .next(
@@ -185,7 +191,7 @@ public class ChainBuildDemo {
 
     @Test
     public void DynamicDemo() {
-        ChatOllama oll = ChatOllama.builder().model("qwen2.5:0.5b").build();
+        ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
 
         String contextualizeInstructions = """
                 Convert the latest user question into a standalone question given the chat history. Don't answer the question, return the question and nothing else (no descriptive text).""";
@@ -198,11 +204,16 @@ public class ChainBuildDemo {
                 )
         );
 
-        FlowInstance contextualizeQuestion = flowEngine.builder()
+        FlowInstance contextualizeQuestion = chainActor.builder()
                 .next(contextualizePrompt)
-                .next(oll)
+                .next(llm)
                 .next(new StrOutputParser())
                 .build();
+
+        FlowInstance contextualizeIfNeeded = chainActor.builder().next(
+                Info.c("chatHistory != null", contextualizeQuestion),
+                Info.c(input -> Map.of("question", ((Map<String, String>)input).get("question")))
+        ).build();
 
         String qaInstructions =
                 """
@@ -215,12 +226,7 @@ public class ChainBuildDemo {
                 )
         );
 
-        FlowInstance contextualizeIfNeeded = flowEngine.builder().next(
-                Info.c("chatHistory != null", contextualizeQuestion),
-                Info.c(input -> Map.of("question", ((Map<String, String>)input).get("question")))
-        ).build();
-
-        FlowInstance fullChain = flowEngine.builder()
+        FlowInstance fullChain = chainActor.builder()
                 .all(
                         (iContextBus, isTimeout) -> Map.of(
                                 "question", iContextBus.getResult(contextualizeIfNeeded.getFlowId()).toString(),
@@ -229,7 +235,8 @@ public class ChainBuildDemo {
                         Info.c(input -> "egypt's population in 2024 is about 111 million").cAlias("fakeRetriever")
                 )
                 .next(qaPrompt)
-                .next(oll)
+                .next(input -> {System.out.println(JsonUtil.toJson(input)); return input;})
+                .next(llm)
                 .next(new StrOutputParser())
                 .build();
 

@@ -17,12 +17,10 @@ package org.salt.jlangchain.core.prompt;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.salt.function.flow.FlowEngine;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.prompt.string.PromptTemplate;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -33,9 +31,6 @@ import java.util.Map;
 @SpringBootTest(classes = TestApplication.class)
 @SpringBootConfiguration
 public class StringPromptTest {
-
-    @Autowired
-    FlowEngine flowEngine;
 
     @Test
     public void PromptTemplateTest() {
