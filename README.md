@@ -19,6 +19,21 @@ This project is a Java-based LangChain development framework aimed at simplifyin
 implementation 'io.github.flower-trees:j-langchain:1.0.1-preview'
 ```
 
+### Config
+
+```java
+@SpringBootApplication
+@Import(FlowConfiguration.class)
+@EnableAsync
+public class YourApplication {
+    public static void main(String[] args) {
+        ApplicationContext context = SpringApplication.run(YourApplication.class, args);
+    }
+}
+```
+💡 **Notes:**
+- need @EnableAsync
+
 ### Use
 
 ```java
