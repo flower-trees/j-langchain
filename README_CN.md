@@ -19,6 +19,20 @@
 implementation 'io.github.flower-trees:j-langchain:1.0.1-preview'
 ```
 
+### 配置
+```java
+@SpringBootApplication
+@Import(FlowConfiguration.class)
+@EnableAsync
+public class YourApplication {
+    public static void main(String[] args) {
+        ApplicationContext context = SpringApplication.run(YourApplication.class, args);
+    }
+}
+```
+💡 **Notes:**
+- 需要开启异步@EnableAsync
+
 ### 使用
 
 ```java
