@@ -16,7 +16,7 @@
 
 ### Gradle
 ```groovy
-implementation 'io.github.flower-trees:j-langchain:1.0.1-preview'
+implementation 'io.github.flower-trees:j-langchain:1.0.2-preview'
 ```
 
 ### 配置
