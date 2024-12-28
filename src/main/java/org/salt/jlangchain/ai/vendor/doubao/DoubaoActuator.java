@@ -20,10 +20,10 @@ import org.springframework.beans.factory.annotation.Value;
 
 public class DoubaoActuator extends OpenAIActuator {
 
-    @Value("${models.doubao.chat-url}")
+    @Value("${models.doubao.chat-url:https://ark.cn-beijing.volces.com/api/v3/chat/completions}")
     private String chatUrl;
 
-    @Value("${models.doubao.chat-key}")
+    @Value("${models.doubao.chat-key:${DOUBAO_KEY:}}")
     private String chatKey;
 
     public DoubaoActuator(HttpStreamClient commonHttpClient) {

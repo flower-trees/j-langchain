@@ -20,10 +20,10 @@ import org.springframework.beans.factory.annotation.Value;
 
 public class AliyunActuator extends OpenAIActuator {
 
-    @Value("${models.aliyun.chat-url}")
+    @Value("${models.aliyun.chat-url:https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}")
     private String chatUrl;
 
-    @Value("${models.aliyun.chat-key}")
+    @Value("${models.aliyun.chat-key:${ALIYUN_KEY:}}")
     private String chatKey;
 
     public AliyunActuator(HttpStreamClient commonHttpClient) {

@@ -10,7 +10,7 @@ This project is a Java-based LangChain development framework aimed at simplifyin
 <dependency>
     <groupId>io.github.flower-trees</groupId>
     <artifactId>j-langchain</artifactId>
-    <version>1.0.1-preview</version>
+    <version>1.0.2-preview</version>
 </dependency>
 ```
 
@@ -22,14 +22,18 @@ implementation 'io.github.flower-trees:j-langchain:1.0.1-preview'
 ### Config
 
 ```java
-@SpringBootApplication
-@Import(FlowConfiguration.class)
-@EnableAsync
+@Import(JLangchainConfig.class)
 public class YourApplication {
     public static void main(String[] args) {
-        ApplicationContext context = SpringApplication.run(YourApplication.class, args);
+        SpringApplication.run(YourApplication.class, args);
     }
 }
+```
+```shell
+export ALIYUN_KEY=xxx-xxx-xxx-xxx
+export CHATGPT_KEY=xxx-xxx-xxx-xxx
+export DOUBAO_KEY=xxx-xxx-xxx-xxx
+export MOONSHOT_KEY=xxx-xxx-xxx-xxx
 ```
 💡 **Notes:**
 - need @EnableAsync
