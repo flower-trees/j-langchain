@@ -28,10 +28,10 @@ import java.util.function.Consumer;
 
 public class OllamaActuator extends BaseAiChatActuator<OllamaResponse, OllamaRequest> {
 
-    @Value("${models.ollama.chat-url}")
+    @Value("${models.ollama.chat-url:http://localhost:11434/api/chat}")
     private String chatUrl;
 
-    @Value("${models.ollama.chat-key}")
+    @Value("${models.ollama.chat-key:${OLLAMA_KEY1:}}")
     private String chatKey;
 
     public OllamaActuator(HttpStreamClient commonHttpClient) {

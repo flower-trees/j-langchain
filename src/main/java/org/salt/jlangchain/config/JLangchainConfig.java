@@ -16,6 +16,7 @@ package org.salt.jlangchain.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.salt.function.flow.FlowEngine;
+import org.salt.function.flow.config.FlowConfiguration;
 import org.salt.jlangchain.ai.client.stream.HttpStreamClient;
 import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 import org.salt.jlangchain.ai.vendor.chatgpt.ChatGPTActuator;
@@ -28,11 +29,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 import javax.annotation.PostConstruct;
 
 @Slf4j
 @Configuration
+@Import(FlowConfiguration.class)
+@EnableAsync
 public class JLangchainConfig {
 
     @Autowired

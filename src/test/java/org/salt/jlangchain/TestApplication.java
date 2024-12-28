@@ -14,19 +14,15 @@
 
 package org.salt.jlangchain;
 
-import org.salt.function.flow.config.FlowConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Import;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 @SpringBootApplication(scanBasePackages = "org.salt.jlangchain")
-@Import(FlowConfiguration.class)
 @EnableAsync
 public class TestApplication {
 
     public static void main(String[] args) {
-        ApplicationContext context = SpringApplication.run(TestApplication.class, args);
+        SpringApplication.run(TestApplication.class, args);
     }
 }

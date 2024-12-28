@@ -20,10 +20,10 @@ import org.springframework.beans.factory.annotation.Value;
 
 public class ChatGPTActuator extends OpenAIActuator {
 
-    @Value("${models.chatgpt.chat-url}")
+    @Value("${models.chatgpt.chat-url:https://api.openai.com/v1/chat/completions}")
     private String chatUrl;
 
-    @Value("${models.chatgpt.chat-key}")
+    @Value("${models.chatgpt.chat-key:${CHATGPT_KEY:}}")
     private String chatKey;
 
     public ChatGPTActuator(HttpStreamClient commonHttpClient) {

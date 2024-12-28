@@ -20,10 +20,10 @@ import org.springframework.beans.factory.annotation.Value;
 
 public class MoonshotActuator extends OpenAIActuator {
 
-    @Value("${models.moonshot.chat-url}")
+    @Value("${models.moonshot.chat-url:https://api.moonshot.cn/v1/chat/completions}")
     private String chatUrl;
 
-    @Value("${models.moonshot.chat-key}")
+    @Value("${models.moonshot.chat-key:${MOONSHOT_KEY:}}")
     private String chatKey;
 
     public MoonshotActuator(HttpStreamClient commonHttpClient) {
