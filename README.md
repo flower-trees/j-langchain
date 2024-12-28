@@ -35,8 +35,6 @@ export CHATGPT_KEY=xxx-xxx-xxx-xxx
 export DOUBAO_KEY=xxx-xxx-xxx-xxx
 export MOONSHOT_KEY=xxx-xxx-xxx-xxx
 ```
-💡 **Notes:**
-- need @EnableAsync
 
 ### Use
 
