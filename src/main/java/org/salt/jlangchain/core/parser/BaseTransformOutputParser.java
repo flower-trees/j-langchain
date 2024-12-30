@@ -14,6 +14,8 @@
 
 package org.salt.jlangchain.core.parser;
 
+import org.apache.commons.lang3.StringUtils;
+import org.salt.jlangchain.core.common.Iterator;
 import org.salt.jlangchain.core.message.AIMessageChunk;
 import org.salt.jlangchain.core.message.BaseMessage;
 import org.salt.jlangchain.core.message.BaseMessageChunk;
@@ -30,33 +32,43 @@ public abstract class BaseTransformOutputParser extends BaseOutputParser {
     @Override
     protected ChatGenerationChunk transform(Object input) {
         if (input instanceof String stringPrompt) {
-            AIMessageChunk aiMessageChunk = new AIMessageChunk();
-            buildAsync(aiMessageChunk, stringPrompt);
+            BaseMessageChunk<AIMessageChunk> aiMessageChunk = buildAsync(stringPrompt);
             ChatGenerationChunk result = new ChatGenerationChunk(null);
-            transformAsync(aiMessageChunk, result);
+            transformAsync(aiMessageChunk.getIterator(), result);
             return result;
         } else if (input instanceof BaseMessageChunk<? extends BaseMessage> baseMessageChunk){
             if (baseMessageChunk instanceof AIMessageChunk){
                 ChatGenerationChunk result = new ChatGenerationChunk(null);
-                transformAsync(baseMessageChunk, result);
+                transformAsync(baseMessageChunk.getIterator(), result);
                 return result;
             } else {
                 throw new RuntimeException("Unsupported message type: " + baseMessageChunk.getClass().getName());
             }
+        } else if (input instanceof ChatGenerationChunk chatGenerationChunk){
+            ChatGenerationChunk result = new ChatGenerationChunk(null);
+            transformAsync(chatGenerationChunk.getIterator(), result);
+            return result;
         } else {
             throw new RuntimeException("Unsupported input type: " + input.getClass().getName());
         }
     }
 
-    private void transformAsync(BaseMessageChunk<? extends BaseMessage> baseMessageChunk, ChatGenerationChunk rusult) {
+    protected void transformAsync(Iterator<?> iterator, ChatGenerationChunk rusult) {
         SpringContextUtil.getApplicationContext().getBean(ThreadPoolTaskExecutor.class).execute(
                 () -> {
-                    while (baseMessageChunk.getIterator().hasNext()) {
+                    while (iterator.hasNext()) {
                         try {
-                            BaseMessage chunk = baseMessageChunk.getIterator().next();
-                            if (chunk instanceof AIMessageChunk aiMessageChunk){
-                                ChatGenerationChunk chatGenerationChunk = (ChatGenerationChunk) parseResult(List.of(new ChatGenerationChunk(aiMessageChunk)));
-                                rusult.getIterator().append(chatGenerationChunk);
+                            Object chunk = iterator.next();
+                            if (chunk instanceof AIMessageChunk aiMessageChunk) {
+                                ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(new ChatGenerationChunk(aiMessageChunk)));
+                                if (StringUtils.isNotEmpty(resultChunk.getText()) || FinishReasonType.STOP.equalsV(resultChunk.getMessage().getFinishReason())) {
+                                    rusult.getIterator().append(resultChunk);
+                                }
+                            } else if (chunk instanceof ChatGenerationChunk chatGenerationChunk) {
+                                ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(chatGenerationChunk));
+                                if (StringUtils.isNotEmpty(resultChunk.getText()) || FinishReasonType.STOP.equalsV(resultChunk.getMessage().getFinishReason())) {
+                                    rusult.getIterator().append(resultChunk);
+                                }
                             } else {
                                 throw new RuntimeException("Unsupported message type: " + chunk.getClass().getName());
                             }
@@ -68,7 +80,8 @@ public abstract class BaseTransformOutputParser extends BaseOutputParser {
         );
     }
 
-    public void buildAsync(BaseMessageChunk<AIMessageChunk> baseMessageChunk, String stringPrompt) {
+    protected BaseMessageChunk<AIMessageChunk> buildAsync(String stringPrompt) {
+        AIMessageChunk baseMessageChunk = new AIMessageChunk();
         SpringContextUtil.getApplicationContext().getBean(ThreadPoolTaskExecutor.class).execute(
                 () -> {
                     AIMessageChunk aiMessageChunk = AIMessageChunk.builder().content(stringPrompt).finishReason(FinishReasonType.STOP.getCode()).build();
@@ -79,5 +92,6 @@ public abstract class BaseTransformOutputParser extends BaseOutputParser {
                     }
                 }
         );
+        return baseMessageChunk;
     }
 }

@@ -45,6 +45,15 @@ public class JsonUtil {
         objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     }
 
+    public static boolean isValidJson(String json) {
+        try {
+            objectMapper.readTree(json);
+            return true;
+        } catch (JsonProcessingException e) {
+            return false;
+        }
+    }
+
     public static String toJson(Object o) {
         try {
             return objectMapper.writeValueAsString(o);
