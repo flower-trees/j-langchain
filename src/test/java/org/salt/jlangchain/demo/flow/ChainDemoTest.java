@@ -22,6 +22,7 @@ import org.salt.function.flow.Info;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.event.EventMessageChunk;
 import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
 import org.salt.jlangchain.core.llm.doubao.ChatDoubao;
 import org.salt.jlangchain.core.llm.moonshot.ChatMoonshot;
@@ -114,5 +115,26 @@ public class ChainDemoTest {
 
         ChatGeneration generation = chainActor.invoke(chain, Map.of("vendor", "ollama"));
         System.out.println("invoke answer:" + generation.getMessage().getContent());
+    }
+
+    @Test
+    public void EventDemo() {
+        BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
+
+        ChatOllama oll = ChatOllama.builder().model("qwen2.5:0.5b").build();
+
+        StrOutputParser parser = new StrOutputParser();
+
+        FlowInstance chain = chainActor.builder().next(prompt).next(oll).next(parser).build();
+
+        EventMessageChunk result = chainActor.streamEvent(chain, Map.of("topic", "dog"));
+
+        while (result.getIterator().hasNext()) {
+            try {
+                System.out.println(result.getIterator().next().toJson());
+            } catch (TimeoutException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }

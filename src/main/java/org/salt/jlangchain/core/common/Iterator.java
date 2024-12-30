@@ -21,7 +21,7 @@ import java.util.function.Function;
 
 public class Iterator<T> {
 
-    protected SynchronousQueue<T> queue = new SynchronousQueue<>();
+    protected SynchronousQueue<T> queue = new SynchronousQueue<>(true);
     protected volatile Boolean isLast = false;
     protected Long offerTimeout = 60000L;
     protected Long pollTimeout = 60000L;

@@ -20,12 +20,13 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.salt.jlangchain.core.common.Iterator;
+import org.salt.jlangchain.core.common.IteratorAction;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
 @SuperBuilder
 @NoArgsConstructor
-public abstract class BaseMessageChunk<T extends BaseMessage> extends BaseMessage {
+public abstract class BaseMessageChunk<T extends BaseMessage> extends BaseMessage implements IteratorAction<T> {
 
     protected Iterator<T> iterator = new Iterator<>(this::isLast);
 
@@ -35,5 +36,9 @@ public abstract class BaseMessageChunk<T extends BaseMessage> extends BaseMessag
 
     public boolean isLast() {
         return StringUtils.equals(this.getFinishReason(), FinishReasonType.STOP.getCode());
+    }
+
+    public Iterator<T> getIterator() {
+        return iterator;
     }
 }

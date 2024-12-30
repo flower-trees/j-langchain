@@ -18,6 +18,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.jlangchain.TestApplication;
+import org.salt.jlangchain.core.event.EventMessageChunk;
 import org.salt.jlangchain.core.llm.ollama.ChatOllama;
 import org.salt.jlangchain.core.message.AIMessageChunk;
 import org.springframework.boot.SpringBootConfiguration;
@@ -68,6 +69,22 @@ public class ChatOllamaTest {
             if (StringUtils.isNotEmpty(chunk.getContent())) {
                 sb.append(chunk.getContent());
                 System.out.println("answer:" + sb);
+            }
+        }
+    }
+
+    @Test
+    public void streamEventTest() {
+
+        ChatOllama oll = new ChatOllama();
+
+        EventMessageChunk result = oll.streamEvent("who are you? give me 3 words.");
+
+        while (result.getIterator().hasNext()) {
+            try {
+                System.out.println(result.getIterator().next().toJson());
+            } catch (TimeoutException e) {
+                throw new RuntimeException(e);
             }
         }
     }

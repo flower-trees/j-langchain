@@ -17,10 +17,12 @@ package org.salt.jlangchain.ai.chat.strategy;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
 
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public interface AiChatActuator {
     AiChatOutput invoke(AiChatInput aiChatInput);
     AiChatOutput stream(AiChatInput aiChatInput, Consumer<AiChatOutput> responder);
     void astream(AiChatInput aiChatInput, Consumer<AiChatOutput> responder);
+    void astream(AiChatInput aiChatInput, Consumer<AiChatOutput> responder, BiConsumer<AiChatInput, AiChatOutput> completeCallback);
 }

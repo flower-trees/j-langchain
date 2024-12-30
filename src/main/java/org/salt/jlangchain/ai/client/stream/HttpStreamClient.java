@@ -19,11 +19,11 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import okio.BufferedSource;
 import org.apache.commons.lang3.StringUtils;
+import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.ai.chat.strategy.ListenerStrategy;
 import org.salt.jlangchain.ai.client.AiException;
 import org.salt.jlangchain.utils.JsonUtil;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.scheduling.annotation.Async;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -35,6 +35,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Data
 public class HttpStreamClient implements InitializingBean {
+
+    private TheadHelper theadHelper;
 
     private OkHttpClient okHttpClient;
 
@@ -68,6 +70,10 @@ public class HttpStreamClient implements InitializingBean {
         okHttpClient.dispatcher().setMaxRequestsPerHost(maxConnectionsPerHost);
     }
 
+    public HttpStreamClient(TheadHelper theadHelper) {
+        this.theadHelper = theadHelper;
+    }
+
     public <T, R> R request(String url, T body, Map<String, String> headers, Class<R> clazz) {
         log.debug("http request call start");
 
@@ -85,9 +91,8 @@ public class HttpStreamClient implements InitializingBean {
         }
     }
 
-    @Async
     public <T> void astream(String url, T body, Map<String, String> headers, List<ListenerStrategy> strategyList) {
-        stream(url, body, headers, strategyList);
+        theadHelper.submit(() -> stream(url, body, headers, strategyList));
     }
 
     public <T> void stream(String url, T body, Map<String, String> headers, List<ListenerStrategy> strategyList) {

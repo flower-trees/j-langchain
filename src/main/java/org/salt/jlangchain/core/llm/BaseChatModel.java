@@ -18,12 +18,15 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.salt.jlangchain.ai.common.enums.AiChatCode;
+import org.salt.function.flow.context.ContextBus;
 import org.salt.jlangchain.ai.chat.openai.RoleType;
+import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
+import org.salt.jlangchain.ai.common.enums.AiChatCode;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
-import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.core.BaseRunnable;
+import org.salt.jlangchain.core.common.CallInfo;
+import org.salt.jlangchain.core.event.EventMessageChunk;
 import org.salt.jlangchain.core.message.*;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
@@ -66,10 +69,66 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
 
         otherInformation(aiChatInput);
 
+        eventStart(input);
+
         Consumer<AiChatOutput> consumer = getConsumer(aiMessageChunk);
-        SpringContextUtil.getApplicationContext().getBean(getActuator()).astream(aiChatInput, consumer);
+        SpringContextUtil.getApplicationContext().getBean(getActuator()).astream(aiChatInput, consumer, (aiChatInput1, aiChatOutput) -> {
+            eventEnd(aiChatOutput);
+        });
 
         return aiMessageChunk;
+    }
+
+    @Override
+    public EventMessageChunk streamEvent(Object input) {
+        EventMessageChunk eventMessageChunk = new EventMessageChunk();
+
+        ContextBus.create(input);
+        getContextBus().putTransmit(CallInfo.EVENT.name(), true);
+        getContextBus().putTransmit(CallInfo.EVENT_CHAIN.name(), false);
+        getContextBus().putTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name(), eventMessageChunk);
+
+        AIMessageChunk aiMessageChunk = stream(input);
+        aiMessageChunk.ignore();
+
+        return eventMessageChunk;
+    }
+
+    private void eventStart(Object input) {
+        if (getContextBus() != null) {
+            if (getContextBus().getTransmit(CallInfo.EVENT.name())) {
+                EventMessageChunk eventMessageChunk = getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name());
+                if (eventMessageChunk != null) {
+                    eventMessageChunk.asynAppend(EventMessageChunk.builder().event("on_llm_start").build());
+                }
+            }
+        }
+    }
+
+    private void eventEnd(Object Output) {
+        if (getContextBus() != null) {
+            if (getContextBus().getTransmit(CallInfo.EVENT.name())) {
+                EventMessageChunk eventMessageChunk = getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name());
+                if (eventMessageChunk != null) {
+                    EventMessageChunk chunkEnd = EventMessageChunk.builder().event("on_llm_end").build();
+                    if ((!(boolean) getContextBus().getTransmit(CallInfo.EVENT_CHAIN.name()))) {
+                        chunkEnd.setLast(true);
+                    }
+                    eventMessageChunk.asynAppend(chunkEnd);
+                }
+            }
+        }
+    }
+
+    private void eventStream(AIMessageChunk chunk) {
+        if (getContextBus() != null) {
+            if (getContextBus().getTransmit(CallInfo.EVENT.name())) {
+                EventMessageChunk eventMessageChunk = getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name());
+                if (eventMessageChunk != null) {
+                    eventMessageChunk.asynAppend(EventMessageChunk.builder().event("on_llm_stream").build());
+                }
+            }
+        }
     }
 
     public abstract void otherInformation(AiChatInput aiChatInput);
@@ -116,6 +175,9 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
             if (StringUtils.equals(aiChatOutput.getCode(), AiChatCode.STOP.getCode())) {
                 chunk.setFinishReason(FinishReasonType.STOP.getCode());
             }
+
+            eventStream(chunk);
+
             try {
                 aiMessageChunk.getIterator().append(chunk);
             } catch (TimeoutException e) {

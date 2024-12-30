@@ -17,12 +17,14 @@ package org.salt.jlangchain.core.parser.generation;
 import lombok.Getter;
 import lombok.Setter;
 import org.salt.jlangchain.core.common.Iterator;
+import org.salt.jlangchain.core.common.IteratorAction;
 import org.salt.jlangchain.core.message.BaseMessageChunk;
 
 @Setter
 @Getter
-public class ChatGenerationChunk extends ChatGeneration {
+public class ChatGenerationChunk extends ChatGeneration implements IteratorAction<ChatGenerationChunk> {
 
+    @Getter
     protected Iterator<ChatGenerationChunk> iterator = new Iterator<>(this::isLast);
     protected boolean isLast = false;
 
