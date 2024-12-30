@@ -15,6 +15,7 @@
 package org.salt.jlangchain.core.parser;
 
 import org.apache.commons.lang3.StringUtils;
+import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.core.common.Iterator;
 import org.salt.jlangchain.core.message.AIMessageChunk;
 import org.salt.jlangchain.core.message.BaseMessage;
@@ -22,7 +23,6 @@ import org.salt.jlangchain.core.message.BaseMessageChunk;
 import org.salt.jlangchain.core.message.FinishReasonType;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
 import org.salt.jlangchain.utils.SpringContextUtil;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -54,7 +54,7 @@ public abstract class BaseTransformOutputParser extends BaseOutputParser {
     }
 
     protected void transformAsync(Iterator<?> iterator, ChatGenerationChunk rusult) {
-        SpringContextUtil.getApplicationContext().getBean(ThreadPoolTaskExecutor.class).execute(
+        SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(
                 () -> {
                     while (iterator.hasNext()) {
                         try {
@@ -82,16 +82,7 @@ public abstract class BaseTransformOutputParser extends BaseOutputParser {
 
     protected BaseMessageChunk<AIMessageChunk> buildAsync(String stringPrompt) {
         AIMessageChunk baseMessageChunk = new AIMessageChunk();
-        SpringContextUtil.getApplicationContext().getBean(ThreadPoolTaskExecutor.class).execute(
-                () -> {
-                    AIMessageChunk aiMessageChunk = AIMessageChunk.builder().content(stringPrompt).finishReason(FinishReasonType.STOP.getCode()).build();
-                    try {
-                        baseMessageChunk.getIterator().append(aiMessageChunk);
-                    } catch (TimeoutException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-        );
+        baseMessageChunk.asynAppend(AIMessageChunk.builder().content(stringPrompt).finishReason(FinishReasonType.STOP.getCode()).build());
         return baseMessageChunk;
     }
 }

@@ -16,6 +16,7 @@ package org.salt.jlangchain.core.parser;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.message.AIMessageChunk;
 import org.salt.jlangchain.core.message.FinishReasonType;
@@ -23,7 +24,6 @@ import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
 import org.salt.jlangchain.utils.SpringContextUtil;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.concurrent.TimeoutException;
@@ -57,7 +57,7 @@ public class StrOutputParserTest {
 
         AIMessageChunk aiMessageChunk = new AIMessageChunk();
 
-        SpringContextUtil.getApplicationContext().getBean(ThreadPoolTaskExecutor.class).execute(
+        SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(
                 () -> {
                     String stringPrompt = "who are you? give me 3 words.";
                     String[] words = stringPrompt.split("\\s+");

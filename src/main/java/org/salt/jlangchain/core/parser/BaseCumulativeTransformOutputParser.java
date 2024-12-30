@@ -15,12 +15,12 @@
 package org.salt.jlangchain.core.parser;
 
 import org.apache.commons.lang3.StringUtils;
+import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.core.common.Iterator;
 import org.salt.jlangchain.core.message.AIMessageChunk;
 import org.salt.jlangchain.core.message.FinishReasonType;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
 import org.salt.jlangchain.utils.SpringContextUtil;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -28,7 +28,7 @@ import java.util.concurrent.TimeoutException;
 public abstract class BaseCumulativeTransformOutputParser extends BaseTransformOutputParser {
 
     protected void transformAsync(Iterator<?> iterator, ChatGenerationChunk rusult) {
-        SpringContextUtil.getApplicationContext().getBean(ThreadPoolTaskExecutor.class).execute(
+        SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(
                 () -> {
                     StringBuilder cumulate = new StringBuilder();
                     while (iterator.hasNext()) {
