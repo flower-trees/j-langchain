@@ -14,13 +14,16 @@
 
 package org.salt.jlangchain.core.message;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.salt.jlangchain.core.common.Iterator;
 import org.salt.jlangchain.core.common.IteratorAction;
+import org.salt.jlangchain.utils.GroceryUtil;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -28,7 +31,14 @@ import org.salt.jlangchain.core.common.IteratorAction;
 @NoArgsConstructor
 public abstract class BaseMessageChunk<T extends BaseMessage> extends BaseMessage implements IteratorAction<T> {
 
+    @Getter
+    @JsonIgnore
     protected Iterator<T> iterator = new Iterator<>(this::isLast);
+
+    @JsonIgnore
+    protected StringBuilder cumulate = new StringBuilder();
+    @JsonIgnore
+    protected String id = GroceryUtil.generateId();
 
     private boolean isLast(T chunk) {
         return StringUtils.equals(chunk.getFinishReason(), FinishReasonType.STOP.getCode());
@@ -38,7 +48,9 @@ public abstract class BaseMessageChunk<T extends BaseMessage> extends BaseMessag
         return StringUtils.equals(this.getFinishReason(), FinishReasonType.STOP.getCode());
     }
 
-    public Iterator<T> getIterator() {
-        return iterator;
+    public BaseMessageChunk<T> add(T chunk) {
+        this.cumulate.append(chunk.getContent());
+        this.content = this.cumulate.toString();
+        return this;
     }
 }

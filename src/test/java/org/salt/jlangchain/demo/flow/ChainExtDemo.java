@@ -118,7 +118,6 @@ public class ChainExtDemo {
 
     Set<Object> set = new HashSet<>();
     private String extractCountryNamesStreaming(String chunk) {
-        //System.out.println("extractCountryNamesStreaming: " + chunk);
         if (JsonUtil.isValidJson(chunk)) {
             Map chunkMap = JsonUtil.fromJson(chunk, Map.class);
             if (chunkMap != null && chunkMap.get("countries") != null) {

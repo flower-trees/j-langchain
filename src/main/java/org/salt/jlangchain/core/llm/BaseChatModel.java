@@ -26,6 +26,7 @@ import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.common.CallInfo;
+import org.salt.jlangchain.core.event.EventAction;
 import org.salt.jlangchain.core.event.EventMessageChunk;
 import org.salt.jlangchain.core.message.*;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
@@ -35,7 +36,9 @@ import org.salt.jlangchain.utils.SpringContextUtil;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
@@ -43,6 +46,12 @@ import java.util.function.Consumer;
 @EqualsAndHashCode(callSuper = true)
 @Data
 public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
+
+    Map<String, Object> config = Map.of(
+            "run_name", this.getClass().getSimpleName(),
+            "tags", List.of()
+    );
+    EventAction eventAction = new EventAction("llm");
 
     @Override
     public AIMessage invoke(Object input) {
@@ -69,12 +78,8 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
 
         otherInformation(aiChatInput);
 
-        eventStart(input);
-
         Consumer<AiChatOutput> consumer = getConsumer(aiMessageChunk);
-        SpringContextUtil.getApplicationContext().getBean(getActuator()).astream(aiChatInput, consumer, (aiChatInput1, aiChatOutput) -> {
-            eventEnd(aiChatOutput);
-        });
+        SpringContextUtil.getApplicationContext().getBean(getActuator()).astream(aiChatInput, consumer);
 
         return aiMessageChunk;
     }
@@ -92,43 +97,6 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
         aiMessageChunk.ignore();
 
         return eventMessageChunk;
-    }
-
-    private void eventStart(Object input) {
-        if (getContextBus() != null) {
-            if (getContextBus().getTransmit(CallInfo.EVENT.name())) {
-                EventMessageChunk eventMessageChunk = getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name());
-                if (eventMessageChunk != null) {
-                    eventMessageChunk.asynAppend(EventMessageChunk.builder().event("on_llm_start").build());
-                }
-            }
-        }
-    }
-
-    private void eventEnd(Object Output) {
-        if (getContextBus() != null) {
-            if (getContextBus().getTransmit(CallInfo.EVENT.name())) {
-                EventMessageChunk eventMessageChunk = getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name());
-                if (eventMessageChunk != null) {
-                    EventMessageChunk chunkEnd = EventMessageChunk.builder().event("on_llm_end").build();
-                    if ((!(boolean) getContextBus().getTransmit(CallInfo.EVENT_CHAIN.name()))) {
-                        chunkEnd.setLast(true);
-                    }
-                    eventMessageChunk.asynAppend(chunkEnd);
-                }
-            }
-        }
-    }
-
-    private void eventStream(AIMessageChunk chunk) {
-        if (getContextBus() != null) {
-            if (getContextBus().getTransmit(CallInfo.EVENT.name())) {
-                EventMessageChunk eventMessageChunk = getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name());
-                if (eventMessageChunk != null) {
-                    eventMessageChunk.asynAppend(EventMessageChunk.builder().event("on_llm_stream").build());
-                }
-            }
-        }
     }
 
     public abstract void otherInformation(AiChatInput aiChatInput);
@@ -176,7 +144,12 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
                 chunk.setFinishReason(FinishReasonType.STOP.getCode());
             }
 
-            eventStream(chunk);
+            eventAction.eventStream(chunk, aiMessageChunk.getId(), config);
+            aiMessageChunk.add(chunk);
+
+            if (FinishReasonType.STOP.equalsV(chunk.getFinishReason())) {
+                eventAction.eventEnd(aiMessageChunk, aiMessageChunk.getId(), config);
+            }
 
             try {
                 aiMessageChunk.getIterator().append(chunk);
@@ -186,4 +159,10 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
         };
     }
 
+    public BaseChatModel withConfig(Map<String, Object> config) {
+        Map<String, Object> map = new HashMap<>(this.config);
+        map.putAll(config);
+        this.config = map;
+        return this;
+    }
 }

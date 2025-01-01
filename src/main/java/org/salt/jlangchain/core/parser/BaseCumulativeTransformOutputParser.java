@@ -27,27 +27,41 @@ import java.util.concurrent.TimeoutException;
 
 public abstract class BaseCumulativeTransformOutputParser extends BaseTransformOutputParser {
 
-    protected void transformAsync(Iterator<?> iterator, ChatGenerationChunk rusult) {
+    protected void transformAsync(Object input, Iterator<?> iterator, ChatGenerationChunk rusult) {
         SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(
-                () -> {
-                    StringBuilder cumulate = new StringBuilder();
+            () -> {
+                    eventAction.eventStart(input, rusult.getId(), config);
                     while (iterator.hasNext()) {
                         try {
                             Object chunk = iterator.next();
+                            eventAction.eventStream(chunk, rusult.getId(), config);
                             if (chunk instanceof AIMessageChunk aiMessageChunk) {
-                                cumulate.append(aiMessageChunk.getContent());
-                                aiMessageChunk.setContent(cumulate.toString());
+                                AIMessageChunk aiMessageChunkInput = (AIMessageChunk) input;
+                                aiMessageChunk.setContent(aiMessageChunkInput.getCumulate().toString());
                                 ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(new ChatGenerationChunk(aiMessageChunk)));
                                 if (StringUtils.isNotEmpty(resultChunk.getText()) || FinishReasonType.STOP.equalsV(resultChunk.getMessage().getFinishReason())) {
+                                    rusult.setCumulate(new StringBuilder(resultChunk.getText()));
                                     rusult.getIterator().append(resultChunk);
                                 }
-                            } else {
+                            } else if (chunk instanceof ChatGenerationChunk chatGenerationChunk) {
+                                ChatGenerationChunk chatGenerationChunkInput = (ChatGenerationChunk) input;
+                                chatGenerationChunk.setText(chatGenerationChunkInput.getCumulate().toString());
+                                if (chatGenerationChunk.getMessage() != null) {
+                                    chatGenerationChunk.getMessage().setContent(chatGenerationChunkInput.getCumulate().toString());
+                                }
+                                ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(chatGenerationChunk));
+                                if (StringUtils.isNotEmpty(resultChunk.getText()) || FinishReasonType.STOP.equalsV(resultChunk.getMessage().getFinishReason())) {
+                                    rusult.setCumulate(new StringBuilder(resultChunk.getText()));
+                                    rusult.getIterator().append(resultChunk);
+                                }
+                            }else {
                                 throw new RuntimeException("Unsupported message type: " + chunk.getClass().getName());
                             }
                         } catch (TimeoutException e) {
                             throw new RuntimeException(e);
                         }
                     }
+                    eventAction.eventEnd(rusult, rusult.getId(), config);
                 }
         );
     }

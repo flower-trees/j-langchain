@@ -16,6 +16,9 @@ package org.salt.jlangchain.core.parser;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.salt.function.flow.context.ContextBus;
+import org.salt.jlangchain.core.common.CallInfo;
+import org.salt.jlangchain.core.event.EventMessageChunk;
 import org.salt.jlangchain.core.message.BaseMessage;
 import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
@@ -27,6 +30,7 @@ import java.util.List;
 @Data
 public abstract class BaseOutputParser extends BaseLLMOutputParser<Generation> {
 
+    @Override
     public Generation invoke(Object input) {
         if (input instanceof String stringPrompt){
             return parseResult(List.of(new Generation(stringPrompt)));
@@ -37,8 +41,24 @@ public abstract class BaseOutputParser extends BaseLLMOutputParser<Generation> {
         }
     }
 
+    @Override
     public ChatGenerationChunk stream(Object input) {
         return transform(input);
+    }
+
+    @Override
+    public EventMessageChunk streamEvent(Object input) {
+        EventMessageChunk eventMessageChunk = new EventMessageChunk();
+
+        ContextBus.create(input);
+        getContextBus().putTransmit(CallInfo.EVENT.name(), true);
+        getContextBus().putTransmit(CallInfo.EVENT_CHAIN.name(), false);
+        getContextBus().putTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name(), eventMessageChunk);
+
+        ChatGenerationChunk chunk = stream(input);
+        chunk.ignore();
+
+        return eventMessageChunk;
     }
 
     @Override

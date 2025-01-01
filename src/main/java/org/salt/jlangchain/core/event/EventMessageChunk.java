@@ -19,6 +19,7 @@ import org.salt.jlangchain.core.Serializable;
 import org.salt.jlangchain.core.common.Iterator;
 import org.salt.jlangchain.core.common.IteratorAction;
 
+import java.util.List;
 import java.util.Map;
 
 @Setter
@@ -32,6 +33,8 @@ public class EventMessageChunk extends Serializable implements IteratorAction<Ev
     Map<String, Object> data;
     String name;
     String runId;
+    Map<String, Object> metadata;
+    List<String> tags;
 
     protected Iterator<EventMessageChunk> iterator = new Iterator<>(this::isLast);
     protected boolean isLast = false;

@@ -18,6 +18,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.TestApplication;
+import org.salt.jlangchain.core.event.EventMessageChunk;
 import org.salt.jlangchain.core.message.AIMessageChunk;
 import org.salt.jlangchain.core.message.FinishReasonType;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
@@ -87,4 +88,18 @@ public class StrOutputParserTest {
         }
     }
 
+    @Test
+    public void streamEventTest() {
+        StrOutputParser parser = new StrOutputParser();
+
+        EventMessageChunk result = parser.streamEvent("who are you? give me 3 words.");
+
+        while (result.getIterator().hasNext()) {
+            try {
+                System.out.println(result.getIterator().next().toJson());
+            } catch (TimeoutException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 }

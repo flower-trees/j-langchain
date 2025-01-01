@@ -20,9 +20,12 @@ import org.salt.function.flow.FlowEngine;
 import org.salt.function.flow.FlowInstance;
 import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.common.IteratorAction;
+import org.salt.jlangchain.core.event.EventAction;
 import org.salt.jlangchain.core.event.EventMessageChunk;
+import org.salt.jlangchain.utils.GroceryUtil;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -79,7 +82,16 @@ public class ChainActor {
 
         EventMessageChunk eventMessageChunk = new EventMessageChunk();
 
-        eventMessageChunk.asynAppend(EventMessageChunk.builder().event("on_chain_start").build());
+        String chainId = GroceryUtil.generateId();
+
+        EventAction eventAction = new EventAction("chain");
+
+        Map<String, Object> config = Map.of(
+                "run_name", this.getClass().getSimpleName(),
+                "tags", List.of()
+        );
+
+        eventAction.eventStart(eventMessageChunk, input, chainId, config);
 
         Map<String, Object> callInfo = Map.of(
                 CallInfo.STREAM.name(), true,
@@ -88,7 +100,10 @@ public class ChainActor {
                 CallInfo.EVENT_MESSAGE_CHUNK.name(), eventMessageChunk);
         paramMap.putAll(callInfo);
         IteratorAction<?> iteratorAction = flowEngine.execute(flow, input, paramMap);
-        iteratorAction.ignore(intput -> eventMessageChunk.asynAppend(EventMessageChunk.builder().event("on_chain_end").isLast(true).build()));
+        iteratorAction.ignore(
+                streamInput -> eventAction.eventStream(eventMessageChunk, streamInput, chainId, config),
+                streamOutput -> eventAction.eventEnd(eventMessageChunk, streamOutput, chainId, config, true)
+        );
 
         return eventMessageChunk;
     }

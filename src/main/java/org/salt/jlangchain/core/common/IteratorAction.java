@@ -20,16 +20,28 @@ public interface IteratorAction<T> {
     }
 
     default void ignore(Consumer<T> callback) {
+        ignore( null, callback);
+    }
+
+    default void ignore(Consumer<T> action, Consumer<T> callback) {
         SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(() -> {
-            while (getIterator().hasNext()) {
-                try {
-                    log.debug("ignore message: {}", JsonUtil.toJson(getIterator().next()));
-                } catch (TimeoutException e) {
-                    throw new RuntimeException(e);
+            try {
+                while (getIterator().hasNext()) {
+                    try {
+                        T t = getIterator().next();
+                        log.debug("ignore message: {}", JsonUtil.toJson(t));
+                        if (action != null) {
+                            action.accept(t);
+                        }
+                    } catch (TimeoutException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
-            }
-            if (callback != null) {
-                callback.accept(null);
+                if (callback != null) {
+                    callback.accept((T) this);
+                }
+            } catch (Exception e) {
+                log.warn("ignore error", e);
             }
         });
     }
@@ -38,10 +50,13 @@ public interface IteratorAction<T> {
         SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(() -> {
             try {
                 getIterator().append(t);
-            } catch (TimeoutException e) {
+            } catch (Exception e) {
                 log.warn("asynAppend error", e);
-                throw new RuntimeException(e);
             }
         });
+    }
+
+    default StringBuilder getCumulate() {
+        return new StringBuilder();
     }
 }
