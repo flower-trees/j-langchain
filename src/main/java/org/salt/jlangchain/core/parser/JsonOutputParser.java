@@ -14,14 +14,17 @@
 
 package org.salt.jlangchain.core.parser;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
 import org.salt.jlangchain.core.parser.generation.Generation;
+import org.salt.jlangchain.utils.JsonUtil;
 
 import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@Slf4j
 public class JsonOutputParser extends BaseCumulativeTransformOutputParser {
     @Override
     protected Generation parse(Generation input) {
@@ -32,7 +35,7 @@ public class JsonOutputParser extends BaseCumulativeTransformOutputParser {
             }
             String trimmedInput = chatGenerationChunk.getMessage().getContent().trim();
             if (isJson(trimmedInput)) {
-                String text = parsePartialJson(replaceNewLine(trimmedInput));
+                String text = JsonUtil.compactJson(parsePartialJson(trimmedInput));
                 chatGenerationChunk.getMessage().setContent(text);
                 chatGenerationChunk.setText(text);
                 return chatGenerationChunk;
@@ -44,7 +47,7 @@ public class JsonOutputParser extends BaseCumulativeTransformOutputParser {
                 chatGenerationChunk.setText("");
                 return chatGenerationChunk;
             }
-            String text = parsePartialJson(replaceNewLine(json));
+            String text = JsonUtil.compactJson(parsePartialJson(json));
             chatGenerationChunk.getMessage().setContent(text);
             chatGenerationChunk.setText(text);
             return chatGenerationChunk;
@@ -62,17 +65,6 @@ public class JsonOutputParser extends BaseCumulativeTransformOutputParser {
         char firstChar = trimmedInput.charAt(0);
 
         return firstChar == '{' || firstChar == '[';
-    }
-
-    private static String replaceNewLine(String input) {
-        if (input == null) {
-            return "";
-        }
-
-        input = input.replace("\n", "");
-        input = input.replace("\t", "");
-        input = input.replaceAll("\\s+", " ");
-        return input;
     }
 
     public static String parsePartialJson(String json) {

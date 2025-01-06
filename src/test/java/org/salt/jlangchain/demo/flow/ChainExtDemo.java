@@ -65,24 +65,26 @@ public class ChainExtDemo {
     @Test
     public void ChainStreamDemo() throws TimeoutException, InterruptedException {
 
-        BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
         ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
 
-        FlowInstance chain = chainActor.builder().next(prompt).next(llm).next(new StrOutputParser()).build();
+        BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
+        StrOutputParser parser = new StrOutputParser();
 
-        ChatGenerationChunk chunk = chainActor.stream(chain, Map.of("topic", "bears"));
+        FlowInstance chain = chainActor.builder().next(prompt).next(llm).next(parser).build();
+
+        ChatGenerationChunk chunk = chainActor.stream(chain, Map.of("topic", "parrot"));
         StringBuilder sb = new StringBuilder();
         while (chunk.getIterator().hasNext()) {
             sb.append(chunk.getIterator().next()).append("|");
-            System.out.println();
+            System.out.println(sb);
             Thread.sleep(100);
         }
     }
 
     @Test
     public void InputDemo() throws TimeoutException, InterruptedException {
-        ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
-        FlowInstance chain = chainActor.builder().next(llm).next(new JsonOutputParser()).build();
+        ChatOllama model = ChatOllama.builder().model("qwen2.5:0.5b").build();
+        FlowInstance chain = chainActor.builder().next(model).next(new JsonOutputParser()).build();
         ChatGenerationChunk chunk = chainActor.stream(chain, "output a list of countries and their populations in JSON format. limit 3 countries.");
         while (chunk.getIterator().hasNext()) {
             System.out.println(chunk.getIterator().next());

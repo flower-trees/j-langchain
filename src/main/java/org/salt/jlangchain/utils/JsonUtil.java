@@ -114,4 +114,13 @@ public class JsonUtil {
             return new HashMap<>();
         }
     }
+
+    public static String compactJson(String prettyJson) {
+        try {
+            Object jsonObject = objectMapper.readValue(prettyJson, Object.class);
+            return objectMapper.writeValueAsString(jsonObject);
+        } catch (JsonProcessingException e) {
+            return "";
+        }
+    }
 }
