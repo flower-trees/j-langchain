@@ -55,7 +55,7 @@ public class ChainDemoTest {
     ChainActor chainActor;
 
     @Test
-    public void ChainStreamDemo() {
+    public void ChainStreamDemo() throws TimeoutException {
 
         BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
 
@@ -70,12 +70,7 @@ public class ChainDemoTest {
         StringBuilder sb = new StringBuilder();
 
         while (result.getIterator().hasNext()) {
-            ChatGenerationChunk chunk = null;
-            try {
-                chunk = result.getIterator().next();
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+            ChatGenerationChunk chunk = result.getIterator().next();
             if (StringUtils.isNotEmpty(chunk.toString())) {
                 sb.append(chunk);
                 System.out.println("answer:" + sb);
@@ -84,7 +79,7 @@ public class ChainDemoTest {
     }
 
     @Test
-    public void ChainSwitchDemo() {
+    public void ChainSwitchDemo() throws TimeoutException {
 
         BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("who are you?");
 
@@ -109,13 +104,9 @@ public class ChainDemoTest {
         StringBuilder sb = new StringBuilder();
 
         while (result.getIterator().hasNext()) {
-            try {
-                ChatGenerationChunk chunk = result.getIterator().next();
-                sb.append(chunk);
-                System.out.println("answer:" + sb);
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+            ChatGenerationChunk chunk = result.getIterator().next();
+            sb.append(chunk);
+            System.out.println("answer:" + sb);
         }
 
         ChatGeneration generation = chainActor.invoke(chain, Map.of("vendor", "ollama"));
@@ -123,7 +114,7 @@ public class ChainDemoTest {
     }
 
     @Test
-    public void EventChainDemo() {
+    public void EventChainDemo() throws TimeoutException {
         BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
 
         ChatOllama oll = ChatOllama.builder().model("qwen2.5:0.5b").build();
@@ -135,16 +126,12 @@ public class ChainDemoTest {
         EventMessageChunk chunk = chainActor.streamEvent(chain, Map.of("topic", "dog"));
 
         while (chunk.getIterator().hasNext()) {
-            try {
-                System.out.println(chunk.getIterator().next().toJson());
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+            System.out.println(chunk.getIterator().next().toJson());
         }
     }
 
     @Test
-    public void OutputFunctionDemo() {
+    public void OutputFunctionDemo() throws TimeoutException {
         ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
 
         FlowInstance chain = chainActor.builder()
@@ -159,11 +146,7 @@ public class ChainDemoTest {
         "Each country should have the key `name` and `population`""");
 
         while (chunk.getIterator().hasNext()) {
-            try {
-                System.out.println(chunk.getIterator().next().toJson());
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+            System.out.println(chunk.getIterator().next().toJson());
         }
     }
 

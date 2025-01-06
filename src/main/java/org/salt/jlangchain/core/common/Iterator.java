@@ -43,11 +43,11 @@ public class Iterator<T> {
         }
     }
 
-    public T next() throws TimeoutException {
+    public T next() {
         return nextChunk;
     }
 
-    public boolean hasNext() {
+    public boolean hasNext() throws TimeoutException {
         if (isLast) {
             return false;
         }

@@ -35,24 +35,20 @@ import java.util.concurrent.TimeoutException;
 public class StrOutputParserTest {
 
     @Test
-    public void streamTest() {
+    public void streamTest() throws TimeoutException {
 
         StrOutputParser parser = new StrOutputParser();
 
         ChatGenerationChunk result = parser.stream("who are you? give me 3 words.");
 
         while (result.getIterator().hasNext()) {
-            try {
-                ChatGenerationChunk chunk = result.getIterator().next();
-                System.out.println("chunk: " + chunk);
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+            ChatGenerationChunk chunk = result.getIterator().next();
+            System.out.println("chunk: " + chunk);
         }
     }
 
     @Test
-    public void streamBaseMessageTest() {
+    public void streamBaseMessageTest() throws TimeoutException {
 
         StrOutputParser parser = new StrOutputParser();
 
@@ -79,27 +75,19 @@ public class StrOutputParserTest {
         ChatGenerationChunk result = parser.stream(aiMessageChunk);
 
         while (result.getIterator().hasNext()) {
-            try {
-                ChatGenerationChunk chunk = result.getIterator().next();
-                System.out.println("chunk: " + chunk);
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+            ChatGenerationChunk chunk = result.getIterator().next();
+            System.out.println("chunk: " + chunk);
         }
     }
 
     @Test
-    public void streamEventTest() {
+    public void streamEventTest() throws TimeoutException  {
         StrOutputParser parser = new StrOutputParser();
 
         EventMessageChunk result = parser.streamEvent("who are you? give me 3 words.");
 
         while (result.getIterator().hasNext()) {
-            try {
-                System.out.println(result.getIterator().next().toJson());
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+            System.out.println(result.getIterator().next().toJson());
         }
     }
 }

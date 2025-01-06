@@ -69,8 +69,8 @@ public abstract class BaseTransformOutputParser extends BaseOutputParser {
         SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(
             () -> {
                 eventAction.eventStart(input, config);
-                while (iterator.hasNext()) {
-                    try {
+                try {
+                    while (iterator.hasNext()) {
                         Object chunk = iterator.next();
                         log.debug("chunk: {}", JsonUtil.toJson(chunk));
                         if (chunk instanceof AIMessageChunk aiMessageChunk) {
@@ -90,9 +90,10 @@ public abstract class BaseTransformOutputParser extends BaseOutputParser {
                         } else {
                             throw new RuntimeException("Unsupported message type: " + chunk.getClass().getName());
                         }
-                    } catch (TimeoutException e) {
-                        throw new RuntimeException(e);
                     }
+                } catch (TimeoutException e) {
+                    log.error("transformAsync timeout:", e);
+                    throw new RuntimeException(e);
                 }
                 eventAction.eventEnd(rusult, config);
             }

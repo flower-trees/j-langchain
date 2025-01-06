@@ -7,7 +7,6 @@ import org.salt.jlangchain.utils.SpringContextUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 public interface IteratorAction<T> {
@@ -28,14 +27,10 @@ public interface IteratorAction<T> {
         SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(() -> {
             try {
                 while (getIterator().hasNext()) {
-                    try {
-                        T t = getIterator().next();
-                        log.debug("ignore message: {}", JsonUtil.toJson(t));
-                        if (action != null) {
-                            action.accept(t);
-                        }
-                    } catch (TimeoutException e) {
-                        throw new RuntimeException(e);
+                    T t = getIterator().next();
+                    log.debug("ignore message: {}", JsonUtil.toJson(t));
+                    if (action != null) {
+                        action.accept(t);
                     }
                 }
                 if (callback != null) {
