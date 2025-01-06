@@ -60,11 +60,10 @@ public class ChainBuildDemo {
 - 系统基于salt-function-flow流程编排框架开发，具体语法可 [参考](https://github.com/flower-trees/salt-function-flow)。
 - 目前系统暂只提供预览版。
 
-## 调用链
+## 调用链构建
 
-### 构建
+### 分支路由
 
-#### 分支路由
 ```java
 public void SwitchDemo() {
 
@@ -86,7 +85,8 @@ public void SwitchDemo() {
 }
 ```
 
-#### 组合嵌套
+### 组合嵌套
+
 ```java
 public void ComposeDemo() {
 
@@ -110,7 +110,8 @@ public void ComposeDemo() {
     }
 ```
 
-#### 并行执行
+### 并行执行
+
 ```java
 public void ParallelDemo() {
         ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
@@ -133,7 +134,8 @@ public void ParallelDemo() {
     }
 ```
 
-#### 动态路由
+### 动态路由
+
 ```java
 public void RouteDemo() {
         ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
@@ -199,7 +201,8 @@ public void RouteDemo() {
     }
 ```
 
-#### 动态构建
+### 动态构建
+
 ```java
 public void DynamicDemo() {
         ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
@@ -263,4 +266,239 @@ public void DynamicDemo() {
         );
         System.out.println(result);
     }
+```
+## 流式运行
+
+### 使用流
+
+```java
+@Component
+public class ChainExtDemo {
+
+    @Autowired
+    ChainActor chainActor;
+
+    public void StreamDemo() throws TimeoutException, InterruptedException {
+
+        ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
+
+        AIMessageChunk chunk = llm.stream("what color is the sky?");
+        StringBuilder sb = new StringBuilder();
+        while (chunk.getIterator().hasNext()) {
+            sb.append(chunk.getIterator().next().getContent()).append("|");
+            System.out.println(sb);
+        }
+    }
+}
+```
+**输出**
+```
+The|
+The| sky|
+The| sky| is|
+The| sky| is| blue|
+The| sky| is| blue|.|
+The| sky| is| blue|.||
+```
+
+### 调用链流式执行
+
+```java
+public void ChainStreamDemo() throws TimeoutException, InterruptedException {
+
+	ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
+	
+    BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
+    StrOutputParser parser = new StrOutputParser();
+
+    FlowInstance chain = chainActor.builder().next(prompt).next(llm).next(parser).build();
+
+    ChatGenerationChunk chunk = chainActor.stream(chain, Map.of("topic", "parrot"));
+    StringBuilder sb = new StringBuilder();
+    while (chunk.getIterator().hasNext()) {
+        sb.append(chunk.getIterator().next()).append("|");
+        System.out.println(sb);
+        Thread.sleep(100);
+    }
+}
+```
+
+### 处理输入流
+
+**输出JSON**
+```java
+public void InputDemo() throws TimeoutException, InterruptedException {
+    
+    ChatOllama model = ChatOllama.builder().model("llama3:8b").build();
+    
+    FlowInstance chain = chainActor.builder().next(model).next(new JsonOutputParser()).build();
+    
+    ChatGenerationChunk chunk = chainActor.stream(chain, "output a list of countries and their populations in JSON format. limit 3 countries.");
+    while (chunk.getIterator().hasNext()) {
+        System.out.println(chunk.getIterator().next());
+    }
+}
+```
+**输出**
+```
+[]
+[]
+[{}]
+[{}]
+[{"country":""}]
+[{"country":"China"}]
+[{"country":"China","population":143}]
+[{"country":"China","population":143932}]
+[{"country":"China","population":143932377}]
+[{"country":"China","population":1439323776}]
+[{"country":"China","population":1439323776}]
+[{"country":"China","population":1439323776}]
+[{"country":"China","population":1439323776},{}]
+......
+```
+
+### 生成器函数
+
+```java
+public void OutputFunctionDemo() throws TimeoutException, InterruptedException {
+
+    ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
+
+    FlowInstance chain = chainActor.builder()
+            .next(llm)
+            .next(new JsonOutputParser())
+            .next(new FunctionOutputParser(this::extractCountryNamesStreaming))
+            .build();
+
+    ChatGenerationChunk chunk = chainActor.stream(chain, """
+    output a list of the countries france, spain and japan and their populations in JSON format. "
+    'Use a dict with an outer key of "countries" which contains a list of countries. '
+    "Each country should have the key `name` and `population`""");
+
+    StringBuilder sb = new StringBuilder();
+    while (chunk.getIterator().hasNext()) {
+        ChatGenerationChunk chunkIterator = chunk.getIterator().next();
+        if (StringUtils.isNotEmpty(chunkIterator.getText())) {
+            sb.append(chunkIterator).append("|");
+            System.out.println(sb);
+        }
+    }
+}
+
+Set<Object> set = new HashSet<>();
+private String extractCountryNamesStreaming(String chunk) {
+    if (JsonUtil.isValidJson(chunk)) {
+        Map chunkMap = JsonUtil.fromJson(chunk, Map.class);
+        if (chunkMap != null && chunkMap.get("countries") != null) {
+            Map countries = (Map) chunkMap.get("countries");
+            for (Object name : countries.keySet()) {
+                if (!set.contains(name)) {
+                    set.add(name);
+                    return (String) name;
+                }
+            }
+        }
+    }
+    return "";
+}
+```
+**输出**
+```
+France|
+France|Spain|
+France|Spain|Japan|
+```
+### 使用流事件
+
+J-LangChain提供了事件流式处理的API（`streamEvents`），支持流式监控中间步骤。
+
+```java
+public void EventDemo() throws TimeoutException {
+    ChatOllama model = ChatOllama.builder().model("llama3:8b").build();
+
+    List<EventMessageChunk> events = new ArrayList<>();
+    EventMessageChunk chunk = model.streamEvent("hello");
+    while (chunk.getIterator().hasNext()) {
+        events.add(chunk.getIterator().next());
+    }
+    events.subList(events.size()-3, events.size()).forEach(event -> System.out.println(event.toJson()));
+}
+```
+
+**输出**
+```
+{"event":"on_llm_stream","data":{"chunk":{"role":"ai","content":".","last":false}},"name":"ChatOllama","parentIds":[],"metadata":{"ls_model_name":"gpt-4","ls_provider":"chatgpt","ls_model_type":"llm"},"tags":[]}
+{"event":"on_llm_stream","data":{"chunk":{"role":"ai","content":"","finishReason":"stop","last":true}},"name":"ChatOllama","parentIds":[],"metadata":{"ls_model_name":"gpt-4","ls_provider":"chatgpt","ls_model_type":"llm"},"tags":[]}
+{"event":"on_llm_end","data":{"output":"Hello! How can I help you today? Let me know if you have any questions or need assistance with anything else."},"name":"ChatOllama","parentIds":[],"metadata":{},"tags":[]}
+```
+
+### 调用链流事件
+
+```java
+public void EventChainDemo() throws TimeoutException {
+
+    ChatOllama oll = ChatOllama.builder().model("llama3:8b").build();
+    
+    BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
+    
+    FlowInstance chain = chainActor.builder().next(prompt).next(oll).next(new StrOutputParser()).build();
+
+    EventMessageChunk chunk = chainActor.streamEvent(chain, Map.of("topic", "dog"));
+    while (chunk.getIterator().hasNext()) {
+        System.out.println(chunk.getIterator().next().toJson());
+    }
+}
+```
+**输出**
+```
+{"event":"on_chain_start","data":{"input":{"topic":"dog"}},"name":"ChainActor","runId":"9fbfb04d3101465daa9e762716a59ecd","parentIds":[],"metadata":{},"tags":[]}
+{"event":"on_prompt_start","data":{"input":{"topic":"dog"}},"name":"PromptTemplate","runId":"6f0a038fe9a847768922ce2c559f06ec","parentIds":["9fbfb04d3101465daa9e762716a59ecd"],"metadata":{},"tags":[]}
+{"event":"on_prompt_end","data":{"output":{"text":"tell me a joke about dog"}},"name":"PromptTemplate","runId":"6f0a038fe9a847768922ce2c559f06ec","parentIds":["9fbfb04d3101465daa9e762716a59ecd"],"metadata":{},"tags":[]}
+{"event":"on_llm_start","data":{"input":{"text":"tell me a joke about dog"}},"name":"ChatOllama","runId":"0e21f6ad4fc84c16a50b3db3d3d54193","parentIds":["6f0a038fe9a847768922ce2c559f06ec"],"metadata":{"ls_model_type":"llm","ls_provider":"chatgpt","ls_model_name":"gpt-4"},"tags":[]}
+{"event":"on_parser_start","data":{"input":{"role":"ai","last":false}},"name":"StrOutputParser","runId":"d1d0efcadd904b2090f4d202003d4c04","parentIds":["0e21f6ad4fc84c16a50b3db3d3d54193"],"metadata":{},"tags":[]}
+{"event":"on_llm_stream","data":{"chunk":{"role":"ai","content":"Why","last":false}},"name":"ChatOllama","runId":"0e21f6ad4fc84c16a50b3db3d3d54193","parentIds":["6f0a038fe9a847768922ce2c559f06ec"],"metadata":{"ls_model_type":"llm","ls_provider":"chatgpt","ls_model_name":"gpt-4"},"tags":[]}
+{"event":"on_parser_stream","data":{"chunk":{"text":"Why","message":{"role":"ai","content":"Why"},"last":false}},"name":"StrOutputParser","runId":"d1d0efcadd904b2090f4d202003d4c04","parentIds":["0e21f6ad4fc84c16a50b3db3d3d54193"],"metadata":{},"tags":[]}
+{"event":"on_chain_stream","data":{"chunk":{"text":"Why","message":{"role":"ai","content":"Why"},"last":false}},"name":"ChainActor","runId":"d1d0efcadd904b2090f4d202003d4c04","parentIds":["d1d0efcadd904b2090f4d202003d4c04"],"metadata":{},"tags":[]}
+......
+```
+### 过滤流事件
+
+可以根据组件的名称、类型或标签等过滤事件：
+
+```java
+public void EventFilterDemo() throws TimeoutException {
+
+    ChatOllama model = ChatOllama.builder().model("llama3:8b").build();
+
+    FlowInstance chain = chainActor.builder()
+            .next(model.withConfig(Map.of("run_name", "model")))
+            .next((new JsonOutputParser()).withConfig(Map.of("run_name", "my_parser", "tags", List.of("my_chain"))))
+            .build();
+
+    EventMessageChunk chunk = chainActor.streamEvent(chain,"Generate JSON data.");
+    while (chunk.getIterator().hasNext()) {
+        System.out.println(chunk.getIterator().next().toJson());
+    }
+
+    System.out.println("\n----------------\n");
+
+    EventMessageChunk chunkFilterByName = chainActor.streamEvent(chain,"Generate JSON data.", event -> List.of("my_parser").contains(event.getName()));
+    while (chunkFilterByName.getIterator().hasNext()) {
+        System.out.println(chunkFilterByName.getIterator().next().toJson());
+    }
+
+    System.out.println("\n----------------\n");
+
+    EventMessageChunk chunkFilterByType = chainActor.streamEvent(chain,"Generate JSON data.", event -> List.of("llm").contains(event.getType()));
+    while (chunkFilterByType.getIterator().hasNext()) {
+        System.out.println(chunkFilterByType.getIterator().next().toJson());
+    }
+
+    System.out.println("\n----------------\n");
+
+    EventMessageChunk chunkFilterByTag = chainActor.streamEvent(chain,"Generate JSON data.", event -> Stream.of("my_chain").anyMatch(event.getTags()::contains));
+    while (chunkFilterByTag.getIterator().hasNext()) {
+        System.out.println(chunkFilterByTag.getIterator().next().toJson());
+    }
+}
 ```
