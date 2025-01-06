@@ -15,7 +15,17 @@
 package org.salt.jlangchain.core.prompt;
 
 import org.salt.jlangchain.core.BaseRunnable;
+import org.salt.jlangchain.core.event.EventAction;
 import org.salt.jlangchain.core.prompt.value.PromptValue;
 
+import java.util.List;
+import java.util.Map;
+
 public abstract class BasePromptTemplate<O extends PromptValue> extends BaseRunnable<O, Object> {
+
+    protected Map<String, Object> config = Map.of(
+            "run_name", this.getClass().getSimpleName(),
+            "tags", List.of()
+    );
+    protected EventAction eventAction = new EventAction("prompt");
 }

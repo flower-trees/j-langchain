@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.MapUtils;
 import org.salt.function.flow.FlowEngine;
 import org.salt.function.flow.FlowInstance;
+import org.salt.function.flow.context.ContextBus;
 import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.common.IteratorAction;
 import org.salt.jlangchain.core.event.EventAction;
@@ -91,18 +92,18 @@ public class ChainActor {
                 "tags", List.of()
         );
 
-        eventAction.eventStart(eventMessageChunk, input, chainId, config);
-
         Map<String, Object> callInfo = Map.of(
                 CallInfo.STREAM.name(), true,
                 CallInfo.EVENT.name(), true,
                 CallInfo.EVENT_CHAIN.name(), true,
                 CallInfo.EVENT_MESSAGE_CHUNK.name(), eventMessageChunk);
         paramMap.putAll(callInfo);
-        IteratorAction<?> iteratorAction = flowEngine.execute(flow, input, paramMap);
-        iteratorAction.ignore(
-                streamInput -> eventAction.eventStream(eventMessageChunk, streamInput, chainId, config),
-                streamOutput -> eventAction.eventEnd(eventMessageChunk, streamOutput, chainId, config, true)
+        flowEngine.execute(flow, input, paramMap, null, param -> {
+            eventAction.eventStart(param, chainId, config);
+            ((ContextBus) ContextBus.get()).setPreRunIds(List.of(chainId));
+        }, result -> ((IteratorAction<?>) result).ignore(
+                    streamInput -> eventAction.eventStream(streamInput, chainId, config),
+                    streamOutput -> eventAction.eventEnd(streamOutput, chainId, config, true))
         );
 
         return eventMessageChunk;

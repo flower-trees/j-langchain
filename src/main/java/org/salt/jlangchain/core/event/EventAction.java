@@ -18,6 +18,7 @@ import org.salt.function.flow.context.ContextBus;
 import org.salt.function.flow.context.IContextBus;
 import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.common.IteratorAction;
+import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,11 @@ public class EventAction {
                         "start","on_chain_start",
                         "stream", "on_chain_stream",
                         "end","on_chain_end"
+                ),
+            "prompt", Map.of(
+                        "start","on_prompt_start",
+                        "stream", "on_prompt_stream",
+                        "end","on_prompt_end"
                 ),
             "llm", Map.of(
                         "start","on_llm_start",
@@ -50,80 +56,66 @@ public class EventAction {
     }
 
     public void eventStart(Object input, String runId, Map<String, Object> config) {
-        if (getContextBus() != null
-                && getContextBus().getTransmit(CallInfo.EVENT.name()) != null
-                && ((Boolean) getContextBus().getTransmit(CallInfo.EVENT.name()))
-                && getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name()) != null
-        ) {
+        if (isHasEvent()) {
             EventMessageChunk eventMessageChunk = getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name());
-            eventStart(eventMessageChunk, input, runId, config);
+            eventMessageChunk.asynAppend(
+                    EventMessageChunk.builder()
+                            .event(eventType.get(eventName).get("start"))
+                            .data(input != null ? Map.of("input", input) : Map.of())
+                            .name(config.get("run_name") != null && config.get("run_name") instanceof String ? (String) config.get("run_name") : this.getClass().getSimpleName())
+                            .tags(config.get("tags") != null && config.get("tags") instanceof List ? (List<String>) config.get("tags") : List.of())
+                            .runId(runId)
+                            .parentIds(getContextBus() != null && !CollectionUtils.isEmpty(getContextBus().getPreRunIds()) ? getContextBus().getPreRunIds() : List.of())
+                            .build());
         }
-    }
-
-    public void eventStart(EventMessageChunk eventMessageChunk, Object input, String runId, Map<String, Object> config) {
-        eventMessageChunk.asynAppend(
-                EventMessageChunk.builder()
-                        .event(eventType.get(eventName).get("start"))
-                        .data(input != null ? Map.of("input", input) : Map.of())
-                        .name(config.get("run_name") != null && config.get("run_name") instanceof String ? (String) config.get("run_name") : this.getClass().getSimpleName())
-                        .tags(config.get("tags") != null && config.get("tags") instanceof List ? (List<String>) config.get("tags") : List.of())
-                        .runId(runId)
-                        .build());
     }
 
     public void eventStream(Object chunk, String runId, Map<String, Object> config) {
-        if (getContextBus() != null
-                && getContextBus().getTransmit(CallInfo.EVENT.name()) != null
-                && ((Boolean) getContextBus().getTransmit(CallInfo.EVENT.name()))
-                && getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name()) != null
-        ) {
+        if (isHasEvent()) {
             EventMessageChunk eventMessageChunk = getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name());
-            eventStream(eventMessageChunk, chunk, runId, config);
+            eventMessageChunk.asynAppend(
+                    EventMessageChunk.builder()
+                            .event(eventType.get(eventName).get("stream"))
+                            .data(chunk != null ? Map.of("chunk", chunk) : Map.of())
+                            .name(config.get("run_name") != null && config.get("run_name") instanceof String ? (String) config.get("run_name") : this.getClass().getSimpleName())
+                            .tags(config.get("tags") != null && config.get("tags") instanceof List ? (List<String>) config.get("tags") : List.of())
+                            .runId(runId)
+                            .parentIds(getContextBus() != null && !CollectionUtils.isEmpty(getContextBus().getPreRunIds()) ? getContextBus().getPreRunIds() : List.of())
+                            .build());
         }
     }
 
-    public void eventStream(EventMessageChunk eventMessageChunk, Object chunk, String runId, Map<String, Object> config) {
-        eventMessageChunk.asynAppend(
-                EventMessageChunk.builder()
-                        .event(eventType.get(eventName).get("stream"))
-                        .data(chunk != null ? Map.of("chunk", chunk) : Map.of())
-                        .name(config.get("run_name") != null && config.get("run_name") instanceof String ? (String) config.get("run_name") : this.getClass().getSimpleName())
-                        .tags(config.get("tags") != null && config.get("tags") instanceof List ? (List<String>) config.get("tags") : List.of())
-                        .runId(runId)
-                        .build());
+    public void eventEnd(Object output, String runId, Map<String, Object> config) {
+        eventEnd(output, runId, config, null);
     }
 
-    public void eventEnd(Object Output, String runId, Map<String, Object> config) {
-        eventEnd(Output, runId, config, null);
-    }
-
-    public void eventEnd(Object Output, String runId, Map<String, Object> config, Boolean isLast) {
-        if (getContextBus() != null
-                && getContextBus().getTransmit(CallInfo.EVENT.name()) != null
-                && ((Boolean) getContextBus().getTransmit(CallInfo.EVENT.name()))
-                && getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name()) != null
-        ) {
+    public void eventEnd(Object output, String runId, Map<String, Object> config, Boolean isLast) {
+        if (isHasEvent()) {
             EventMessageChunk eventMessageChunk = getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name());
-            eventEnd(eventMessageChunk, Output, runId, config, isLast);
+            EventMessageChunk chunkEnd =
+                    EventMessageChunk.builder()
+                            .event(eventType.get(eventName).get("end"))
+                            .data(output instanceof IteratorAction<?> ? Map.of("output", ((IteratorAction<?>) output).getCumulate().toString()) : output != null ? Map.of("output", output) : Map.of("output", Map.of()))
+                            .name(config.get("run_name") != null && config.get("run_name") instanceof String ? (String) config.get("run_name") : this.getClass().getSimpleName())
+                            .tags(config.get("tags") != null && config.get("tags") instanceof List ? (List<String>) config.get("tags") : List.of())
+                            .runId(runId)
+                            .parentIds(getContextBus() != null && !CollectionUtils.isEmpty(getContextBus().getPreRunIds()) ? getContextBus().getPreRunIds() : List.of())
+                            .build();
+            if ((!(boolean) getContextBus().getTransmit(CallInfo.EVENT_CHAIN.name())) || (isLast != null && isLast)) {
+                chunkEnd.setLast(true);
+            }
+            eventMessageChunk.asynAppend(chunkEnd);
         }
-    }
-
-    public void eventEnd(EventMessageChunk eventMessageChunk, Object output, String runId, Map<String, Object> config, Boolean isLast) {
-        EventMessageChunk chunkEnd =
-                EventMessageChunk.builder()
-                        .event(eventType.get(eventName).get("end"))
-                        .data(output instanceof IteratorAction<?> ? Map.of("output", ((IteratorAction<?>) output).getCumulate().toString()) : Map.of())
-                        .name(config.get("run_name") != null && config.get("run_name") instanceof String ? (String) config.get("run_name") : this.getClass().getSimpleName())
-                        .tags(config.get("tags") != null && config.get("tags") instanceof List ? (List<String>) config.get("tags") : List.of())
-                        .runId(runId)
-                        .build();
-        if ((!(boolean) getContextBus().getTransmit(CallInfo.EVENT_CHAIN.name())) || (isLast != null && isLast)) {
-            chunkEnd.setLast(true);
-        }
-        eventMessageChunk.asynAppend(chunkEnd);
     }
 
     private IContextBus getContextBus() {
         return ContextBus.get();
+    }
+
+    private boolean isHasEvent() {
+        return getContextBus() != null
+                && getContextBus().getTransmit(CallInfo.EVENT.name()) != null
+                && ((Boolean) getContextBus().getTransmit(CallInfo.EVENT.name()))
+                && getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name()) != null;
     }
 }

@@ -30,11 +30,11 @@ public abstract class BaseCumulativeTransformOutputParser extends BaseTransformO
     protected void transformAsync(Object input, Iterator<?> iterator, ChatGenerationChunk rusult) {
         SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(
             () -> {
-                    eventAction.eventStart(input, rusult.getId(), config);
+                    eventAction.eventStart(input, getRunId(), config);
                     while (iterator.hasNext()) {
                         try {
                             Object chunk = iterator.next();
-                            eventAction.eventStream(chunk, rusult.getId(), config);
+                            eventAction.eventStream(chunk, getRunId(), config);
                             if (chunk instanceof AIMessageChunk aiMessageChunk) {
                                 AIMessageChunk aiMessageChunkInput = (AIMessageChunk) input;
                                 aiMessageChunk.setContent(aiMessageChunkInput.getCumulate().toString());
@@ -61,7 +61,7 @@ public abstract class BaseCumulativeTransformOutputParser extends BaseTransformO
                             throw new RuntimeException(e);
                         }
                     }
-                    eventAction.eventEnd(rusult, rusult.getId(), config);
+                    eventAction.eventEnd(rusult, getRunId(), config);
                 }
         );
     }

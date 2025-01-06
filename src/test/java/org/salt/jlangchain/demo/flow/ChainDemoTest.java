@@ -144,7 +144,7 @@ public class ChainDemoTest {
     }
 
     @Test
-    public void OutputFunctionDemo() throws TimeoutException, InterruptedException {
+    public void OutputFunctionDemo() {
         ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
 
         FlowInstance chain = chainActor.builder()

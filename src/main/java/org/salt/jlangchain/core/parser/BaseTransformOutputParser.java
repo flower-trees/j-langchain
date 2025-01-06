@@ -65,11 +65,11 @@ public abstract class BaseTransformOutputParser extends BaseOutputParser {
     protected void transformAsync(Object input, Iterator<?> iterator, ChatGenerationChunk rusult) {
         SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(
             () -> {
-                eventAction.eventStart(input, rusult.getId(), config);
+                eventAction.eventStart(input, getRunId(), config);
                 while (iterator.hasNext()) {
                     try {
                         Object chunk = iterator.next();
-                        eventAction.eventStream(chunk, rusult.getId(), config);
+                        eventAction.eventStream(chunk, getRunId(), config);
                         if (chunk instanceof AIMessageChunk aiMessageChunk) {
                             ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(new ChatGenerationChunk(aiMessageChunk)));
                             if (StringUtils.isNotEmpty(resultChunk.getText()) || FinishReasonType.STOP.equalsV(resultChunk.getMessage().getFinishReason())) {
@@ -89,7 +89,7 @@ public abstract class BaseTransformOutputParser extends BaseOutputParser {
                         throw new RuntimeException(e);
                     }
                 }
-                eventAction.eventEnd(rusult, rusult.getId(), config);
+                eventAction.eventEnd(rusult, getRunId(), config);
             }
         );
     }

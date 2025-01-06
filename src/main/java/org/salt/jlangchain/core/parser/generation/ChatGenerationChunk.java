@@ -20,7 +20,6 @@ import lombok.Setter;
 import org.salt.jlangchain.core.common.Iterator;
 import org.salt.jlangchain.core.common.IteratorAction;
 import org.salt.jlangchain.core.message.BaseMessageChunk;
-import org.salt.jlangchain.utils.GroceryUtil;
 
 @Setter
 @Getter
@@ -33,8 +32,6 @@ public class ChatGenerationChunk extends ChatGeneration implements IteratorActio
     @JsonIgnore
     @Getter
     protected StringBuilder cumulate = new StringBuilder();
-    @JsonIgnore
-    protected String id = GroceryUtil.generateId();
 
     private boolean isLast(ChatGenerationChunk chunk) {
         return chunk.isLast();

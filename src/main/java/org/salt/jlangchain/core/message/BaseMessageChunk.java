@@ -23,7 +23,6 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.salt.jlangchain.core.common.Iterator;
 import org.salt.jlangchain.core.common.IteratorAction;
-import org.salt.jlangchain.utils.GroceryUtil;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -37,8 +36,6 @@ public abstract class BaseMessageChunk<T extends BaseMessage> extends BaseMessag
 
     @JsonIgnore
     protected StringBuilder cumulate = new StringBuilder();
-    @JsonIgnore
-    protected String id = GroceryUtil.generateId();
 
     private boolean isLast(T chunk) {
         return StringUtils.equals(chunk.getFinishReason(), FinishReasonType.STOP.getCode());

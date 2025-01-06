@@ -1,5 +1,6 @@
 package org.salt.jlangchain.core.common;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.utils.JsonUtil;
 import org.salt.jlangchain.utils.SpringContextUtil;
@@ -56,6 +57,7 @@ public interface IteratorAction<T> {
         });
     }
 
+    @JsonIgnore
     default StringBuilder getCumulate() {
         return new StringBuilder();
     }

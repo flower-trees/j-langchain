@@ -14,6 +14,7 @@
 
 package org.salt.jlangchain.core.event;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import org.salt.jlangchain.core.Serializable;
 import org.salt.jlangchain.core.common.Iterator;
@@ -33,13 +34,16 @@ public class EventMessageChunk extends Serializable implements IteratorAction<Ev
     Map<String, Object> data;
     String name;
     String runId;
+    List<String> parentIds;
     Map<String, Object> metadata;
     List<String> tags;
 
     protected Iterator<EventMessageChunk> iterator = new Iterator<>(this::isLast);
+    @JsonIgnore
     protected boolean isLast = false;
 
     private boolean isLast(EventMessageChunk chunk) {
         return chunk.isLast();
     }
+
 }
