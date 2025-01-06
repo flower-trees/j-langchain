@@ -47,6 +47,12 @@ import java.util.function.Consumer;
 @Data
 public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
 
+    protected String vendor = "chatgpt";
+    protected String modelType = "llm";
+    protected String model = "gpt-4";
+    protected String temperature = "0.7";
+    protected Map<String, Object> modelKwargs;
+
     Map<String, Object> config = Map.of(
             "run_name", this.getClass().getSimpleName(),
             "tags", List.of()
@@ -78,7 +84,7 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
 
         otherInformation(aiChatInput);
 
-        eventAction.eventStart(input, getRunId(), config);
+        eventAction.eventStart(input, getRunId(), config, getMetadata());
 
         Consumer<AiChatOutput> consumer = getConsumer(aiMessageChunk);
         SpringContextUtil.getApplicationContext().getBean(getActuator()).astream(aiChatInput, consumer);
@@ -146,11 +152,12 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
                 chunk.setFinishReason(FinishReasonType.STOP.getCode());
             }
 
-            eventAction.eventStream(chunk, getRunId(), config);
+            eventAction.eventStream(chunk, getRunId(), config, getMetadata());
+
             aiMessageChunk.add(chunk);
 
             if (FinishReasonType.STOP.equalsV(chunk.getFinishReason())) {
-                eventAction.eventEnd(aiMessageChunk, getRunId(), config);
+                eventAction.eventEnd(aiMessageChunk, getRunId(), config, getMetadata());
             }
 
             try {
@@ -166,5 +173,11 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
         map.putAll(config);
         this.config = map;
         return this;
+    }
+
+    protected Map<String, Object> getMetadata() {
+        return Map.of("ls_provider", vendor,
+                      "ls_model_type", modelType,
+                      "ls_model_name", model);
     }
 }

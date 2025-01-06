@@ -16,8 +16,10 @@ package org.salt.jlangchain.core.common;
 
 public enum CallInfo {
     STREAM,
+
     EVENT,
     EVENT_CHAIN,
-    EVENT_MESSAGE_CHUNK
+    EVENT_MESSAGE_CHUNK,
+    EVENT_FILTER
     ;
 }

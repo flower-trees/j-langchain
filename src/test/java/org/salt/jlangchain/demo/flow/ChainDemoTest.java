@@ -123,7 +123,7 @@ public class ChainDemoTest {
     }
 
     @Test
-    public void EventDemo() {
+    public void EventChainDemo() {
         BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
 
         ChatOllama oll = ChatOllama.builder().model("qwen2.5:0.5b").build();

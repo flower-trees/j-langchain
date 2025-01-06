@@ -71,7 +71,7 @@ public class JsonOutputParser extends BaseCumulativeTransformOutputParser {
 
         input = input.replace("\n", "");
         input = input.replace("\t", "");
-        input = input.replaceAll("\\s+", "");
+        input = input.replaceAll("\\s+", " ");
         return input;
     }
 

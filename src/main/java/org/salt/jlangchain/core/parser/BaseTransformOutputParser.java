@@ -69,19 +69,20 @@ public abstract class BaseTransformOutputParser extends BaseOutputParser {
                 while (iterator.hasNext()) {
                     try {
                         Object chunk = iterator.next();
-                        eventAction.eventStream(chunk, getRunId(), config);
                         if (chunk instanceof AIMessageChunk aiMessageChunk) {
                             ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(new ChatGenerationChunk(aiMessageChunk)));
                             if (StringUtils.isNotEmpty(resultChunk.getText()) || FinishReasonType.STOP.equalsV(resultChunk.getMessage().getFinishReason())) {
                                 rusult.add(resultChunk);
                                 rusult.getIterator().append(resultChunk);
                             }
+                            eventAction.eventStream(resultChunk, getRunId(), config);
                         } else if (chunk instanceof ChatGenerationChunk chatGenerationChunk) {
                             ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(chatGenerationChunk));
                             if (StringUtils.isNotEmpty(resultChunk.getText()) || FinishReasonType.STOP.equalsV(resultChunk.getMessage().getFinishReason())) {
                                 rusult.add(resultChunk);
                                 rusult.getIterator().append(resultChunk);
                             }
+                            eventAction.eventStream(resultChunk, getRunId(), config);
                         } else {
                             throw new RuntimeException("Unsupported message type: " + chunk.getClass().getName());
                         }

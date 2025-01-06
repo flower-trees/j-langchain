@@ -61,4 +61,9 @@ public interface IteratorAction<T> {
     default StringBuilder getCumulate() {
         return new StringBuilder();
     }
+
+    @JsonIgnore
+    default boolean isRest() {
+        return false;
+    }
 }

@@ -31,6 +31,8 @@ import java.util.Map;
 @AllArgsConstructor
 public class ChatDoubao extends BaseChatModel {
 
+    protected String vendor = "doubao";
+    protected String modelType = "llm";
     protected String model = "ep-20240611104225-2d4ww";
     protected String temperature = "0.7";
     protected Map<String, Object> modelKwargs;

@@ -30,6 +30,8 @@ import java.util.Map;
 @AllArgsConstructor
 public class EventMessageChunk extends Serializable implements IteratorAction<EventMessageChunk> {
 
+    @JsonIgnore
+    String type;
     String event;
     Map<String, Object> data;
     String name;
@@ -38,12 +40,18 @@ public class EventMessageChunk extends Serializable implements IteratorAction<Ev
     Map<String, Object> metadata;
     List<String> tags;
 
-    protected Iterator<EventMessageChunk> iterator = new Iterator<>(this::isLast);
     @JsonIgnore
     protected boolean isLast = false;
+    protected boolean isRest = false;
+
+    protected Iterator<EventMessageChunk> iterator = new Iterator<>(this::isLast);
 
     private boolean isLast(EventMessageChunk chunk) {
-        return chunk.isLast();
+        return chunk.isLast() || chunk.isRest();
     }
 
+    @Override
+    public boolean isRest() {
+        return isRest;
+    }
 }

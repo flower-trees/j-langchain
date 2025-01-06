@@ -28,6 +28,7 @@ import org.salt.jlangchain.utils.GroceryUtil;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 @Slf4j
 public class ChainActor {
@@ -71,10 +72,14 @@ public class ChainActor {
     }
 
     public <I> EventMessageChunk streamEvent(FlowInstance flow, I input) {
-        return streamEvent(flow, input, null);
+        return streamEvent(flow, input, null, null);
     }
 
-    public <I> EventMessageChunk streamEvent(FlowInstance flow, I input, Map<String, Object> transmitMap) {
+    public <I> EventMessageChunk streamEvent(FlowInstance flow, I input, Function<EventMessageChunk, Boolean> filter) {
+        return streamEvent(flow, input, null, filter);
+    }
+
+    public <I> EventMessageChunk streamEvent(FlowInstance flow, I input, Map<String, Object> transmitMap, Function<EventMessageChunk, Boolean> filter) {
 
         Map<String, Object> paramMap = new HashMap<>();
         if (MapUtils.isNotEmpty(transmitMap)) {
@@ -96,7 +101,8 @@ public class ChainActor {
                 CallInfo.STREAM.name(), true,
                 CallInfo.EVENT.name(), true,
                 CallInfo.EVENT_CHAIN.name(), true,
-                CallInfo.EVENT_MESSAGE_CHUNK.name(), eventMessageChunk);
+                CallInfo.EVENT_MESSAGE_CHUNK.name(), eventMessageChunk,
+                CallInfo.EVENT_FILTER.name(), filter != null ? filter : (Function<EventMessageChunk, Boolean>) chunk -> true);
         paramMap.putAll(callInfo);
         flowEngine.execute(flow, input, paramMap, null, param -> {
             eventAction.eventStart(param, chainId, config);

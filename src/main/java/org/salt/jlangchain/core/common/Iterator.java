@@ -26,6 +26,7 @@ public class Iterator<T> {
     protected Long offerTimeout = 60000L;
     protected Long pollTimeout = 60000L;
     protected Function<T, Boolean> isLastFunction;
+    protected T nextChunk;
 
     public Iterator(Function<T, Boolean> isLastFunction) {
         this.isLastFunction = isLastFunction;
@@ -43,24 +44,31 @@ public class Iterator<T> {
     }
 
     public T next() throws TimeoutException {
+        return nextChunk;
+    }
+
+    public boolean hasNext() {
+        if (isLast) {
+            return false;
+        }
+
         try {
             T chunk = queue.poll(pollTimeout, TimeUnit.MILLISECONDS);
-
             if (chunk == null) {
-                isLast = true;
-                throw new TimeoutException("poll message timeout");
+                return false;
+            }
+
+            if (chunk instanceof IteratorAction<?> && ((IteratorAction<?>) chunk).isRest()) {
+                return false;
             }
 
             if (isLastFunction.apply(chunk)) {
                 isLast = true;
             }
-            return chunk;
+            nextChunk = chunk;
+            return true;
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public boolean hasNext() {
-        return !isLast;
     }
 }

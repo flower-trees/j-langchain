@@ -28,7 +28,7 @@ public class ChatGeneration extends Generation {
         super("");
         if (message != null) {
             super.setText(message.getContent());
-            this.message = message;
+            this.message = BaseMessage.fromMessage(message.getRole(), message.getContent());
         }
     }
 }

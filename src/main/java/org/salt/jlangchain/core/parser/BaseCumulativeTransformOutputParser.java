@@ -34,27 +34,12 @@ public abstract class BaseCumulativeTransformOutputParser extends BaseTransformO
                     while (iterator.hasNext()) {
                         try {
                             Object chunk = iterator.next();
-                            eventAction.eventStream(chunk, getRunId(), config);
                             if (chunk instanceof AIMessageChunk aiMessageChunk) {
-                                AIMessageChunk aiMessageChunkInput = (AIMessageChunk) input;
-                                aiMessageChunk.setContent(aiMessageChunkInput.getCumulate().toString());
-                                ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(new ChatGenerationChunk(aiMessageChunk)));
-                                if (StringUtils.isNotEmpty(resultChunk.getText()) || FinishReasonType.STOP.equalsV(resultChunk.getMessage().getFinishReason())) {
-                                    rusult.setCumulate(new StringBuilder(resultChunk.getText()));
-                                    rusult.getIterator().append(resultChunk);
-                                }
+                                ChatGenerationChunk chatGenerationChunk = new ChatGenerationChunk(aiMessageChunk);
+                                cumulate(rusult, chatGenerationChunk);
                             } else if (chunk instanceof ChatGenerationChunk chatGenerationChunk) {
-                                ChatGenerationChunk chatGenerationChunkInput = (ChatGenerationChunk) input;
-                                chatGenerationChunk.setText(chatGenerationChunkInput.getCumulate().toString());
-                                if (chatGenerationChunk.getMessage() != null) {
-                                    chatGenerationChunk.getMessage().setContent(chatGenerationChunkInput.getCumulate().toString());
-                                }
-                                ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(chatGenerationChunk));
-                                if (StringUtils.isNotEmpty(resultChunk.getText()) || FinishReasonType.STOP.equalsV(resultChunk.getMessage().getFinishReason())) {
-                                    rusult.setCumulate(new StringBuilder(resultChunk.getText()));
-                                    rusult.getIterator().append(resultChunk);
-                                }
-                            }else {
+                                cumulate(rusult, chatGenerationChunk);
+                            } else {
                                 throw new RuntimeException("Unsupported message type: " + chunk.getClass().getName());
                             }
                         } catch (TimeoutException e) {
@@ -64,5 +49,18 @@ public abstract class BaseCumulativeTransformOutputParser extends BaseTransformO
                     eventAction.eventEnd(rusult, getRunId(), config);
                 }
         );
+    }
+
+    private void cumulate(ChatGenerationChunk rusult, ChatGenerationChunk chatGenerationChunk) throws TimeoutException {
+        rusult.add(chatGenerationChunk);
+        chatGenerationChunk.setText(rusult.getCumulate().toString());
+        if (chatGenerationChunk.getMessage() != null) {
+            chatGenerationChunk.getMessage().setContent(rusult.getCumulate().toString());
+        }
+        ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(chatGenerationChunk));
+        if (StringUtils.isNotEmpty(resultChunk.getText()) || FinishReasonType.STOP.equalsV(resultChunk.getMessage().getFinishReason())) {
+            rusult.getIterator().append(resultChunk);
+        }
+        eventAction.eventStream(resultChunk, getRunId(), config);
     }
 }

@@ -31,6 +31,8 @@ import java.util.Map;
 @AllArgsConstructor
 public class ChatOpenAI extends BaseChatModel {
 
+    protected String vendor = "chatgpt";
+    protected String modelType = "llm";
     protected String model = "gpt-4";
     protected String temperature = "0.7";
     protected Map<String, Object> modelKwargs;
