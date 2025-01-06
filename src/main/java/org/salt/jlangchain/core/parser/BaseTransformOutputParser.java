@@ -14,6 +14,7 @@
 
 package org.salt.jlangchain.core.parser;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.core.common.Iterator;
@@ -23,6 +24,7 @@ import org.salt.jlangchain.core.message.BaseMessage;
 import org.salt.jlangchain.core.message.BaseMessageChunk;
 import org.salt.jlangchain.core.message.FinishReasonType;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
+import org.salt.jlangchain.utils.JsonUtil;
 import org.salt.jlangchain.utils.SpringContextUtil;
 
 import java.util.HashMap;
@@ -30,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
+@Slf4j
 public abstract class BaseTransformOutputParser extends BaseOutputParser {
 
     Map<String, Object> config = Map.of(
@@ -65,24 +68,25 @@ public abstract class BaseTransformOutputParser extends BaseOutputParser {
     protected void transformAsync(Object input, Iterator<?> iterator, ChatGenerationChunk rusult) {
         SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(
             () -> {
-                eventAction.eventStart(input, getRunId(), config);
+                eventAction.eventStart(input, config);
                 while (iterator.hasNext()) {
                     try {
                         Object chunk = iterator.next();
+                        log.debug("chunk: {}", JsonUtil.toJson(chunk));
                         if (chunk instanceof AIMessageChunk aiMessageChunk) {
                             ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(new ChatGenerationChunk(aiMessageChunk)));
-                            if (StringUtils.isNotEmpty(resultChunk.getText()) || FinishReasonType.STOP.equalsV(resultChunk.getMessage().getFinishReason())) {
+                            if (StringUtils.isNotEmpty(resultChunk.getText()) || resultChunk.isLast()) {
                                 rusult.add(resultChunk);
                                 rusult.getIterator().append(resultChunk);
+                                eventAction.eventStream(resultChunk, config);
                             }
-                            eventAction.eventStream(resultChunk, getRunId(), config);
                         } else if (chunk instanceof ChatGenerationChunk chatGenerationChunk) {
                             ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(chatGenerationChunk));
-                            if (StringUtils.isNotEmpty(resultChunk.getText()) || FinishReasonType.STOP.equalsV(resultChunk.getMessage().getFinishReason())) {
+                            if (StringUtils.isNotEmpty(resultChunk.getText()) || resultChunk.isLast()) {
                                 rusult.add(resultChunk);
                                 rusult.getIterator().append(resultChunk);
+                                eventAction.eventStream(resultChunk, config);
                             }
-                            eventAction.eventStream(resultChunk, getRunId(), config);
                         } else {
                             throw new RuntimeException("Unsupported message type: " + chunk.getClass().getName());
                         }
@@ -90,7 +94,7 @@ public abstract class BaseTransformOutputParser extends BaseOutputParser {
                         throw new RuntimeException(e);
                     }
                 }
-                eventAction.eventEnd(rusult, getRunId(), config);
+                eventAction.eventEnd(rusult, config);
             }
         );
     }

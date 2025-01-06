@@ -31,7 +31,7 @@ public class PromptTemplate extends StringPromptTemplate {
     @Override
     public StringPromptValue invoke(Object input) {
 
-        eventAction.eventStart(input, getRunId(), config);
+        eventAction.eventStart(input, config);
         StringPromptValue result = null;
 
         try {
@@ -48,7 +48,7 @@ public class PromptTemplate extends StringPromptTemplate {
             }
             throw new RuntimeException("input must be Map or PlainObject");
         } finally {
-            eventAction.eventEnd(result, getRunId(), config);
+            eventAction.eventEnd(result, config);
         }
     }
 

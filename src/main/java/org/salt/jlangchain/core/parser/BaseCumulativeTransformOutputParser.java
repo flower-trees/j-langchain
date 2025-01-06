@@ -14,26 +14,29 @@
 
 package org.salt.jlangchain.core.parser;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.core.common.Iterator;
 import org.salt.jlangchain.core.message.AIMessageChunk;
-import org.salt.jlangchain.core.message.FinishReasonType;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
+import org.salt.jlangchain.utils.JsonUtil;
 import org.salt.jlangchain.utils.SpringContextUtil;
 
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
+@Slf4j
 public abstract class BaseCumulativeTransformOutputParser extends BaseTransformOutputParser {
 
     protected void transformAsync(Object input, Iterator<?> iterator, ChatGenerationChunk rusult) {
         SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(
             () -> {
-                    eventAction.eventStart(input, getRunId(), config);
+                    eventAction.eventStart(input, config);
                     while (iterator.hasNext()) {
                         try {
                             Object chunk = iterator.next();
+                            log.debug("chunk: {}", JsonUtil.toJson(chunk));
                             if (chunk instanceof AIMessageChunk aiMessageChunk) {
                                 ChatGenerationChunk chatGenerationChunk = new ChatGenerationChunk(aiMessageChunk);
                                 cumulate(rusult, chatGenerationChunk);
@@ -46,7 +49,7 @@ public abstract class BaseCumulativeTransformOutputParser extends BaseTransformO
                             throw new RuntimeException(e);
                         }
                     }
-                    eventAction.eventEnd(rusult, getRunId(), config);
+                    eventAction.eventEnd(rusult, config);
                 }
         );
     }
@@ -58,9 +61,10 @@ public abstract class BaseCumulativeTransformOutputParser extends BaseTransformO
             chatGenerationChunk.getMessage().setContent(rusult.getCumulate().toString());
         }
         ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(chatGenerationChunk));
-        if (StringUtils.isNotEmpty(resultChunk.getText()) || FinishReasonType.STOP.equalsV(resultChunk.getMessage().getFinishReason())) {
+        if (StringUtils.isNotEmpty(resultChunk.getText()) || resultChunk.isLast()) {
             rusult.getIterator().append(resultChunk);
+            eventAction.eventStream(resultChunk, config);
         }
-        eventAction.eventStream(resultChunk, getRunId(), config);
+
     }
 }

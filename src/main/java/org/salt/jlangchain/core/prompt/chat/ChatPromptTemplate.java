@@ -37,7 +37,7 @@ public class ChatPromptTemplate extends BaseChatPromptTemplate {
     @Override
     public ChatPromptValue invoke(Object input) {
 
-        eventAction.eventStart(input, getRunId(), config);
+        eventAction.eventStart(input, config);
         ChatPromptValue result = null;
 
         try {
@@ -79,7 +79,7 @@ public class ChatPromptTemplate extends BaseChatPromptTemplate {
 
             throw new RuntimeException("input must not be null");
         } finally {
-            eventAction.eventEnd(result, getRunId(), config);
+            eventAction.eventEnd(result, config);
         }
     }
 

@@ -40,6 +40,6 @@ public abstract class BaseRunnable<O, I> extends FlowNode<O, I> {
     public abstract O invoke(I input);
 
     protected String getRunId() {
-        return getContextBus().getRunId(getContextBus().getNodeIdOrAlias());
+        return getContextBus() != null ? getContextBus().getRunId(getContextBus().getNodeIdOrAlias()) : null;
     }
 }

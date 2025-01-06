@@ -105,11 +105,14 @@ public class ChainActor {
                 CallInfo.EVENT_FILTER.name(), filter != null ? filter : (Function<EventMessageChunk, Boolean>) chunk -> true);
         paramMap.putAll(callInfo);
         flowEngine.execute(flow, input, paramMap, null, param -> {
-            eventAction.eventStart(param, chainId, config);
-            ((ContextBus) ContextBus.get()).setPreRunIds(List.of(chainId));
+                    ContextBus contextBus = ((ContextBus) ContextBus.get());
+                    contextBus.setNodeIdOrAlias("chain");
+                    contextBus.putRunId("chain", chainId);
+                    eventAction.eventStart(param, config);
+                    ((ContextBus) ContextBus.get()).setPreRunIds(List.of(chainId));
         }, result -> ((IteratorAction<?>) result).ignore(
-                    streamInput -> eventAction.eventStream(streamInput, chainId, config),
-                    streamOutput -> eventAction.eventEnd(streamOutput, chainId, config, true))
+                    streamInput -> eventAction.eventStream(streamInput, config),
+                    streamOutput -> eventAction.eventEnd(streamOutput, config, true))
         );
 
         return eventMessageChunk;

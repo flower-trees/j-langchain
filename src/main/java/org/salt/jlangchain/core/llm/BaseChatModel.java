@@ -84,7 +84,7 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
 
         otherInformation(aiChatInput);
 
-        eventAction.eventStart(input, getRunId(), config, getMetadata());
+        eventAction.eventStart(input, config, getMetadata());
 
         Consumer<AiChatOutput> consumer = getConsumer(aiMessageChunk);
         SpringContextUtil.getApplicationContext().getBean(getActuator()).astream(aiChatInput, consumer);
@@ -152,12 +152,12 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
                 chunk.setFinishReason(FinishReasonType.STOP.getCode());
             }
 
-            eventAction.eventStream(chunk, getRunId(), config, getMetadata());
+            eventAction.eventStream(chunk, config, getMetadata());
 
             aiMessageChunk.add(chunk);
 
             if (FinishReasonType.STOP.equalsV(chunk.getFinishReason())) {
-                eventAction.eventEnd(aiMessageChunk, getRunId(), config, getMetadata());
+                eventAction.eventEnd(aiMessageChunk, config, getMetadata());
             }
 
             try {

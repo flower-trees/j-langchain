@@ -150,6 +150,25 @@ public class ChainExtDemo {
     }
 
     @Test
+    public void EventChainDemo() {
+        BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
+
+        ChatOllama oll = ChatOllama.builder().model("qwen2.5:0.5b").build();
+
+        FlowInstance chain = chainActor.builder().next(prompt).next(oll).next(new StrOutputParser()).build();
+
+        EventMessageChunk chunk = chainActor.streamEvent(chain, Map.of("topic", "dog"));
+
+        while (chunk.getIterator().hasNext()) {
+            try {
+                System.out.println(chunk.getIterator().next().toJson());
+            } catch (TimeoutException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    @Test
     public void EventFilterDemo() {
         ChatOllama model = ChatOllama.builder().model("qwen2.5:0.5b").build();
 
@@ -157,6 +176,17 @@ public class ChainExtDemo {
                 .next(model.withConfig(Map.of("run_name", "model")))
                 .next((new JsonOutputParser()).withConfig(Map.of("run_name", "my_parser", "tags", List.of("my_chain"))))
                 .build();
+
+        EventMessageChunk chunk = chainActor.streamEvent(chain,"Generate JSON data.");
+        while (chunk.getIterator().hasNext()) {
+            try {
+                System.out.println(chunk.getIterator().next().toJson());
+            } catch (TimeoutException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        System.out.println("\n----------------\n");
 
         EventMessageChunk chunkFilterByName = chainActor.streamEvent(chain,"Generate JSON data.", event -> List.of("my_parser").contains(event.getName()));
         while (chunkFilterByName.getIterator().hasNext()) {

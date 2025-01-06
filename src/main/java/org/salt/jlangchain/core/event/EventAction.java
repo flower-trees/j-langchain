@@ -56,12 +56,12 @@ public class EventAction {
         this.eventName = eventName;
     }
 
-    public void eventStart(Object input, String runId, Map<String, Object> config) {
-        eventStart(input, runId, config, Map.of());
+    public void eventStart(Object input, Map<String, Object> config) {
+        eventStart(input, config, Map.of());
 
     }
 
-    public void eventStart(Object input, String runId, Map<String, Object> config, Map<String, Object> metadata) {
+    public void eventStart(Object input, Map<String, Object> config, Map<String, Object> metadata) {
         if (isHasEvent()) {
             EventMessageChunk eventMessageChunk = getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name());
             EventMessageChunk event = EventMessageChunk.builder()
@@ -71,7 +71,7 @@ public class EventAction {
                     .name(config.get("run_name") != null && config.get("run_name") instanceof String ? (String) config.get("run_name") : this.getClass().getSimpleName())
                     .tags(config.get("tags") != null && config.get("tags") instanceof List ? (List<String>) config.get("tags") : List.of())
                     .metadata(metadata)
-                    .runId(runId)
+                    .runId(getRunId())
                     .parentIds(getContextBus() != null && !CollectionUtils.isEmpty(getContextBus().getPreRunIds()) ? getContextBus().getPreRunIds() : List.of())
                     .build();
             if (isFilterThrough(event)) {
@@ -80,11 +80,11 @@ public class EventAction {
         }
     }
 
-    public void eventStream(Object chunk, String runId, Map<String, Object> config) {
-        eventStream(chunk, runId, config, Map.of());
+    public void eventStream(Object chunk, Map<String, Object> config) {
+        eventStream(chunk, config, Map.of());
     }
 
-    public void eventStream(Object chunk, String runId, Map<String, Object> config, Map<String, Object> metadata) {
+    public void eventStream(Object chunk, Map<String, Object> config, Map<String, Object> metadata) {
         if (isHasEvent()) {
             EventMessageChunk eventMessageChunk = getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name());
             EventMessageChunk event = EventMessageChunk.builder()
@@ -94,7 +94,7 @@ public class EventAction {
                     .name(config.get("run_name") != null && config.get("run_name") instanceof String ? (String) config.get("run_name") : this.getClass().getSimpleName())
                     .tags(config.get("tags") != null && config.get("tags") instanceof List ? (List<String>) config.get("tags") : List.of())
                     .metadata(metadata)
-                    .runId(runId)
+                    .runId(getRunId())
                     .parentIds(getContextBus() != null && !CollectionUtils.isEmpty(getContextBus().getPreRunIds()) ? getContextBus().getPreRunIds() : List.of())
                     .build();
             if (isFilterThrough(event)) {
@@ -103,19 +103,19 @@ public class EventAction {
         }
     }
 
-    public void eventEnd(Object output, String runId, Map<String, Object> config) {
-        eventEnd(output, runId, config, false, Map.of());
+    public void eventEnd(Object output, Map<String, Object> config) {
+        eventEnd(output, config, false, Map.of());
     }
 
-    public void eventEnd(Object output, String runId, Map<String, Object> config, Boolean isLast) {
-        eventEnd(output, runId, config, isLast, Map.of());
+    public void eventEnd(Object output, Map<String, Object> config, Boolean isLast) {
+        eventEnd(output, config, isLast, Map.of());
     }
 
-    public void eventEnd(Object output, String runId, Map<String, Object> config, Map<String, Object> metadata) {
-        eventEnd(output, runId, config, false, Map.of());
+    public void eventEnd(Object output, Map<String, Object> config, Map<String, Object> metadata) {
+        eventEnd(output, config, false, Map.of());
     }
 
-    public void eventEnd(Object output, String runId, Map<String, Object> config, Boolean isLast, Map<String, Object> metadata) {
+    public void eventEnd(Object output, Map<String, Object> config, Boolean isLast, Map<String, Object> metadata) {
         if (isHasEvent()) {
             EventMessageChunk eventMessageChunk = getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name());
             EventMessageChunk event = EventMessageChunk.builder()
@@ -125,10 +125,12 @@ public class EventAction {
                     .name(config.get("run_name") != null && config.get("run_name") instanceof String ? (String) config.get("run_name") : this.getClass().getSimpleName())
                     .tags(config.get("tags") != null && config.get("tags") instanceof List ? (List<String>) config.get("tags") : List.of())
                     .metadata(metadata)
-                    .runId(runId)
+                    .runId(getRunId())
                     .parentIds(getContextBus() != null && !CollectionUtils.isEmpty(getContextBus().getPreRunIds()) ? getContextBus().getPreRunIds() : List.of())
                     .build();
-            if ((!(boolean) getContextBus().getTransmit(CallInfo.EVENT_CHAIN.name())) || (isLast != null && isLast)) {
+            if (getContextBus().getTransmit(CallInfo.EVENT_CHAIN.name()) == null
+                    || !(boolean) getContextBus().getTransmit(CallInfo.EVENT_CHAIN.name())
+                    || (isLast != null && isLast)) {
                 event.setLast(true);
             }
             if (isFilterThrough(event)) {
@@ -150,6 +152,10 @@ public class EventAction {
                 && getContextBus().getTransmit(CallInfo.EVENT.name()) != null
                 && ((Boolean) getContextBus().getTransmit(CallInfo.EVENT.name()))
                 && getContextBus().getTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name()) != null;
+    }
+
+    protected String getRunId() {
+        return getContextBus() != null ? getContextBus().getRunId(getContextBus().getNodeIdOrAlias()) : null;
     }
 
     private boolean isFilterThrough(EventMessageChunk event) {

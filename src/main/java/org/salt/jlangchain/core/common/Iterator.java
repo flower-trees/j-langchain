@@ -55,7 +55,7 @@ public class Iterator<T> {
         try {
             T chunk = queue.poll(pollTimeout, TimeUnit.MILLISECONDS);
             if (chunk == null) {
-                return false;
+                throw new RuntimeException("poll message timeout");
             }
 
             if (chunk instanceof IteratorAction<?> && ((IteratorAction<?>) chunk).isRest()) {
