@@ -14,9 +14,11 @@
 
 package org.salt.jlangchain.core.prompt.value;
 
+import lombok.Getter;
 import lombok.experimental.SuperBuilder;
 import org.salt.jlangchain.core.Serializable;
 
+@Getter
 @SuperBuilder
 public abstract class PromptValue extends Serializable {
 }

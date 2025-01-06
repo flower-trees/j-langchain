@@ -18,6 +18,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.jlangchain.TestApplication;
+import org.salt.jlangchain.core.event.EventMessageChunk;
 import org.salt.jlangchain.core.llm.ollama.ChatOllama;
 import org.salt.jlangchain.core.message.AIMessageChunk;
 import org.springframework.boot.SpringBootConfiguration;
@@ -32,25 +33,19 @@ import java.util.concurrent.TimeoutException;
 public class ChatOllamaTest {
 
     @Test
-    public void streamTest() {
+    public void streamTest() throws TimeoutException {
 
         ChatOllama oll = new ChatOllama();
 
         AIMessageChunk result = oll.stream("who are you? give me 3 words.");
 
         while (result.getIterator().hasNext()) {
-            AIMessageChunk chunk = null;
-            try {
-                chunk = result.getIterator().next();
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
-            System.out.println("chunk: " + chunk.toJson());
+            System.out.println("chunk: " + result.getIterator().next().toJson());
         }
     }
 
     @Test
-    public void streamWordTest() {
+    public void streamWordTest() throws TimeoutException {
 
         ChatOllama oll = new ChatOllama();
 
@@ -59,16 +54,23 @@ public class ChatOllamaTest {
         StringBuilder sb = new StringBuilder();
 
         while (result.getIterator().hasNext()) {
-            AIMessageChunk chunk = null;
-            try {
-                chunk = result.getIterator().next();
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+            AIMessageChunk chunk = result.getIterator().next();;
             if (StringUtils.isNotEmpty(chunk.getContent())) {
                 sb.append(chunk.getContent());
                 System.out.println("answer:" + sb);
             }
+        }
+    }
+
+    @Test
+    public void streamEventTest() throws TimeoutException {
+
+        ChatOllama oll = new ChatOllama();
+
+        EventMessageChunk result = oll.streamEvent("who are you? give me 3 words.");
+
+        while (result.getIterator().hasNext()) {
+            System.out.println(result.getIterator().next().toJson());
         }
     }
 

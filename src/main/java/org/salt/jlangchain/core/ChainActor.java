@@ -14,12 +14,23 @@
 
 package org.salt.jlangchain.core;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.MapUtils;
 import org.salt.function.flow.FlowEngine;
 import org.salt.function.flow.FlowInstance;
+import org.salt.function.flow.context.ContextBus;
 import org.salt.jlangchain.core.common.CallInfo;
+import org.salt.jlangchain.core.common.IteratorAction;
+import org.salt.jlangchain.core.event.EventAction;
+import org.salt.jlangchain.core.event.EventMessageChunk;
+import org.salt.jlangchain.utils.GroceryUtil;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
+@Slf4j
 public class ChainActor {
 
     FlowEngine flowEngine;
@@ -33,24 +44,77 @@ public class ChainActor {
     }
 
     public <O, I> O invoke(FlowInstance flow, I input) {
-        Map<String, Object> callInfo = Map.of(CallInfo.STREAM.name(), false);
-        return flowEngine.execute(flow, input, callInfo);
+        return invoke(flow, input, null);
     }
 
     public <O, I> O invoke(FlowInstance flow, I input, Map<String, Object> transmitMap) {
+        Map<String, Object> paramMap = new HashMap<>();
+        if (MapUtils.isNotEmpty(transmitMap)) {
+            paramMap.putAll(transmitMap);
+        }
         Map<String, Object> callInfo = Map.of(CallInfo.STREAM.name(), false);
-        transmitMap.putAll(callInfo);
-        return flowEngine.execute(flow, input, transmitMap);
+        paramMap.putAll(callInfo);
+        return flowEngine.execute(flow, input, paramMap);
     }
 
     public <O, I> O stream(FlowInstance flow, I input) {
-        Map<String, Object> callInfo = Map.of(CallInfo.STREAM.name(), true);
-        return flowEngine.execute(flow, input, callInfo);
+        return stream(flow, input, null);
     }
 
     public <O, I> O stream(FlowInstance flow, I input, Map<String, Object> transmitMap) {
+        Map<String, Object> paramMap = new HashMap<>();
+        if (MapUtils.isNotEmpty(transmitMap)) {
+            paramMap.putAll(transmitMap);
+        }
         Map<String, Object> callInfo = Map.of(CallInfo.STREAM.name(), true);
-        transmitMap.putAll(callInfo);
-        return flowEngine.execute(flow, input, transmitMap);
+        paramMap.putAll(callInfo);
+        return flowEngine.execute(flow, input, paramMap);
+    }
+
+    public <I> EventMessageChunk streamEvent(FlowInstance flow, I input) {
+        return streamEvent(flow, input, null, null);
+    }
+
+    public <I> EventMessageChunk streamEvent(FlowInstance flow, I input, Function<EventMessageChunk, Boolean> filter) {
+        return streamEvent(flow, input, null, filter);
+    }
+
+    public <I> EventMessageChunk streamEvent(FlowInstance flow, I input, Map<String, Object> transmitMap, Function<EventMessageChunk, Boolean> filter) {
+
+        Map<String, Object> paramMap = new HashMap<>();
+        if (MapUtils.isNotEmpty(transmitMap)) {
+            paramMap.putAll(transmitMap);
+        }
+
+        EventMessageChunk eventMessageChunk = new EventMessageChunk();
+
+        String chainId = GroceryUtil.generateId();
+
+        EventAction eventAction = new EventAction("chain");
+
+        Map<String, Object> config = Map.of(
+                "run_name", this.getClass().getSimpleName(),
+                "tags", List.of()
+        );
+
+        Map<String, Object> callInfo = Map.of(
+                CallInfo.STREAM.name(), true,
+                CallInfo.EVENT.name(), true,
+                CallInfo.EVENT_CHAIN.name(), true,
+                CallInfo.EVENT_MESSAGE_CHUNK.name(), eventMessageChunk,
+                CallInfo.EVENT_FILTER.name(), filter != null ? filter : (Function<EventMessageChunk, Boolean>) chunk -> true);
+        paramMap.putAll(callInfo);
+        flowEngine.execute(flow, input, paramMap, null, param -> {
+                    ContextBus contextBus = ((ContextBus) ContextBus.get());
+                    contextBus.setNodeIdOrAlias("chain");
+                    contextBus.putRunId("chain", chainId);
+                    eventAction.eventStart(param, config);
+                    ((ContextBus) ContextBus.get()).setPreRunIds(List.of(chainId));
+        }, result -> ((IteratorAction<?>) result).ignore(
+                    streamInput -> eventAction.eventStream(streamInput, config),
+                    streamOutput -> eventAction.eventEnd(streamOutput, config, true))
+        );
+
+        return eventMessageChunk;
     }
 }

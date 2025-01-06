@@ -28,10 +28,9 @@
 
 package org.salt.jlangchain.ai.common.param;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.*;
+import org.salt.jlangchain.utils.GroceryUtil;
 
 import java.util.List;
 
@@ -40,6 +39,11 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class AiChatInput {
+
+    @JsonIgnore
+    protected String id = GroceryUtil.generateId();
+    @JsonIgnore
+    protected String parentId;
 
     private String model;
 

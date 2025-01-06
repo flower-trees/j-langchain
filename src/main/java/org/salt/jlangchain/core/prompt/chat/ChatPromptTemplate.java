@@ -37,42 +37,50 @@ public class ChatPromptTemplate extends BaseChatPromptTemplate {
     @Override
     public ChatPromptValue invoke(Object input) {
 
-        if (input != null) {
-            Map<String, ?> inputMap;
-            if (input instanceof Map) {
-                inputMap = (Map<String, ?>)input;
-            } else if (GroceryUtil.isPlainObject(input)) {
-                inputMap = JsonUtil.toMap(input);
-            } else {
-                throw new RuntimeException("input must be Map or PlainObject");
-            }
-            StringSubstitutor sub = new StringSubstitutor(inputMap);
+        eventAction.eventStart(input, config);
+        ChatPromptValue result = null;
 
-            List<BaseMessage> newMessages = new ArrayList<>();
+        try {
+            if (input != null) {
+                Map<String, ?> inputMap;
+                if (input instanceof Map) {
+                    inputMap = (Map<String, ?>)input;
+                } else if (GroceryUtil.isPlainObject(input)) {
+                    inputMap = JsonUtil.toMap(input);
+                } else {
+                    throw new RuntimeException("input must be Map or PlainObject");
+                }
+                StringSubstitutor sub = new StringSubstitutor(inputMap);
 
-            messages.forEach(message -> {
-                if (message instanceof PlaceholderMessage) {
-                    String extracted = StringUtils.substringBetween(message.getContent(), "${", "}");
-                    if (StringUtils.isNotEmpty(extracted) && inputMap.containsKey(extracted)) {
-                        if (inputMap.get(extracted) instanceof List) {
-                            for (Object item : (List) inputMap.get(extracted)) {
-                                if (item instanceof BaseMessage itemMessage) {
-                                    newMessages.add(BaseMessage.fromMessage(itemMessage.getRole(), itemMessage.getContent()));
-                                } else if (item instanceof Pair) {
-                                    Pair<String, String> pair = (Pair<String, String>) item;
-                                    newMessages.add(BaseMessage.fromMessage(pair.getKey(), pair.getValue()));
+                List<BaseMessage> newMessages = new ArrayList<>();
+
+                messages.forEach(message -> {
+                    if (message instanceof PlaceholderMessage) {
+                        String extracted = StringUtils.substringBetween(message.getContent(), "${", "}");
+                        if (StringUtils.isNotEmpty(extracted) && inputMap.containsKey(extracted)) {
+                            if (inputMap.get(extracted) instanceof List) {
+                                for (Object item : (List) inputMap.get(extracted)) {
+                                    if (item instanceof BaseMessage itemMessage) {
+                                        newMessages.add(BaseMessage.fromMessage(itemMessage.getRole(), itemMessage.getContent()));
+                                    } else if (item instanceof Pair) {
+                                        Pair<String, String> pair = (Pair<String, String>) item;
+                                        newMessages.add(BaseMessage.fromMessage(pair.getKey(), pair.getValue()));
+                                    }
                                 }
                             }
                         }
+                    } else {
+                        newMessages.add(BaseMessage.fromMessage(message.getRole(), sub.replace(message.getContent())));
                     }
-                } else {
-                    newMessages.add(BaseMessage.fromMessage(message.getRole(), sub.replace(message.getContent())));
-                }
-            });
-            return ChatPromptValue.builder().messages(newMessages).build();
-        }
+                });
+                result = ChatPromptValue.builder().messages(newMessages).build();
+                return result;
+            }
 
-        throw new RuntimeException("input must not be null");
+            throw new RuntimeException("input must not be null");
+        } finally {
+            eventAction.eventEnd(result, config);
+        }
     }
 
     public static BaseRunnable<ChatPromptValue, Object> fromMessages(List<?> messages) {

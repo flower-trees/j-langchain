@@ -30,17 +30,26 @@ public class PromptTemplate extends StringPromptTemplate {
 
     @Override
     public StringPromptValue invoke(Object input) {
-        if (input != null) {
-            if (input instanceof Map) {
-                StringSubstitutor sub = new StringSubstitutor((Map<String, ?>)input);
-                return StringPromptValue.builder().text(sub.replace(template)).build();
-            } else if (GroceryUtil.isPlainObject(input)) {
-                StringSubstitutor sub = new StringSubstitutor(JsonUtil.toMap(input));
-                return StringPromptValue.builder().text(sub.replace(template)).build();
-            }
-        }
 
-        throw new RuntimeException("input must be Map or PlainObject");
+        eventAction.eventStart(input, config);
+        StringPromptValue result = null;
+
+        try {
+            if (input != null) {
+                if (input instanceof Map) {
+                    StringSubstitutor sub = new StringSubstitutor((Map<String, ?>)input);
+                    result = StringPromptValue.builder().text(sub.replace(template)).build();
+                    return result;
+                } else if (GroceryUtil.isPlainObject(input)) {
+                    StringSubstitutor sub = new StringSubstitutor(JsonUtil.toMap(input));
+                    result = StringPromptValue.builder().text(sub.replace(template)).build();
+                    return result;
+                }
+            }
+            throw new RuntimeException("input must be Map or PlainObject");
+        } finally {
+            eventAction.eventEnd(result, config);
+        }
     }
 
     public static BaseRunnable<StringPromptValue, Object> fromTemplate(String template) {

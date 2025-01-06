@@ -71,6 +71,14 @@ public abstract class BaseAiChatActuator<O, I> implements AiChatActuator {
         commonHttpClient.astream(getChatUrl(), JsonUtil.toJson(request), headers, List.of(getListenerStrategy(aiChatInput, responder, null)));
     }
 
+    @Override
+    public void astream(AiChatInput aiChatInput, Consumer<AiChatOutput> responder, BiConsumer<AiChatInput, AiChatOutput> completeCallback) {
+        Map<String, String> headers = buildHeaders();
+        I request = convertRequest(aiChatInput);
+
+        commonHttpClient.astream(getChatUrl(), JsonUtil.toJson(request), headers, List.of(getListenerStrategy(aiChatInput, responder, completeCallback)));
+    }
+
     // build vendor api headers
     protected Map<String, String> buildHeaders() {
         return Map.of(

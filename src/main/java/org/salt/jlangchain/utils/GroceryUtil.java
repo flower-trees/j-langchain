@@ -48,4 +48,8 @@ public class GroceryUtil {
                 clazz.equals(Double.class) ||
                 clazz.equals(String.class);
     }
+
+    public static String generateId() {
+        return java.util.UUID.randomUUID().toString().replaceAll("-", "");
+    }
 }

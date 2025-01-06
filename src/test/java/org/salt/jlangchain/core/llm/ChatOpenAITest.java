@@ -32,7 +32,7 @@ import java.util.concurrent.TimeoutException;
 public class ChatOpenAITest {
 
     @Test
-    public void streamTest() {
+    public void streamTest() throws TimeoutException {
 
         ChatOpenAI prompt = new ChatOpenAI();
 
@@ -41,18 +41,13 @@ public class ChatOpenAITest {
         System.out.println(result.toJson());
 
         while (result.getIterator().hasNext()) {
-            AIMessageChunk chunk = null;
-            try {
-                chunk = result.getIterator().next();
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+            AIMessageChunk chunk = result.getIterator().next();
             System.out.println("chunk: " + chunk.toJson());
         }
     }
 
     @Test
-    public void streamWordTest() {
+    public void streamWordTest() throws TimeoutException {
 
         ChatOpenAI prompt = new ChatOpenAI();
 
@@ -61,12 +56,7 @@ public class ChatOpenAITest {
         StringBuilder sb = new StringBuilder();
 
         while (result.getIterator().hasNext()) {
-            AIMessageChunk chunk = null;
-            try {
-                chunk = result.getIterator().next();
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+            AIMessageChunk chunk = result.getIterator().next();;
             if (StringUtils.isNotEmpty(chunk.getContent())) {
                 sb.append(chunk.getContent());
                 System.out.println("answer:" + sb);

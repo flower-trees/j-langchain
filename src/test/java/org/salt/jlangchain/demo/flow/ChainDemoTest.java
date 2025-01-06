@@ -22,22 +22,28 @@ import org.salt.function.flow.Info;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.event.EventMessageChunk;
 import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
 import org.salt.jlangchain.core.llm.doubao.ChatDoubao;
 import org.salt.jlangchain.core.llm.moonshot.ChatMoonshot;
 import org.salt.jlangchain.core.llm.ollama.ChatOllama;
 import org.salt.jlangchain.core.llm.openai.ChatOpenAI;
+import org.salt.jlangchain.core.parser.FunctionOutputParser;
+import org.salt.jlangchain.core.parser.JsonOutputParser;
 import org.salt.jlangchain.core.parser.StrOutputParser;
 import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
 import org.salt.jlangchain.core.prompt.string.PromptTemplate;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
+import org.salt.jlangchain.utils.JsonUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
 @RunWith(SpringRunner.class)
@@ -49,7 +55,7 @@ public class ChainDemoTest {
     ChainActor chainActor;
 
     @Test
-    public void ChainStreamDemo() {
+    public void ChainStreamDemo() throws TimeoutException {
 
         BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
 
@@ -64,12 +70,7 @@ public class ChainDemoTest {
         StringBuilder sb = new StringBuilder();
 
         while (result.getIterator().hasNext()) {
-            ChatGenerationChunk chunk = null;
-            try {
-                chunk = result.getIterator().next();
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+            ChatGenerationChunk chunk = result.getIterator().next();
             if (StringUtils.isNotEmpty(chunk.toString())) {
                 sb.append(chunk);
                 System.out.println("answer:" + sb);
@@ -78,7 +79,7 @@ public class ChainDemoTest {
     }
 
     @Test
-    public void ChainSwitchDemo() {
+    public void ChainSwitchDemo() throws TimeoutException {
 
         BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("who are you?");
 
@@ -103,16 +104,66 @@ public class ChainDemoTest {
         StringBuilder sb = new StringBuilder();
 
         while (result.getIterator().hasNext()) {
-            try {
-                ChatGenerationChunk chunk = result.getIterator().next();
-                sb.append(chunk);
-                System.out.println("answer:" + sb);
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+            ChatGenerationChunk chunk = result.getIterator().next();
+            sb.append(chunk);
+            System.out.println("answer:" + sb);
         }
 
         ChatGeneration generation = chainActor.invoke(chain, Map.of("vendor", "ollama"));
         System.out.println("invoke answer:" + generation.getMessage().getContent());
+    }
+
+    @Test
+    public void EventChainDemo() throws TimeoutException {
+        BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
+
+        ChatOllama oll = ChatOllama.builder().model("qwen2.5:0.5b").build();
+
+        StrOutputParser parser = new StrOutputParser();
+
+        FlowInstance chain = chainActor.builder().next(prompt).next(oll).next(parser).build();
+
+        EventMessageChunk chunk = chainActor.streamEvent(chain, Map.of("topic", "dog"));
+
+        while (chunk.getIterator().hasNext()) {
+            System.out.println(chunk.getIterator().next().toJson());
+        }
+    }
+
+    @Test
+    public void OutputFunctionDemo() throws TimeoutException {
+        ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
+
+        FlowInstance chain = chainActor.builder()
+                .next(llm)
+                .next(new JsonOutputParser())
+                .next(new FunctionOutputParser(this::extractCountryNamesStreaming))
+                .build();
+
+        EventMessageChunk chunk = chainActor.streamEvent(chain, """
+        output a list of the countries france, spain and japan and their populations in JSON format. "
+        'Use a dict with an outer key of "countries" which contains a list of countries. '
+        "Each country should have the key `name` and `population`""");
+
+        while (chunk.getIterator().hasNext()) {
+            System.out.println(chunk.getIterator().next().toJson());
+        }
+    }
+
+    Set<Object> set = new HashSet<>();
+    private String extractCountryNamesStreaming(String chunk) {
+        if (JsonUtil.isValidJson(chunk)) {
+            Map chunkMap = JsonUtil.fromJson(chunk, Map.class);
+            if (chunkMap != null && chunkMap.get("countries") != null) {
+                Map countries = (Map) chunkMap.get("countries");
+                for (Object name : countries.keySet()) {
+                    if (!set.contains(name)) {
+                        set.add(name);
+                        return (String) name;
+                    }
+                }
+            }
+        }
+        return "";
     }
 }

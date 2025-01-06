@@ -17,6 +17,7 @@ package org.salt.jlangchain.config;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.function.flow.FlowEngine;
 import org.salt.function.flow.config.FlowConfiguration;
+import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.ai.client.stream.HttpStreamClient;
 import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 import org.salt.jlangchain.ai.vendor.chatgpt.ChatGPTActuator;
@@ -30,14 +31,13 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import javax.annotation.PostConstruct;
 
 @Slf4j
 @Configuration
 @Import(FlowConfiguration.class)
-@EnableAsync
 public class JLangchainConfig {
 
     @Autowired
@@ -49,16 +49,21 @@ public class JLangchainConfig {
     }
 
     @Bean
-    public HttpStreamClient chatGPTHttpClient() {
-        HttpStreamClient client = new HttpStreamClient();
+    public TheadHelper theadHelper(@Autowired ThreadPoolTaskExecutor executor) {
+        return TheadHelper.builder().executor(executor.getThreadPoolExecutor()).build();
+    }
+
+    @Bean
+    public HttpStreamClient chatGPTHttpClient(TheadHelper theadHelper) {
+        HttpStreamClient client = new HttpStreamClient(theadHelper);
         client.setProxyHost("127.0.0.1");
         client.setProxyPort(1087);
         return client;
     }
 
     @Bean
-    public HttpStreamClient commonHttpClient() {
-        return new HttpStreamClient();
+    public HttpStreamClient commonHttpClient(TheadHelper theadHelper) {
+        return new HttpStreamClient(theadHelper);
     }
 
     @Bean

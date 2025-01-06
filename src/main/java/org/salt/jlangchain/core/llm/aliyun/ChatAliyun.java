@@ -31,6 +31,8 @@ import java.util.Map;
 @AllArgsConstructor
 public class ChatAliyun extends BaseChatModel {
 
+    protected String vendor = "aliyun";
+    protected String modelType = "llm";
     protected String model = "qwq-32b-preview";
     protected String temperature = "0.7";
     protected Map<String, Object> modelKwargs;

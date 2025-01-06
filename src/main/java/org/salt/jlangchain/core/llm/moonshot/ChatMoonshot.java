@@ -31,6 +31,8 @@ import java.util.Map;
 @AllArgsConstructor
 public class ChatMoonshot extends BaseChatModel {
 
+    protected String vendor = "moonshot";
+    protected String modelType = "llm";
     protected String model = "moonshot-v1-8k";
     protected String temperature = "0.7";
     protected Map<String, Object> modelKwargs;

@@ -14,70 +14,102 @@
 
 package org.salt.jlangchain.core.parser;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.salt.function.flow.thread.TheadHelper;
+import org.salt.jlangchain.core.common.Iterator;
+import org.salt.jlangchain.core.event.EventAction;
 import org.salt.jlangchain.core.message.AIMessageChunk;
 import org.salt.jlangchain.core.message.BaseMessage;
 import org.salt.jlangchain.core.message.BaseMessageChunk;
 import org.salt.jlangchain.core.message.FinishReasonType;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
+import org.salt.jlangchain.utils.JsonUtil;
 import org.salt.jlangchain.utils.SpringContextUtil;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
+@Slf4j
 public abstract class BaseTransformOutputParser extends BaseOutputParser {
+
+    Map<String, Object> config = Map.of(
+            "run_name", this.getClass().getSimpleName(),
+            "tags", List.of()
+    );
+    EventAction eventAction = new EventAction("parser");
 
     @Override
     protected ChatGenerationChunk transform(Object input) {
         if (input instanceof String stringPrompt) {
-            AIMessageChunk aiMessageChunk = new AIMessageChunk();
-            buildAsync(aiMessageChunk, stringPrompt);
-            ChatGenerationChunk result = new ChatGenerationChunk(null);
-            transformAsync(aiMessageChunk, result);
+            BaseMessageChunk<AIMessageChunk> aiMessageChunk = buildAsync(stringPrompt);
+            ChatGenerationChunk result = new ChatGenerationChunk();
+            transformAsync(input, aiMessageChunk.getIterator(), result);
             return result;
         } else if (input instanceof BaseMessageChunk<? extends BaseMessage> baseMessageChunk){
             if (baseMessageChunk instanceof AIMessageChunk){
-                ChatGenerationChunk result = new ChatGenerationChunk(null);
-                transformAsync(baseMessageChunk, result);
+                ChatGenerationChunk result = new ChatGenerationChunk();
+                transformAsync(input, baseMessageChunk.getIterator(), result);
                 return result;
             } else {
                 throw new RuntimeException("Unsupported message type: " + baseMessageChunk.getClass().getName());
             }
+        } else if (input instanceof ChatGenerationChunk chatGenerationChunk){
+            ChatGenerationChunk result = new ChatGenerationChunk();
+            transformAsync(input, chatGenerationChunk.getIterator(), result);
+            return result;
         } else {
             throw new RuntimeException("Unsupported input type: " + input.getClass().getName());
         }
     }
 
-    private void transformAsync(BaseMessageChunk<? extends BaseMessage> baseMessageChunk, ChatGenerationChunk rusult) {
-        SpringContextUtil.getApplicationContext().getBean(ThreadPoolTaskExecutor.class).execute(
-                () -> {
-                    while (baseMessageChunk.getIterator().hasNext()) {
-                        try {
-                            BaseMessage chunk = baseMessageChunk.getIterator().next();
-                            if (chunk instanceof AIMessageChunk aiMessageChunk){
-                                ChatGenerationChunk chatGenerationChunk = (ChatGenerationChunk) parseResult(List.of(new ChatGenerationChunk(aiMessageChunk)));
-                                rusult.getIterator().append(chatGenerationChunk);
-                            } else {
-                                throw new RuntimeException("Unsupported message type: " + chunk.getClass().getName());
+    protected void transformAsync(Object input, Iterator<?> iterator, ChatGenerationChunk rusult) {
+        SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(
+            () -> {
+                eventAction.eventStart(input, config);
+                try {
+                    while (iterator.hasNext()) {
+                        Object chunk = iterator.next();
+                        log.debug("chunk: {}", JsonUtil.toJson(chunk));
+                        if (chunk instanceof AIMessageChunk aiMessageChunk) {
+                            ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(new ChatGenerationChunk(aiMessageChunk)));
+                            if (StringUtils.isNotEmpty(resultChunk.getText()) || resultChunk.isLast()) {
+                                rusult.add(resultChunk);
+                                rusult.getIterator().append(resultChunk);
+                                eventAction.eventStream(resultChunk, config);
                             }
-                        } catch (TimeoutException e) {
-                            throw new RuntimeException(e);
+                        } else if (chunk instanceof ChatGenerationChunk chatGenerationChunk) {
+                            ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(chatGenerationChunk));
+                            if (StringUtils.isNotEmpty(resultChunk.getText()) || resultChunk.isLast()) {
+                                rusult.add(resultChunk);
+                                rusult.getIterator().append(resultChunk);
+                                eventAction.eventStream(resultChunk, config);
+                            }
+                        } else {
+                            throw new RuntimeException("Unsupported message type: " + chunk.getClass().getName());
                         }
                     }
+                } catch (TimeoutException e) {
+                    log.error("transformAsync timeout:", e);
+                    throw new RuntimeException(e);
                 }
+                eventAction.eventEnd(rusult, config);
+            }
         );
     }
 
-    public void buildAsync(BaseMessageChunk<AIMessageChunk> baseMessageChunk, String stringPrompt) {
-        SpringContextUtil.getApplicationContext().getBean(ThreadPoolTaskExecutor.class).execute(
-                () -> {
-                    AIMessageChunk aiMessageChunk = AIMessageChunk.builder().content(stringPrompt).finishReason(FinishReasonType.STOP.getCode()).build();
-                    try {
-                        baseMessageChunk.getIterator().append(aiMessageChunk);
-                    } catch (TimeoutException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-        );
+    protected BaseMessageChunk<AIMessageChunk> buildAsync(String stringPrompt) {
+        AIMessageChunk baseMessageChunk = new AIMessageChunk();
+        baseMessageChunk.asynAppend(AIMessageChunk.builder().content(stringPrompt).finishReason(FinishReasonType.STOP.getCode()).build());
+        return baseMessageChunk;
+    }
+
+    public BaseTransformOutputParser withConfig(Map<String, Object> config) {
+        Map<String, Object> map = new HashMap<>(this.config);
+        map.putAll(config);
+        this.config = map;
+        return this;
     }
 }

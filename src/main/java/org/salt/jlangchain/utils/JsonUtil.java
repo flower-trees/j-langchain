@@ -45,6 +45,15 @@ public class JsonUtil {
         objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     }
 
+    public static boolean isValidJson(String json) {
+        try {
+            objectMapper.readTree(json);
+            return true;
+        } catch (JsonProcessingException e) {
+            return false;
+        }
+    }
+
     public static String toJson(Object o) {
         try {
             return objectMapper.writeValueAsString(o);
@@ -103,6 +112,15 @@ public class JsonUtil {
         } catch (IllegalArgumentException e) {
             log.warn("toMap error:{}", e.getMessage());
             return new HashMap<>();
+        }
+    }
+
+    public static String compactJson(String prettyJson) {
+        try {
+            Object jsonObject = objectMapper.readValue(prettyJson, Object.class);
+            return objectMapper.writeValueAsString(jsonObject);
+        } catch (JsonProcessingException e) {
+            return "";
         }
     }
 }

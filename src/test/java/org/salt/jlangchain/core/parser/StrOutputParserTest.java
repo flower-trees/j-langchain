@@ -16,14 +16,15 @@ package org.salt.jlangchain.core.parser;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.TestApplication;
+import org.salt.jlangchain.core.event.EventMessageChunk;
 import org.salt.jlangchain.core.message.AIMessageChunk;
 import org.salt.jlangchain.core.message.FinishReasonType;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
 import org.salt.jlangchain.utils.SpringContextUtil;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.concurrent.TimeoutException;
@@ -34,30 +35,26 @@ import java.util.concurrent.TimeoutException;
 public class StrOutputParserTest {
 
     @Test
-    public void streamTest() {
+    public void streamTest() throws TimeoutException {
 
         StrOutputParser parser = new StrOutputParser();
 
         ChatGenerationChunk result = parser.stream("who are you? give me 3 words.");
 
         while (result.getIterator().hasNext()) {
-            try {
-                ChatGenerationChunk chunk = result.getIterator().next();
-                System.out.println("chunk: " + chunk);
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+            ChatGenerationChunk chunk = result.getIterator().next();
+            System.out.println("chunk: " + chunk);
         }
     }
 
     @Test
-    public void streamBaseMessageTest() {
+    public void streamBaseMessageTest() throws TimeoutException {
 
         StrOutputParser parser = new StrOutputParser();
 
         AIMessageChunk aiMessageChunk = new AIMessageChunk();
 
-        SpringContextUtil.getApplicationContext().getBean(ThreadPoolTaskExecutor.class).execute(
+        SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(
                 () -> {
                     String stringPrompt = "who are you? give me 3 words.";
                     String[] words = stringPrompt.split("\\s+");
@@ -78,13 +75,19 @@ public class StrOutputParserTest {
         ChatGenerationChunk result = parser.stream(aiMessageChunk);
 
         while (result.getIterator().hasNext()) {
-            try {
-                ChatGenerationChunk chunk = result.getIterator().next();
-                System.out.println("chunk: " + chunk);
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+            ChatGenerationChunk chunk = result.getIterator().next();
+            System.out.println("chunk: " + chunk);
         }
     }
 
+    @Test
+    public void streamEventTest() throws TimeoutException  {
+        StrOutputParser parser = new StrOutputParser();
+
+        EventMessageChunk result = parser.streamEvent("who are you? give me 3 words.");
+
+        while (result.getIterator().hasNext()) {
+            System.out.println(result.getIterator().next().toJson());
+        }
+    }
 }

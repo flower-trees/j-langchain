@@ -18,12 +18,16 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.salt.jlangchain.ai.common.enums.AiChatCode;
+import org.salt.function.flow.context.ContextBus;
 import org.salt.jlangchain.ai.chat.openai.RoleType;
+import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
+import org.salt.jlangchain.ai.common.enums.AiChatCode;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
-import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.core.BaseRunnable;
+import org.salt.jlangchain.core.common.CallInfo;
+import org.salt.jlangchain.core.event.EventAction;
+import org.salt.jlangchain.core.event.EventMessageChunk;
 import org.salt.jlangchain.core.message.*;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
@@ -32,7 +36,9 @@ import org.salt.jlangchain.utils.SpringContextUtil;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
@@ -40,6 +46,18 @@ import java.util.function.Consumer;
 @EqualsAndHashCode(callSuper = true)
 @Data
 public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
+
+    protected String vendor = "chatgpt";
+    protected String modelType = "llm";
+    protected String model = "gpt-4";
+    protected String temperature = "0.7";
+    protected Map<String, Object> modelKwargs;
+
+    Map<String, Object> config = Map.of(
+            "run_name", this.getClass().getSimpleName(),
+            "tags", List.of()
+    );
+    EventAction eventAction = new EventAction("llm");
 
     @Override
     public AIMessage invoke(Object input) {
@@ -66,10 +84,27 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
 
         otherInformation(aiChatInput);
 
+        eventAction.eventStart(input, config, getMetadata());
+
         Consumer<AiChatOutput> consumer = getConsumer(aiMessageChunk);
         SpringContextUtil.getApplicationContext().getBean(getActuator()).astream(aiChatInput, consumer);
 
         return aiMessageChunk;
+    }
+
+    @Override
+    public EventMessageChunk streamEvent(Object input) {
+        EventMessageChunk eventMessageChunk = new EventMessageChunk();
+
+        ContextBus.create(input);
+        getContextBus().putTransmit(CallInfo.EVENT.name(), true);
+        getContextBus().putTransmit(CallInfo.EVENT_CHAIN.name(), false);
+        getContextBus().putTransmit(CallInfo.EVENT_MESSAGE_CHUNK.name(), eventMessageChunk);
+
+        AIMessageChunk aiMessageChunk = stream(input);
+        aiMessageChunk.ignore();
+
+        return eventMessageChunk;
     }
 
     public abstract void otherInformation(AiChatInput aiChatInput);
@@ -116,6 +151,15 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
             if (StringUtils.equals(aiChatOutput.getCode(), AiChatCode.STOP.getCode())) {
                 chunk.setFinishReason(FinishReasonType.STOP.getCode());
             }
+
+            eventAction.eventStream(chunk, config, getMetadata());
+
+            aiMessageChunk.add(chunk);
+
+            if (FinishReasonType.STOP.equalsV(chunk.getFinishReason())) {
+                eventAction.eventEnd(aiMessageChunk, config, getMetadata());
+            }
+
             try {
                 aiMessageChunk.getIterator().append(chunk);
             } catch (TimeoutException e) {
@@ -124,4 +168,16 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
         };
     }
 
+    public BaseChatModel withConfig(Map<String, Object> config) {
+        Map<String, Object> map = new HashMap<>(this.config);
+        map.putAll(config);
+        this.config = map;
+        return this;
+    }
+
+    protected Map<String, Object> getMetadata() {
+        return Map.of("ls_provider", vendor,
+                      "ls_model_type", modelType,
+                      "ls_model_name", model);
+    }
 }
