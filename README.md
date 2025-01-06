@@ -10,13 +10,13 @@ This project is a Java-based LangChain development framework aimed at simplifyin
 <dependency>
     <groupId>io.github.flower-trees</groupId>
     <artifactId>j-langchain</artifactId>
-    <version>1.0.2-preview</version>
+    <version>1.0.3-preview</version>
 </dependency>
 ```
 
 ### Gradle
 ```groovy
-implementation 'io.github.flower-trees:j-langchain:1.0.2-preview'
+implementation 'io.github.flower-trees:j-langchain:1.0.3-preview'
 ```
 
 ### Config
