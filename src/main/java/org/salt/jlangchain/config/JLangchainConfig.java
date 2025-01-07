@@ -15,6 +15,7 @@
 package org.salt.jlangchain.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.salt.function.flow.FlowEngine;
 import org.salt.function.flow.config.FlowConfiguration;
 import org.salt.function.flow.thread.TheadHelper;
@@ -27,6 +28,7 @@ import org.salt.jlangchain.ai.vendor.ollama.OllamaActuator;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.utils.SpringContextUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -39,6 +41,12 @@ import javax.annotation.PostConstruct;
 @Configuration
 @Import(FlowConfiguration.class)
 public class JLangchainConfig {
+
+    @Value("${models.chatgpt.proxy.host:${HTTP_PROXY_HOST:}}")
+    private String proxyHost;
+
+    @Value("${models.chatgpt.proxy.port:${HTTP_PROXY_PORT:}}")
+    private String proxyPort;
 
     @Autowired
     private ApplicationContext context;
@@ -56,8 +64,10 @@ public class JLangchainConfig {
     @Bean
     public HttpStreamClient chatGPTHttpClient(TheadHelper theadHelper) {
         HttpStreamClient client = new HttpStreamClient(theadHelper);
-        client.setProxyHost("127.0.0.1");
-        client.setProxyPort(1087);
+        if (StringUtils.isNotEmpty(proxyHost) && StringUtils.isNotEmpty(proxyPort)) {
+            client.setProxyHost(proxyHost);
+            client.setProxyPort(Integer.parseInt(proxyPort));
+        }
         return client;
     }
 
