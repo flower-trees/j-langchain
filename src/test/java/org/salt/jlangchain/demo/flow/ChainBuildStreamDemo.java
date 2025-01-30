@@ -27,9 +27,8 @@ import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.InvokeChain;
 import org.salt.jlangchain.core.llm.ollama.ChatOllama;
 import org.salt.jlangchain.core.llm.openai.ChatOpenAI;
-import org.salt.jlangchain.core.message.AIMessage;
+import org.salt.jlangchain.core.message.AIMessageChunk;
 import org.salt.jlangchain.core.parser.StrOutputParser;
-import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
 import org.salt.jlangchain.core.parser.generation.Generation;
 import org.salt.jlangchain.core.prompt.chat.ChatPromptTemplate;
@@ -44,6 +43,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 @RunWith(SpringRunner.class)
@@ -125,26 +125,52 @@ public class ChainBuildStreamDemo {
 
     @Test
     public void ParallelDemo() {
-        ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
 
         BaseRunnable<StringPromptValue, ?> joke = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
         BaseRunnable<StringPromptValue, ?> poem = PromptTemplate.fromTemplate("write a 2-line poem about ${topic}");
 
-        FlowInstance jokeChain = chainActor.builder().next(joke).next(llm).build();
-        FlowInstance poemChain = chainActor.builder().next(poem).next(llm).build();
+        FlowInstance jokeChain = chainActor.builder().next(joke).next(ChatOllama.builder().model("qwen2.5:0.5b").build()).build();
+        FlowInstance poemChain = chainActor.builder().next(poem).next(ChatOllama.builder().model("qwen2.5:0.5b").build()).build();
 
-        FlowInstance chain = chainActor.builder().concurrent((IResult<Map<String, String>>) (iContextBus, isTimeout) -> {
-            AIMessage jokeResult = iContextBus.getResult(jokeChain.getFlowId());
-            AIMessage poemResult = iContextBus.getResult(poemChain.getFlowId());
-            return Map.of("joke", jokeResult.getContent(), "poem", poemResult.getContent());
-        }, jokeChain, poemChain).build();
+        FlowInstance chain = chainActor.builder().concurrent(
+                (IResult<Map<String, AIMessageChunk>>) (iContextBus, isTimeout) ->
+                        Map.of("joke", iContextBus.getResult(jokeChain.getFlowId()), "poem", iContextBus.getResult(poemChain.getFlowId())),
+                jokeChain, poemChain
+        ).build();
 
-        Map<String, String> result = chainActor.invoke(chain, Map.of("topic", "bears"));
-        System.out.println(JsonUtil.toJson(result));
+        Map<String, AIMessageChunk> result = chainActor.stream(chain, Map.of("topic", "bears"));
+
+        CompletableFuture.runAsync(() -> {
+            AIMessageChunk jokeChunk = result.get("joke");
+            StringBuilder jokeSb = new StringBuilder().append("joke: ");
+            while (true) {
+                try {
+                    if (!jokeChunk.getIterator().hasNext()) break;
+                } catch (TimeoutException e) {
+                    throw new RuntimeException(e);
+                }
+                jokeSb.append(jokeChunk.getIterator().next().getContent());
+                System.out.println(jokeSb);
+            }
+        });
+
+        CompletableFuture.runAsync(() -> {
+            AIMessageChunk poemChunk = result.get("poem");
+            StringBuilder poemSb = new StringBuilder().append("poem: ");
+            while (true) {
+                try {
+                    if (!poemChunk.getIterator().hasNext()) break;
+                } catch (TimeoutException e) {
+                    throw new RuntimeException(e);
+                }
+                poemSb.append(poemChunk.getIterator().next().getContent());
+                System.out.println(poemSb);
+            }
+        }).join();
     }
 
     @Test
-    public void RouteDemo() {
+    public void RouteDemo() throws TimeoutException {
         ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
 
         BaseRunnable<StringPromptValue, Object> prompt = PromptTemplate.fromTemplate(
@@ -195,20 +221,26 @@ public class ChainBuildStreamDemo {
         )).next(ChatOllama.builder().model("qwen2.5:0.5b").build()).build();
 
         FlowInstance fullChain = chainActor.builder()
-                .next(chain)
-                .next(input -> Map.of("topic", input, "question", ((Map<?, ?>)ContextBus.get().getFlowParam()).get("question")))
+                .next(new InvokeChain(chain))
+                .next(input -> { System.out.printf("topic: '%s' \n\n", input); return input; })
+                .next(input -> Map.of("prompt", input, "question", ((Map<?, ?>)ContextBus.get().getFlowParam()).get("question")))
+                .next(input -> { System.out.printf("topic: '%s' \n\n", input); return input; })
                 .next(
                         Info.c("topic == 'anthropic'", anthropicChain),
                         Info.c("topic == 'langchain'", langchainChain),
                         Info.c(generalChain)
                 ).build();
 
-        AIMessage result = chainActor.invoke(fullChain, Map.of("question", "how do I use Anthropic?"));
-        System.out.println(result.getContent());
+        AIMessageChunk chunk = chainActor.stream(fullChain, Map.of("question", "how do I use Anthropic?"));
+        StringBuilder sb = new StringBuilder();
+        while (chunk.getIterator().hasNext()) {
+            sb.append(chunk.getIterator().next().getContent());
+            System.out.println(sb);
+        }
     }
 
     @Test
-    public void DynamicDemo() {
+    public void DynamicDemo() throws TimeoutException {
         ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
 
         String contextualizeInstructions = """
@@ -229,7 +261,7 @@ public class ChainBuildStreamDemo {
                 .build();
 
         FlowInstance contextualizeIfNeeded = chainActor.builder().next(
-                Info.c("chatHistory != null", contextualizeQuestion),
+                Info.c("chatHistory != null", new InvokeChain(contextualizeQuestion)),
                 Info.c(input -> Map.of("question", ((Map<String, String>)input).get("question")))
         ).build();
 
@@ -253,12 +285,12 @@ public class ChainBuildStreamDemo {
                         Info.c(input -> "egypt's population in 2024 is about 111 million").cAlias("fakeRetriever")
                 )
                 .next(qaPrompt)
-                .next(input -> {System.out.println(JsonUtil.toJson(input)); return input;})
+                .next(input -> { System.out.printf("topic: '%s' \n\n", JsonUtil.toJson(input)); return input; })
                 .next(llm)
                 .next(new StrOutputParser())
                 .build();
 
-        ChatGeneration result = chainActor.invoke(fullChain,
+        ChatGenerationChunk chunk = chainActor.stream(fullChain,
                 Map.of(
                         "question", "what about egypt",
                         "chatHistory",
@@ -268,6 +300,10 @@ public class ChainBuildStreamDemo {
                                 )
                 )
         );
-        System.out.println(result);
+        StringBuilder sb = new StringBuilder();
+        while (chunk.getIterator().hasNext()) {
+            sb.append(chunk.getIterator().next().getText());
+            System.out.println(sb);
+        }
     }
 }
