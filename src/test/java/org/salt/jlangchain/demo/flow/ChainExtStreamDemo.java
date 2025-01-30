@@ -43,7 +43,7 @@ import java.util.stream.Stream;
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestApplication.class)
 @SpringBootConfiguration
-public class ChainExtDemo {
+public class ChainExtStreamDemo {
 
     @Autowired
     ChainActor chainActor;

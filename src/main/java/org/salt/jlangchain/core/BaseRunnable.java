@@ -13,7 +13,6 @@ public abstract class BaseRunnable<O, I> extends FlowNode<O, I> {
     protected boolean isStream;
 
     public O process(I input) {
-        before(input);
 
         if (getContextBus().getTransmit(CallInfo.STREAM.name()) != null) {
             isStream = getContextBus().getTransmit(CallInfo.STREAM.name());
@@ -24,9 +23,6 @@ public abstract class BaseRunnable<O, I> extends FlowNode<O, I> {
         } else {
             return invoke(input);
         }
-    }
-
-    public void before(I input) {
     }
 
     public O stream(I input) {

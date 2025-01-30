@@ -23,7 +23,7 @@ public class Iterator<T> {
 
     protected SynchronousQueue<T> queue = new SynchronousQueue<>(true);
     protected volatile Boolean isLast = false;
-    protected Long offerTimeout = 60000L;
+    protected Long offerTimeout = 3000L;
     protected Long pollTimeout = 60000L;
     protected Function<T, Boolean> isLastFunction;
     protected T nextChunk;
