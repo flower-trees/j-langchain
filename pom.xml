@@ -134,6 +134,37 @@
       <version>2.0.33</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.itextpdf</groupId>
+      <artifactId>itext7-core</artifactId>
+      <version>8.0.5</version>
+      <type>pom</type>
+    </dependency>
+
+    <dependency>
+      <groupId>org.icepdf.os</groupId>
+      <artifactId>icepdf-core</artifactId>
+      <version>6.2.2</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>jai_core</artifactId>
+          <groupId>javax.media</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>net.sourceforge.tess4j</groupId>
+      <artifactId>tess4j</artifactId>
+      <version>5.14.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.jai-imageio</groupId>
+      <artifactId>jai-imageio-jpeg2000</artifactId>
+      <version>1.4.0</version>
+    </dependency>
+
   </dependencies>
 
   <build>

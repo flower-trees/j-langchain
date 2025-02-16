@@ -26,6 +26,7 @@ import org.salt.jlangchain.ai.vendor.doubao.DoubaoActuator;
 import org.salt.jlangchain.ai.vendor.moonshot.MoonshotActuator;
 import org.salt.jlangchain.ai.vendor.ollama.OllamaActuator;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.rag.loader.ocr.TesseractInstance;
 import org.salt.jlangchain.utils.SpringContextUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -107,5 +108,10 @@ public class JLangchainConfig {
     @Bean
     public MoonshotActuator moonshotActuator(HttpStreamClient commonHttpClient) {
         return new MoonshotActuator(commonHttpClient);
+    }
+
+    @Bean
+    public TesseractInstance tesseractInstance() {
+        return new TesseractInstance();
     }
 }
