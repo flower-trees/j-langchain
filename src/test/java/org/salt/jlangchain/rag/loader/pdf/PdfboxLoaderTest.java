@@ -4,7 +4,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.common.Iterator;
-import org.salt.jlangchain.rag.loader.media.Document;
+import org.salt.jlangchain.rag.media.Document;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;

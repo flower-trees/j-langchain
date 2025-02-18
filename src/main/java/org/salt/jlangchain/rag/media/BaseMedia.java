@@ -12,13 +12,16 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.loader.media;
+package org.salt.jlangchain.rag.media;
 
 import lombok.Getter;
 import lombok.Setter;
 
-@Setter
+import java.util.Map;
+
 @Getter
-public class Document extends BaseMedia {
-    public String pageContent;
+@Setter
+public class BaseMedia {
+    Map<String, Object> metadata;
+    boolean isLast = false;
 }

@@ -26,7 +26,7 @@ import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.core.common.Iterator;
-import org.salt.jlangchain.rag.loader.media.Document;
+import org.salt.jlangchain.rag.media.Document;
 import org.salt.jlangchain.rag.loader.ocr.OcrInstance;
 import org.salt.jlangchain.utils.SpringContextUtil;
 

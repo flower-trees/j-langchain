@@ -25,7 +25,7 @@ import org.salt.jlangchain.core.parser.StrOutputParser;
 import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.prompt.string.PromptTemplate;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
-import org.salt.jlangchain.rag.loader.media.Document;
+import org.salt.jlangchain.rag.media.Document;
 import org.salt.jlangchain.rag.loader.pdf.PdfboxLoader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
@@ -53,7 +53,7 @@ public class RagText {
 
         StringBuilder contentBuilder = new StringBuilder();
         for (Document doc : documents) {
-            contentBuilder.append(doc.pageContent).append("\n");  // 合并并添加换行符
+            contentBuilder.append(doc.getPageContent()).append("\n");  // 合并并添加换行符
         }
         String content = contentBuilder.toString();
 
