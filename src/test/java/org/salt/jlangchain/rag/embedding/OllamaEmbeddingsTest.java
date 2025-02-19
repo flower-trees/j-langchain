@@ -25,7 +25,7 @@ public class OllamaEmbeddingsTest {
     @Test
     public void testEmbedQuery() {
         OllamaEmbeddings ollamaEmbeddings = new OllamaEmbeddings();
-        List<List<Double>> embeddings = ollamaEmbeddings.embedDocuments(List.of("This is a test sentence."));
+        List<Double> embeddings = ollamaEmbeddings.embedQuery("This is a test sentence.");
         System.out.println(JsonUtil.toJson(embeddings));
     }
 }
