@@ -29,6 +29,7 @@ public class OpenAIResponse {
     @JsonProperty("system_fingerprint")
     private String systemFingerprint;
     private List<Choice> choices;
+    private List<DataObject> data;
 
     @Data
     public static class Choice {
@@ -44,6 +45,13 @@ public class OpenAIResponse {
             private String role;
             private String content;
         }
+    }
+
+    @Data
+    public static class DataObject {
+        private String object;
+        private int index;
+        private List<Double> embedding;
     }
 }
 

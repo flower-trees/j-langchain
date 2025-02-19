@@ -20,6 +20,7 @@ import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
 import org.salt.jlangchain.ai.vendor.ollama.param.OllamaRequest;
 import org.salt.jlangchain.ai.vendor.ollama.param.OllamaResponse;
+import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,13 +33,17 @@ public class OllamaConvert {
         request.setModel(aiChatInput.getModel());
         request.setStream(aiChatInput.isStream());
 
-        List<OllamaRequest.Message> doubaoMessages = aiChatInput.getMessages().stream()
-                .map(OllamaConvert::convertMessage)
-                .collect(Collectors.toList());
-        request.setMessages(doubaoMessages);
+        if (!CollectionUtils.isEmpty(aiChatInput.getMessages())) {
+            List<OllamaRequest.Message> doubaoMessages = aiChatInput.getMessages().stream()
+                    .map(OllamaConvert::convertMessage)
+                    .collect(Collectors.toList());
+            request.setMessages(doubaoMessages);
+        }
         OllamaRequest.Options options = new OllamaRequest.Options();
         options.setTemperature(0.8);
         request.setOptions(options);
+
+        request.setInput(aiChatInput.getInput());
 
         return request;
     }
@@ -54,7 +59,8 @@ public class OllamaConvert {
         AiChatOutput aiChatOutput = new AiChatOutput();
         List<AiChatOutput.Message> messages = getMessages(response);
         aiChatOutput.setMessages(messages);
-
+        List<AiChatOutput.DataObject> data = getData(response);
+        aiChatOutput.setData(data);
         if (response.isDone()) {
             aiChatOutput.setCode(AiChatCode.STOP.getCode());
         } else {
@@ -75,5 +81,18 @@ public class OllamaConvert {
             messages.add(message);
         }
         return messages;
+    }
+
+    public static List<AiChatOutput.DataObject> getData(OllamaResponse response) {
+        if (response.getData() != null) {
+            return response.getData().stream().map(dataObject -> {
+                AiChatOutput.DataObject data = new AiChatOutput.DataObject();
+                data.setEmbedding(dataObject.getEmbedding());
+                data.setIndex(dataObject.getIndex());
+                data.setObject(dataObject.getObject());
+                return data;
+            }).toList();
+        }
+        return List.of();
     }
 }

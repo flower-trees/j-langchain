@@ -12,23 +12,19 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.chat.openai.param;
+package org.salt.jlangchain.rag.embedding;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.List;
 
-@Data
-public class OpenAIRequest {
+@Setter
+@Getter
+public abstract class Embeddings {
 
-    private String model;
-    private List<Message> messages;
-    private boolean stream;
-    private List<String> input;
+    protected String model = "nomic-embed-text";
 
-    @Data
-    public static class Message {
-        private String role;
-        private String content;
-    }
+    abstract List<List<Double>> embedDocuments(List<String> texts);
+    abstract List<Double> embedQuery(String text);
 }

@@ -45,6 +45,11 @@ public class AiChatOutput {
 
     private List<Message> messages;
 
+    private String code;
+    private String message;
+
+    private List<DataObject> data;
+
     @Data
     public static class Message {
         private String role;
@@ -52,6 +57,10 @@ public class AiChatOutput {
         private String type;
     }
 
-    private String code;
-    private String message;
+    @Data
+    public static class DataObject {
+        private String object;
+        private int index;
+        private List<Double> embedding;
+    }
 }

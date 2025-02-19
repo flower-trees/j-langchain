@@ -25,6 +25,7 @@ public class OllamaRequest {
     private List<Message> messages;
     private Options options;
     private boolean stream;
+    private List<String> input;
 
     @Data
     public static class Message {

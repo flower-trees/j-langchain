@@ -17,6 +17,8 @@ package org.salt.jlangchain.ai.vendor.ollama.param;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class OllamaResponse {
     private String model;
@@ -37,11 +39,19 @@ public class OllamaResponse {
     private int evalCount;
     @JsonProperty("eval_duration")
     private long evalDuration;
+    private List<DataObject> data;
 
     @Data
     public static class Message {
         private String role;
         private String content;
+    }
+
+    @Data
+    public static class DataObject {
+        private String object;
+        private int index;
+        private List<Double> embedding;
     }
 }
 

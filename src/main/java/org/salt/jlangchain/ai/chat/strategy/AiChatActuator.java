@@ -25,4 +25,5 @@ public interface AiChatActuator {
     AiChatOutput stream(AiChatInput aiChatInput, Consumer<AiChatOutput> responder);
     void astream(AiChatInput aiChatInput, Consumer<AiChatOutput> responder);
     void astream(AiChatInput aiChatInput, Consumer<AiChatOutput> responder, BiConsumer<AiChatInput, AiChatOutput> completeCallback);
+    AiChatOutput embedding(AiChatInput aiChatInput);
 }

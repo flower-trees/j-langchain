@@ -79,6 +79,16 @@ public abstract class BaseAiChatActuator<O, I> implements AiChatActuator {
         commonHttpClient.astream(getChatUrl(), JsonUtil.toJson(request), headers, List.of(getListenerStrategy(aiChatInput, responder, completeCallback)));
     }
 
+    //sync request vendor embedding api
+    @Override
+    public AiChatOutput embedding(AiChatInput aiChatInput) {
+        Map<String, String> headers = buildHeaders();
+        I request = convertRequest(aiChatInput);
+
+        O response = commonHttpClient.request(getEmbeddingUrl(), JsonUtil.toJson(request), headers, responseType());
+        return convertResponse(response);
+    }
+
     // build vendor api headers
     protected Map<String, String> buildHeaders() {
         return Map.of(
@@ -90,6 +100,10 @@ public abstract class BaseAiChatActuator<O, I> implements AiChatActuator {
 
     // get vendor api url
     protected abstract String getChatUrl();
+    // get vendor api url
+    protected String getEmbeddingUrl() {
+        return getChatUrl();
+    }
     //get vendor api key
     protected abstract String getChatKey();
     //get vendor api listener strategy
