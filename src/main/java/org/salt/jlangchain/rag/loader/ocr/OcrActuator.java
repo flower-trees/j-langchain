@@ -12,23 +12,10 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.chat.openai.param;
+package org.salt.jlangchain.rag.loader.ocr;
 
-import lombok.Data;
+import java.awt.image.BufferedImage;
 
-import java.util.List;
-
-@Data
-public class OpenAIRequest {
-
-    private String model;
-    private List<Message> messages;
-    private boolean stream;
-    private List<String> input;
-
-    @Data
-    public static class Message {
-        private String role;
-        private String content;
-    }
+public interface OcrActuator {
+    String doOCR(BufferedImage bImage) throws Exception;
 }

@@ -12,23 +12,19 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.chat.openai.param;
+package org.salt.jlangchain.rag.vector;
 
-import lombok.Data;
+import org.salt.jlangchain.core.BaseRunnable;
+import org.salt.jlangchain.rag.media.Document;
 
 import java.util.List;
 
-@Data
-public class OpenAIRequest {
+public abstract class BaseRetriever extends BaseRunnable<List<Document>, String> {
 
-    private String model;
-    private List<Message> messages;
-    private boolean stream;
-    private List<String> input;
-
-    @Data
-    public static class Message {
-        private String role;
-        private String content;
+    @Override
+    public List<Document> invoke(String input) {
+        return getRelevantDocuments(input);
     }
+
+    public abstract List<Document> getRelevantDocuments(String input);
 }

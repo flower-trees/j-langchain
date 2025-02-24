@@ -50,6 +50,8 @@ public class AiChatInput {
     private List<Message> messages;
     private boolean stream = false;
 
+    private List<String> input;
+
     @Data
     @AllArgsConstructor
     public static class Message {

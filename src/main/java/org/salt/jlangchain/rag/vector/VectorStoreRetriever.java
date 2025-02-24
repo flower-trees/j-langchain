@@ -12,23 +12,26 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.chat.openai.param;
+package org.salt.jlangchain.rag.vector;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+import org.salt.jlangchain.rag.media.Document;
 
 import java.util.List;
 
-@Data
-public class OpenAIRequest {
+@Getter
+@Setter
+public class VectorStoreRetriever extends BaseRetriever {
 
-    private String model;
-    private List<Message> messages;
-    private boolean stream;
-    private List<String> input;
+    protected VectorStore vectorstore;
+    protected int limit = 3;
 
-    @Data
-    public static class Message {
-        private String role;
-        private String content;
+    @Override
+    public List<Document> getRelevantDocuments(String input) {
+        if (vectorstore == null) {
+            throw new RuntimeException("vectorstore is null");
+        }
+        return vectorstore.similaritySearch(input, limit);
     }
 }

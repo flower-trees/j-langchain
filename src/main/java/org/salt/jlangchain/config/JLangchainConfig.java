@@ -26,9 +26,12 @@ import org.salt.jlangchain.ai.vendor.doubao.DoubaoActuator;
 import org.salt.jlangchain.ai.vendor.moonshot.MoonshotActuator;
 import org.salt.jlangchain.ai.vendor.ollama.OllamaActuator;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.rag.loader.ocr.TesseractActuator;
+import org.salt.jlangchain.rag.vector.MilvusContainer;
 import org.salt.jlangchain.utils.SpringContextUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -107,5 +110,17 @@ public class JLangchainConfig {
     @Bean
     public MoonshotActuator moonshotActuator(HttpStreamClient commonHttpClient) {
         return new MoonshotActuator(commonHttpClient);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "rag.ocr.tesseract.use", havingValue = "true")
+    public TesseractActuator tesseractActuator() {
+        return new TesseractActuator();
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "rag.vector.milvus.use", havingValue = "true")
+    public MilvusContainer milvusContainer() {
+        return new MilvusContainer();
     }
 }

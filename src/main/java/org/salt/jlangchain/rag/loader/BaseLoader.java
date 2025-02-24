@@ -12,23 +12,20 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.chat.openai.param;
+package org.salt.jlangchain.rag.loader;
 
 import lombok.Data;
+import lombok.experimental.SuperBuilder;
+import org.salt.jlangchain.core.common.Iterator;
+import org.salt.jlangchain.rag.media.Document;
 
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 @Data
-public class OpenAIRequest {
+@SuperBuilder
+public abstract class BaseLoader {
 
-    private String model;
-    private List<Message> messages;
-    private boolean stream;
-    private List<String> input;
-
-    @Data
-    public static class Message {
-        private String role;
-        private String content;
-    }
+    public abstract List<Document> load();
+    public abstract Iterator<Document> lazyLoad() throws TimeoutException;
 }

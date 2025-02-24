@@ -12,23 +12,19 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.chat.openai.param;
+package org.salt.jlangchain.rag.media;
 
+import lombok.Builder;
 import lombok.Data;
+import lombok.experimental.SuperBuilder;
 
-import java.util.List;
+import java.util.Map;
 
 @Data
-public class OpenAIRequest {
-
-    private String model;
-    private List<Message> messages;
-    private boolean stream;
-    private List<String> input;
-
-    @Data
-    public static class Message {
-        private String role;
-        private String content;
-    }
+@SuperBuilder
+public class BaseMedia {
+    protected Long id;
+    protected Map<String, Object> metadata;
+    @Builder.Default
+    protected Boolean isLast = false;
 }

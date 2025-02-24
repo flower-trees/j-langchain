@@ -33,10 +33,14 @@ public class OpenAIConver {
         openAIRequest.setModel(aiChatInput.getModel());
         openAIRequest.setStream(aiChatInput.isStream());
 
-        List<OpenAIRequest.Message> chatGPTMessages = aiChatInput.getMessages().stream()
-                .map(OpenAIConver::convertMessage)
-                .collect(Collectors.toList());
-        openAIRequest.setMessages(chatGPTMessages);
+        if (!CollectionUtils.isEmpty(aiChatInput.getMessages())) {
+            List<OpenAIRequest.Message> chatGPTMessages = aiChatInput.getMessages().stream()
+                    .map(OpenAIConver::convertMessage)
+                    .collect(Collectors.toList());
+            openAIRequest.setMessages(chatGPTMessages);
+        }
+
+        openAIRequest.setInput(aiChatInput.getInput());
 
         return openAIRequest;
     }
@@ -56,6 +60,9 @@ public class OpenAIConver {
         //get messages
         List<AiChatOutput.Message> messages = getMessages(response);
         aiChatOutput.setMessages(messages);
+
+        List<AiChatOutput.DataObject> data = getData(response);
+        aiChatOutput.setData(data);
 
         //get finish reason
         if (!CollectionUtils.isEmpty(response.getChoices())
@@ -87,5 +94,18 @@ public class OpenAIConver {
             messages.add(message);
         }
         return messages;
+    }
+
+    public static List<AiChatOutput.DataObject> getData(OpenAIResponse response) {
+        if (response.getData() != null) {
+            return response.getData().stream().map(dataObject -> {
+                AiChatOutput.DataObject data = new AiChatOutput.DataObject();
+                data.setEmbedding(dataObject.getEmbedding());
+                data.setIndex(dataObject.getIndex());
+                data.setObject(dataObject.getObject());
+                return data;
+            }).toList();
+        }
+        return List.of();
     }
 }

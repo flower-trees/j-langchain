@@ -31,6 +31,9 @@ public class OllamaActuator extends BaseAiChatActuator<OllamaResponse, OllamaReq
     @Value("${models.ollama.chat-url:http://localhost:11434/api/chat}")
     private String chatUrl;
 
+    @Value("${models.ollama.chat-url:http://localhost:11434/v1/embeddings}")
+    private String embeddingUrl;
+
     @Value("${models.ollama.chat-key:${OLLAMA_KEY1:}}")
     private String chatKey;
 
@@ -41,6 +44,11 @@ public class OllamaActuator extends BaseAiChatActuator<OllamaResponse, OllamaReq
     @Override
     protected String getChatUrl() {
         return chatUrl;
+    }
+
+    @Override
+    protected String getEmbeddingUrl() {
+        return embeddingUrl;
     }
 
     @Override
