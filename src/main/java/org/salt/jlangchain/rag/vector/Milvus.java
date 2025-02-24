@@ -22,6 +22,7 @@ import io.milvus.v2.common.IndexParam;
 import io.milvus.v2.service.collection.request.AddFieldReq;
 import io.milvus.v2.service.collection.request.CreateCollectionReq;
 import io.milvus.v2.service.collection.request.HasCollectionReq;
+import io.milvus.v2.service.index.request.ListIndexesReq;
 import io.milvus.v2.service.vector.request.DeleteReq;
 import io.milvus.v2.service.vector.request.GetReq;
 import io.milvus.v2.service.vector.request.InsertReq;
@@ -66,11 +67,13 @@ public class Milvus extends VectorStore {
 
         if (!client.hasCollection(HasCollectionReq.builder().collectionName(collectionName).build())) {
             client.createCollection(getCreateCollectionReq());
+            log.info("create collection, Collection:{}", collectionName);
+            log.info("create collection, Index:{}", JsonUtil.toJson(client.listIndexes(ListIndexesReq.builder().collectionName(collectionName).build())));
         }
     }
 
     @Override
-    public List<Long> addText(List<String> tests, List<Map<String, Object>> metadatas, List<Long> ids) {
+    public List<Long> addText(List<String> tests, List<Map<String, Object>> metadatas, List<Long> ids, Long fileId) {
 
         if (CollectionUtils.isEmpty(tests)) {
             return List.of();
@@ -86,7 +89,7 @@ public class Milvus extends VectorStore {
             ids = finalIds;
         }
 
-        InsertResp insertResp = client.insert(getInsetReq(embeddings, tests, ids, metadatas));
+        InsertResp insertResp = client.insert(getInsetReq(embeddings, tests, ids, metadatas, fileId));
         if (insertResp.getInsertCnt() != tests.size()) {
             throw new RuntimeException("insert failed");
         }
@@ -95,7 +98,7 @@ public class Milvus extends VectorStore {
     }
 
     @Override
-    public List<Long> addDocument(List<Document> documents) {
+    public List<Long> addDocument(List<Document> documents, Long fileId) {
         List<String> tests = new ArrayList<>();
         List<Map<String, Object>> metadatas = new ArrayList<>();
         for (Document document : documents) {
@@ -106,7 +109,7 @@ public class Milvus extends VectorStore {
                 metadatas.add(Map.of());
             }
         }
-        return addText(tests, metadatas, List.of());
+        return addText(tests, metadatas, List.of(), fileId);
     }
 
     @Override
@@ -147,17 +150,25 @@ public class Milvus extends VectorStore {
     }
 
     public static VectorStore fromText(List<String> tests, Embeddings embedding, String collectionName) {
-        return fromText(tests, embedding, List.of(), List.of(), collectionName);
+        return fromText(tests, embedding, List.of(), List.of(), collectionName, 0L);
     }
 
-    public static VectorStore fromText(List<String> tests, Embeddings embedding, List<Map<String, Object>> metadatas, List<Long> ids, String collectionName) {
+    public static VectorStore fromText(List<String> tests, Embeddings embedding, String collectionName, Long fileId) {
+        return fromText(tests, embedding, List.of(), List.of(), collectionName, fileId);
+    }
+
+    public static VectorStore fromText(List<String> tests, Embeddings embedding, List<Map<String, Object>> metadatas, List<Long> ids, String collectionName, Long fileId) {
         Milvus milvus = new Milvus(collectionName, embedding);
         milvus.setEmbeddingFunction(embedding);
-        milvus.addText(tests, metadatas, ids);
+        milvus.addText(tests, metadatas, ids, fileId);
         return milvus;
     }
 
     public static VectorStore fromDocuments(List<Document> documents, Embeddings embedding, String collectionName) {
+        return fromDocuments(documents, embedding, collectionName, 0L);
+    }
+
+    public static VectorStore fromDocuments(List<Document> documents, Embeddings embedding, String collectionName, Long fileId) {
         List<String> tests = new ArrayList<>();
         List<Map<String, Object>> metadatas = new ArrayList<>();
         documents.forEach(document -> {
@@ -168,7 +179,7 @@ public class Milvus extends VectorStore {
                 metadatas.add(Map.of());
             }
         });
-        return fromText(tests, embedding, metadatas, List.of(), collectionName);
+        return fromText(tests, embedding, metadatas, List.of(), collectionName, fileId);
     }
 
     protected CreateCollectionReq getCreateCollectionReq() {
@@ -194,6 +205,11 @@ public class Milvus extends VectorStore {
                 .dimension(embeddingFunction.getVectorSize())
                 .build());
 
+        schema.addField(AddFieldReq.builder()
+                .fieldName("file_id")
+                .dataType(DataType.Int64)
+                .build());
+
         IndexParam indexParamForIdField = IndexParam.builder()
                 .fieldName("id")
                 .indexType(IndexParam.IndexType.STL_SORT)
@@ -205,9 +221,15 @@ public class Milvus extends VectorStore {
                 .metricType(IndexParam.MetricType.COSINE)
                 .build();
 
+        IndexParam indexParamForFileIdField = IndexParam.builder()
+                .fieldName("file_id")
+                .indexType(IndexParam.IndexType.STL_SORT)
+                .build();
+
         List<IndexParam> indexParams = new ArrayList<>();
         indexParams.add(indexParamForIdField);
         indexParams.add(indexParamForVectorField);
+        indexParams.add(indexParamForFileIdField);
 
         return CreateCollectionReq.builder()
                 .collectionName(collectionName)
@@ -216,13 +238,14 @@ public class Milvus extends VectorStore {
                 .build();
     }
 
-    protected InsertReq getInsetReq(List<List<Float>> embeddings, List<String> tests, List<Long> ids, List<Map<String, Object>> metadatas) {
+    protected InsertReq getInsetReq(List<List<Float>> embeddings, List<String> tests, List<Long> ids, List<Map<String, Object>> metadatas, Long fileId) {
         List<JsonObject> data = new ArrayList<>();
         for (int i = 0; i < embeddings.size(); i++) {
             JsonObject jsonObject = new JsonObject();
             jsonObject.addProperty("id", ids.get(i));
             jsonObject.add("vector", gson.toJsonTree(embeddings.get(i)));
             jsonObject.addProperty("text", tests.get(i));
+            jsonObject.addProperty("file_id", fileId == null ? 0 : fileId);
             if (!CollectionUtils.isEmpty(metadatas)) {
                 for (Map.Entry<String, Object> entry : metadatas.get(i).entrySet()) {
                     jsonObject.addProperty(entry.getKey(), entry.getValue().toString());
@@ -254,10 +277,11 @@ public class Milvus extends VectorStore {
         return searchResp.getSearchResults().get(0).stream().map(searchResult -> Document.builder()
                 .id((Long) searchResult.getEntity().get("id"))
                 .pageContent((String) searchResult.getEntity().get("text"))
+                .fileId((Long) searchResult.getEntity().get("file_id"))
                 .build()).collect(Collectors.toList());
     }
 
     protected List<String> getOutputFields() {
-        return List.of("id", "text");
+        return List.of("id", "text", "file_id");
     }
 }

@@ -30,14 +30,14 @@ public class MilvusTest {
 
     @Test
     public void addText() {
-        List<Long> ids = milvus.addText(List.of("hello world", "how are you"), List.of(Map.of(), Map.of()), List.of());
+        List<Long> ids = milvus.addText(List.of("hello world", "how are you"), List.of(Map.of(), Map.of()), List.of(), 1L);
         System.out.println(JsonUtil.toJson(ids));
         Assert.assertFalse(ids.isEmpty());
     }
 
     @Test
     public void addDocument() {
-        List<Long> ids = milvus.addDocument(List.of(Document.builder().pageContent("hello world").build(), Document.builder().pageContent("how are you").build()));
+        List<Long> ids = milvus.addDocument(List.of(Document.builder().pageContent("hello world").build(), Document.builder().pageContent("how are you").build()), 1L);
         System.out.println(JsonUtil.toJson(ids));
         Assert.assertFalse(ids.isEmpty());
     }

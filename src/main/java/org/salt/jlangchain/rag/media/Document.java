@@ -23,4 +23,5 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 public class Document extends BaseMedia {
     protected String pageContent;
+    public Long fileId;
 }

@@ -31,8 +31,8 @@ public abstract class VectorStore {
     protected Embeddings embeddingFunction;
     protected Function<Void, Long> idGenerator = (v) -> SnowUtil.next();
 
-    public abstract List<Long> addText(List<String> tests, List<Map<String, Object>> metadatas, List<Long> ids);
-    public abstract List<Long> addDocument(List<Document> documents);
+    public abstract List<Long> addText(List<String> tests, List<Map<String, Object>> metadatas, List<Long> ids, Long fileId);
+    public abstract List<Long> addDocument(List<Document> documents, Long fileId);
     public abstract boolean delete(List<Long> ids);
     public abstract List<Document> getByIds(List<Long> ids);
 
