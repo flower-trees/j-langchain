@@ -12,15 +12,19 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.media;
+package org.salt.jlangchain.rag.vector;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
+import org.salt.jlangchain.core.BaseRunnable;
+import org.salt.jlangchain.rag.media.Document;
 
-@EqualsAndHashCode(callSuper = true)
-@Data
-@SuperBuilder
-public class Document extends BaseMedia {
-    protected String pageContent;
+import java.util.List;
+
+public abstract class BaseRetriever extends BaseRunnable<List<Document>, String> {
+
+    @Override
+    public List<Document> invoke(String input) {
+        return getRelevantDocuments(input);
+    }
+
+    public abstract List<Document> getRelevantDocuments(String input);
 }

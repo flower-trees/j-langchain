@@ -22,7 +22,7 @@ import javax.annotation.PostConstruct;
 import java.awt.image.BufferedImage;
 
 @Slf4j
-public class TesseractInstance implements OcrInstance {
+public class TesseractActuator implements OcrActuator {
 
     @Value("${rag.ocr.tesseract.path:${TESSDATA_PATH:}}")
     private String tessdataPath;

@@ -23,6 +23,9 @@ public class ChatGPTActuator extends OpenAIActuator {
     @Value("${models.chatgpt.chat-url:https://api.openai.com/v1/chat/completions}")
     private String chatUrl;
 
+    @Value("${models.chatgpt.chat-url:https://api.openai.com/v1/embeddings}")
+    private String embeddingUrl;
+
     @Value("${models.chatgpt.chat-key:${CHATGPT_KEY:}}")
     private String chatKey;
 
@@ -33,6 +36,11 @@ public class ChatGPTActuator extends OpenAIActuator {
     @Override
     protected String getChatUrl() {
         return chatUrl;
+    }
+
+    @Override
+    protected String getEmbeddingUrl() {
+        return embeddingUrl;
     }
 
     @Override

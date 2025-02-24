@@ -14,18 +14,23 @@
 
 package org.salt.jlangchain.rag.loader.pdf;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.experimental.SuperBuilder;
 import org.salt.jlangchain.rag.loader.BaseLoader;
-import org.salt.jlangchain.rag.loader.ocr.OcrInstance;
-import org.salt.jlangchain.rag.loader.ocr.TesseractInstance;
+import org.salt.jlangchain.rag.loader.ocr.OcrActuator;
+import org.salt.jlangchain.rag.loader.ocr.TesseractActuator;
 
-@Getter
-@Setter
+@EqualsAndHashCode(callSuper = true)
+@Data
+@SuperBuilder
 public abstract class BasePDFLoader extends BaseLoader {
 
     protected String filePath;
     protected String webPath;
+    @Builder.Default
     protected boolean extractImages = false;
-    protected Class<? extends OcrInstance> ocrClazz = TesseractInstance.class;
+    @Builder.Default
+    protected Class<? extends OcrActuator> ocrClazz = TesseractActuator.class;
 }

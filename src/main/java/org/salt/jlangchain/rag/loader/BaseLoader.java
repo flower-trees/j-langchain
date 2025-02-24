@@ -14,12 +14,16 @@
 
 package org.salt.jlangchain.rag.loader;
 
+import lombok.Data;
+import lombok.experimental.SuperBuilder;
 import org.salt.jlangchain.core.common.Iterator;
 import org.salt.jlangchain.rag.media.Document;
 
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
+@Data
+@SuperBuilder
 public abstract class BaseLoader {
 
     public abstract List<Document> load();

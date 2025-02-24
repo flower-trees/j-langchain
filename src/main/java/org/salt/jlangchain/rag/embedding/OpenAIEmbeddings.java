@@ -12,15 +12,27 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.media;
+package org.salt.jlangchain.rag.embedding;
 
+import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.SuperBuilder;
+import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
+import org.salt.jlangchain.ai.vendor.chatgpt.ChatGPTActuator;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
 @SuperBuilder
-public class Document extends BaseMedia {
-    protected String pageContent;
+public class OpenAIEmbeddings extends Embeddings {
+
+    @Builder.Default
+    protected String model = "text-embedding-ada-002";
+    @Builder.Default
+    protected int vectorSize = 1536;
+
+    @Override
+    public Class<? extends AiChatActuator> getActuator() {
+        return ChatGPTActuator.class;
+    }
 }

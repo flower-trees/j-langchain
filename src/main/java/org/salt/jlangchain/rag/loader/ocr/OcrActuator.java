@@ -16,6 +16,6 @@ package org.salt.jlangchain.rag.loader.ocr;
 
 import java.awt.image.BufferedImage;
 
-public interface OcrInstance {
+public interface OcrActuator {
     String doOCR(BufferedImage bImage) throws Exception;
 }

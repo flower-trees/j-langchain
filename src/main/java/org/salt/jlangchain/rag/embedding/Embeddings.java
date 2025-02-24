@@ -14,17 +14,56 @@
 
 package org.salt.jlangchain.rag.embedding;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
+import lombok.experimental.SuperBuilder;
+import org.apache.commons.lang3.StringUtils;
+import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
+import org.salt.jlangchain.ai.common.param.AiChatInput;
+import org.salt.jlangchain.ai.common.param.AiChatOutput;
+import org.salt.jlangchain.utils.SpringContextUtil;
+import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 
-@Setter
-@Getter
+@Data
+@SuperBuilder
 public abstract class Embeddings {
 
-    protected String model = "nomic-embed-text";
+    protected String model;
+    protected int vectorSize;
 
-    abstract List<List<Double>> embedDocuments(List<String> texts);
-    abstract List<Double> embedQuery(String text);
+    public List<List<Float>> embedDocuments(List<String> texts) {
+
+        if (CollectionUtils.isEmpty(texts)) {
+            return List.of();
+        }
+
+        AiChatActuator actuator = SpringContextUtil.getApplicationContext().getBean(getActuator());
+
+        AiChatInput aiChatInput = AiChatInput.builder()
+                .model(getModel())
+                .input(texts)
+                .build();
+
+        AiChatOutput aiChatOutput = actuator.embedding(aiChatInput);
+        if (!CollectionUtils.isEmpty(aiChatOutput.getData())) {
+            return aiChatOutput.getData().stream().map(AiChatOutput.DataObject::getEmbedding).toList();
+        }
+
+        return List.of();
+    }
+
+    public List<Float> embedQuery(String text) {
+        if (StringUtils.isEmpty(text)) {
+            return List.of();
+        }
+
+        List<List<Float>> result = embedDocuments(List.of(text));
+        if (!CollectionUtils.isEmpty(result)) {
+            return result.get(0);
+        }
+        return List.of();
+    }
+
+    public abstract Class<? extends AiChatActuator> getActuator();
 }

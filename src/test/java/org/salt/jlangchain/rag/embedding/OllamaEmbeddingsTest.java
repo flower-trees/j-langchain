@@ -17,15 +17,15 @@ public class OllamaEmbeddingsTest {
 
     @Test
     public void testEmbedDocuments() {
-        OllamaEmbeddings ollamaEmbeddings = new OllamaEmbeddings();
-        List<List<Double>> embeddings = ollamaEmbeddings.embedDocuments(List.of("This is a test sentence.", "How are you?"));
+        OllamaEmbeddings ollamaEmbeddings = OllamaEmbeddings.builder().model("nomic-embed-text").build();
+        List<List<Float>> embeddings = ollamaEmbeddings.embedDocuments(List.of("This is a test sentence.", "How are you?"));
         System.out.println(JsonUtil.toJson(embeddings));
     }
 
     @Test
     public void testEmbedQuery() {
-        OllamaEmbeddings ollamaEmbeddings = new OllamaEmbeddings();
-        List<Double> embeddings = ollamaEmbeddings.embedQuery("This is a test sentence.");
+        OllamaEmbeddings ollamaEmbeddings = OllamaEmbeddings.builder().model("nomic-embed-text").build();
+        List<Float> embeddings = ollamaEmbeddings.embedQuery("This is a test sentence.");
         System.out.println(JsonUtil.toJson(embeddings));
     }
 }

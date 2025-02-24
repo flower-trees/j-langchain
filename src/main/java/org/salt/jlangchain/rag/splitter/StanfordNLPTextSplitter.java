@@ -17,13 +17,21 @@ package org.salt.jlangchain.rag.splitter;
 import edu.stanford.nlp.pipeline.CoreDocument;
 import edu.stanford.nlp.pipeline.CoreSentence;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.experimental.SuperBuilder;
 import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 import java.util.Properties;
 
-public class StanfordNLPTestSplitter extends TestSplitter {
+@EqualsAndHashCode(callSuper = true)
+@Data
+@SuperBuilder
+public class StanfordNLPTextSplitter extends TextSplitter {
 
+    @Builder.Default
     String separator = "\n\n";
 
     @Override

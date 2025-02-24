@@ -12,15 +12,26 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.media;
+package org.salt.jlangchain.rag.vector;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
+import lombok.Getter;
+import lombok.Setter;
+import org.salt.jlangchain.rag.media.Document;
 
-@EqualsAndHashCode(callSuper = true)
-@Data
-@SuperBuilder
-public class Document extends BaseMedia {
-    protected String pageContent;
+import java.util.List;
+
+@Getter
+@Setter
+public class VectorStoreRetriever extends BaseRetriever {
+
+    protected VectorStore vectorstore;
+    protected int limit = 3;
+
+    @Override
+    public List<Document> getRelevantDocuments(String input) {
+        if (vectorstore == null) {
+            throw new RuntimeException("vectorstore is null");
+        }
+        return vectorstore.similaritySearch(input, limit);
+    }
 }

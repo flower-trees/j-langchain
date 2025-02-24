@@ -1,5 +1,6 @@
 package org.salt.jlangchain.rag.splitter;
 
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.jlangchain.TestApplication;
@@ -20,35 +21,41 @@ public class StanfordNLPSplitterTest {
     @Test
     public void testSplitText() {
 
-        PdfboxLoader loader = new PdfboxLoader();
-        loader.setFilePath("/Users/chuanzhizhu/Desktop/1780761576456134656.pdf");
+        PdfboxLoader loader = PdfboxLoader.builder()
+                .filePath("./files/pdf/en/Transformer.pdf")
+                .build();
         List<Document> documents = loader.load();
         String text = documents.stream()
                 .map(Document::getPageContent)
                 .collect(Collectors.joining("\n\n"));
 
-        StanfordNLPTestSplitter stanfordNLPTestSplitter = new StanfordNLPTestSplitter();
-        List<String> splitText = stanfordNLPTestSplitter.splitText(text);
+        StanfordNLPTextSplitter splitter = StanfordNLPTextSplitter.builder().chunkSize(2000).chunkOverlap(200).build();
+        List<String> splitText = splitter.splitText(text);
         splitText.forEach(split -> System.out.println("Split:" + split));
+        Assert.assertFalse(splitText.isEmpty());
     }
 
     @Test
     public void testSplitDocument() {
-        PdfboxLoader loader = new PdfboxLoader();
-        loader.setFilePath("/Users/chuanzhizhu/Desktop/1780761576456134656.pdf");
+        PdfboxLoader loader = PdfboxLoader.builder()
+                .filePath("./files/pdf/en/Transformer.pdf")
+                .build();
         List<Document> documents = loader.load();
-        StanfordNLPTestSplitter stanfordNLPTestSplitter = new StanfordNLPTestSplitter();
-        List<Document> splitDocument = stanfordNLPTestSplitter.splitDocument(documents);
+        StanfordNLPTextSplitter splitter = StanfordNLPTextSplitter.builder().chunkSize(2000).chunkOverlap(200).build();
+        List<Document> splitDocument = splitter.splitDocument(documents);
         splitDocument.forEach(split -> System.out.println("Split:" + split.getPageContent()));
+        Assert.assertFalse(splitDocument.isEmpty());
     }
 
     @Test
     public void testSplitDocumentInPage() {
-        PdfboxLoader loader = new PdfboxLoader();
-        loader.setFilePath("/Users/chuanzhizhu/Desktop/1780761576456134656.pdf");
+        PdfboxLoader loader = PdfboxLoader.builder()
+                .filePath("./files/pdf/en/Transformer.pdf")
+                .build();
         List<Document> documents = loader.load();
-        StanfordNLPTestSplitter stanfordNLPTestSplitter = new StanfordNLPTestSplitter();
-        List<Document> splitDocument = stanfordNLPTestSplitter.splitDocumentInPage(documents);
+        StanfordNLPTextSplitter splitter = StanfordNLPTextSplitter.builder().chunkSize(2000).chunkOverlap(200).build();
+        List<Document> splitDocument = splitter.splitDocumentInPage(documents);
         splitDocument.forEach(split -> System.out.println("Split:" + split.getPageContent()));
+        Assert.assertFalse(splitDocument.isEmpty());
     }
 }

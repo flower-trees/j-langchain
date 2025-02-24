@@ -61,6 +61,6 @@ public class AiChatOutput {
     public static class DataObject {
         private String object;
         private int index;
-        private List<Double> embedding;
+        private List<Float> embedding;
     }
 }

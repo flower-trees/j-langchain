@@ -14,48 +14,25 @@
 
 package org.salt.jlangchain.rag.embedding;
 
-import org.apache.commons.lang3.StringUtils;
-import org.salt.jlangchain.ai.common.param.AiChatInput;
-import org.salt.jlangchain.ai.common.param.AiChatOutput;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.experimental.SuperBuilder;
+import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.vendor.ollama.OllamaActuator;
-import org.salt.jlangchain.utils.SpringContextUtil;
-import org.springframework.util.CollectionUtils;
 
-import java.util.List;
-
+@EqualsAndHashCode(callSuper = true)
+@Data
+@SuperBuilder
 public class OllamaEmbeddings extends Embeddings {
-    @Override
-    List<List<Double>> embedDocuments(List<String> texts) {
 
-        if (CollectionUtils.isEmpty(texts)) {
-            return List.of();
-        }
-
-        OllamaActuator actuator = SpringContextUtil.getApplicationContext().getBean(OllamaActuator.class);
-
-        AiChatInput aiChatInput = AiChatInput.builder()
-                .model(model)
-                .input(texts)
-                .build();
-
-        AiChatOutput aiChatOutput = actuator.embedding(aiChatInput);
-        if (!CollectionUtils.isEmpty(aiChatOutput.getData())) {
-            return aiChatOutput.getData().stream().map(AiChatOutput.DataObject::getEmbedding).toList();
-        }
-
-        return List.of();
-    }
+    @Builder.Default
+    protected String model = "nomic-embed-text";
+    @Builder.Default
+    protected int vectorSize = 768;
 
     @Override
-    List<Double> embedQuery(String text) {
-        if (StringUtils.isEmpty(text)) {
-            return List.of();
-        }
-
-        List<List<Double>> result = embedDocuments(List.of(text));
-        if (!CollectionUtils.isEmpty(result)) {
-            return result.get(0);
-        }
-        return List.of();
+    public Class<? extends AiChatActuator> getActuator() {
+        return OllamaActuator.class;
     }
 }

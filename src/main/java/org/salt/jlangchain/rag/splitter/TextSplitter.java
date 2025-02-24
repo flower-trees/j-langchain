@@ -14,8 +14,8 @@
 
 package org.salt.jlangchain.rag.splitter;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.rag.media.Document;
 
@@ -24,13 +24,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Getter
-@Setter
+@Data
+@SuperBuilder
 @Slf4j
-public abstract class TestSplitter {
+public abstract class TextSplitter {
 
-    private int chunkSize = 4000;
-    private int chunkOverlap = 200;
+    @Builder.Default
+    protected int chunkSize = 4000;
+    @Builder.Default
+    protected int chunkOverlap = 200;
 
     public abstract List<String> splitText(String text);
 
@@ -41,9 +43,7 @@ public abstract class TestSplitter {
                 .collect(Collectors.joining(""));
         List<String> texts = splitText(textMerge);
         for (String text : texts) {
-            Document newDoc = new Document();
-            newDoc.setPageContent(text);
-            newDoc.setMetadata(Map.of());
+            Document newDoc = Document.builder().pageContent(text).metadata(Map.of()).build();
             result.add(newDoc);
         }
         return result;
@@ -54,9 +54,7 @@ public abstract class TestSplitter {
         for (Document doc : documents) {
             List<String> texts = splitText(doc.getPageContent());
             for (String text : texts) {
-                Document newDoc = new Document();
-                newDoc.setPageContent(text);
-                newDoc.setMetadata(doc.getMetadata());
+                Document newDoc = Document.builder().pageContent(text).metadata(doc.getMetadata()).build();
                 result.add(newDoc);
             }
         }

@@ -21,9 +21,10 @@ public class PdfboxLoaderTest {
     @Test
     public void testLoad() {
 
-        PdfboxLoader loader = new PdfboxLoader();
-        loader.setFilePath("/Users/chuanzhizhu/Desktop/1780761576456134656.pdf");
-        loader.setExtractImages(false);
+        PdfboxLoader loader = PdfboxLoader.builder()
+                .filePath("./files/pdf/en/Transformer.pdf")
+                .extractImages(true)
+                .build();
         List<Document> documents = loader.load();
         for (Document document : documents) {
             System.out.println(document.getPageContent());
@@ -33,9 +34,10 @@ public class PdfboxLoaderTest {
     @Test
     public void testLazyLoad() throws TimeoutException {
 
-        PdfboxLoader loader = new PdfboxLoader();
-        loader.setFilePath("/Users/chuanzhizhu/Desktop/1788758958499336192.pdf");
-        loader.setExtractImages(true);
+        PdfboxLoader loader = PdfboxLoader.builder()
+                .filePath("./files/pdf/en/Transformer.pdf")
+                .extractImages(true)
+                .build();
         Iterator<Document> iterator = loader.lazyLoad();
         while (iterator.hasNext()) {
             try {

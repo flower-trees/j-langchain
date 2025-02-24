@@ -14,14 +14,17 @@
 
 package org.salt.jlangchain.rag.media;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Builder;
+import lombok.Data;
+import lombok.experimental.SuperBuilder;
 
 import java.util.Map;
 
-@Getter
-@Setter
+@Data
+@SuperBuilder
 public class BaseMedia {
-    Map<String, Object> metadata;
-    boolean isLast = false;
+    protected Long id;
+    protected Map<String, Object> metadata;
+    @Builder.Default
+    protected Boolean isLast = false;
 }

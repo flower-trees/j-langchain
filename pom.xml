@@ -165,6 +165,12 @@
       <version>4.5.8</version>
     </dependency>
 
+    <dependency>
+      <groupId>io.milvus</groupId>
+      <artifactId>milvus-sdk-java</artifactId>
+      <version>2.5.4</version>
+    </dependency>
+
   </dependencies>
 
   <build>

@@ -14,8 +14,10 @@
 
 package org.salt.jlangchain.rag.loader.pdf;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pdfbox.cos.COSName;
@@ -26,8 +28,8 @@ import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.core.common.Iterator;
+import org.salt.jlangchain.rag.loader.ocr.OcrActuator;
 import org.salt.jlangchain.rag.media.Document;
-import org.salt.jlangchain.rag.loader.ocr.OcrInstance;
 import org.salt.jlangchain.utils.SpringContextUtil;
 
 import java.awt.image.BufferedImage;
@@ -37,12 +39,14 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
+@EqualsAndHashCode(callSuper = true)
+@Data
+@SuperBuilder
 @Slf4j
-@Getter
-@Setter
 public class PdfboxLoader extends BasePDFLoader {
 
-    protected Iterator<Document> iterator = new Iterator<>(this::isLast);
+    @Builder.Default
+    protected Iterator<Document> iterator = new Iterator<>(PdfboxLoader::isLast);
 
     @Override
     public List<Document> load() {
@@ -81,8 +85,8 @@ public class PdfboxLoader extends BasePDFLoader {
         return iterator;
     }
 
-    private Boolean isLast(Document document) {
-        return document.isLast();
+    private static Boolean isLast(Document document) {
+        return document.getIsLast();
     }
 
     private void readTextFromFile(PDDocument document, Consumer<Document> callback) throws Exception {
@@ -90,7 +94,7 @@ public class PdfboxLoader extends BasePDFLoader {
         int numberOfPages = document.getNumberOfPages();
         for (int i = 0; i < numberOfPages; i++) {
             int pageNumber = i + 1;
-            Document pageDoc = new Document();
+            Document pageDoc = Document.builder().build();
 
             PDFTextStripper textStripper = new PDFTextStripper();
             textStripper.setStartPage(pageNumber);
@@ -98,7 +102,7 @@ public class PdfboxLoader extends BasePDFLoader {
             StringBuilder pageText = new StringBuilder(textStripper.getText(document));
 
             if (extractImages) {
-                OcrInstance ocrInstance = SpringContextUtil.getBean(ocrClazz);
+                OcrActuator ocrActuator = SpringContextUtil.getBean(ocrClazz);
                 PDPage page = document.getPage(i);
                 PDResources resources = page.getResources();
                 for (COSName xObjectName : resources.getXObjectNames()) {
@@ -107,7 +111,7 @@ public class PdfboxLoader extends BasePDFLoader {
                             PDImageXObject imageObject = (PDImageXObject) resources.getXObject(xObjectName);
                             BufferedImage bImage = imageObject.getImage();
                             if (bImage.getHeight() > 100 && bImage.getWidth() > 100) {
-                                pageText.append(ocrInstance.doOCR(bImage));
+                                pageText.append(ocrActuator.doOCR(bImage));
                             }
                         } catch (Exception e) {
                             log.warn("Error extracting images from PDF file", e);
@@ -117,7 +121,7 @@ public class PdfboxLoader extends BasePDFLoader {
             }
 
             pageDoc.setPageContent(pageText.toString());
-            pageDoc.setLast(i == numberOfPages - 1);
+            pageDoc.setIsLast(i == numberOfPages - 1);
             callback.accept(pageDoc);
         }
     }
