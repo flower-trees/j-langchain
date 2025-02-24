@@ -4,7 +4,7 @@
 
   <groupId>io.github.flower-trees</groupId>
   <artifactId>j-langchain</artifactId>
-  <version>1.0.7-SNAPSHOT</version>
+  <version>1.0.7-preview</version>
   <packaging>jar</packaging>
 
   <name>j-langchain</name>
