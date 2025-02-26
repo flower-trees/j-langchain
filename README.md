@@ -1,5 +1,7 @@
 # j-langchain
 
+[中文](https://github.com/flower-trees/j-langchain/blob/master/README_CN.md)
+
 ## Introduction
 This project is a Java-based LangChain development framework aimed at simplifying and accelerating the development and implementation of various large model applications on the Java platform. It provides a set of useful tools and classes, making it easier for developers to build Java applications similar to LangChain.
 
