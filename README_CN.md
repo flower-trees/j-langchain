@@ -29,10 +29,7 @@ public class YourApplication {
 }
 ```
 ```shell
-export ALIYUN_KEY=xxx-xxx-xxx-xxx
 export CHATGPT_KEY=xxx-xxx-xxx-xxx
-export DOUBAO_KEY=xxx-xxx-xxx-xxx
-export MOONSHOT_KEY=xxx-xxx-xxx-xxx
 ```
 
 ### 使用
