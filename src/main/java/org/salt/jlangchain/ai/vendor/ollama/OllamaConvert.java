@@ -40,7 +40,7 @@ public class OllamaConvert {
             request.setMessages(doubaoMessages);
         }
         OllamaRequest.Options options = new OllamaRequest.Options();
-        options.setTemperature(0.8);
+        options.setTemperature(0.8f);
         request.setOptions(options);
 
         request.setInput(aiChatInput.getInput());

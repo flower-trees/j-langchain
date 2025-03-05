@@ -34,12 +34,13 @@ public class ChatOllama extends BaseChatModel {
     protected String vendor = "ollama";
     protected String modelType = "llm";
     protected String model = "qwen2.5:0.5b";
-    protected String temperature = "0.7";
+    protected Float temperature = 0.7f;
     protected Map<String, Object> modelKwargs;
 
     @Override
     public void otherInformation(AiChatInput aiChatInput) {
         aiChatInput.setModel(model);
+        aiChatInput.setTemperature(temperature);
     }
 
     public Class<? extends AiChatActuator> getActuator() {

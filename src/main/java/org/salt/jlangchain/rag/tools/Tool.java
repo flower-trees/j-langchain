@@ -12,25 +12,26 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.chat.openai.param;
+package org.salt.jlangchain.rag.tools;
 
+import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-import java.util.List;
+import java.util.function.Function;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
-public class OpenAIRequest {
+@Builder
+public class Tool extends BaseTool<Object, Object>{
 
-    private String model;
-    private List<Message> messages;
-    private boolean stream;
-    private List<String> input;
+    String name;
+    String params;
+    String description;
+    Function<Object, Object> func;
 
-    @Data
-    public static class Message {
-        private String role;
-        private String content;
+    @Override
+    public Object invoke(Object input) {
+        return func.apply(input);
     }
-
-    Float temperature;
 }

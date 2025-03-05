@@ -58,4 +58,6 @@ public class AiChatInput {
         private String role;
         private String content;
     }
+
+    Float temperature;
 }

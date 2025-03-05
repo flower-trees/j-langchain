@@ -42,6 +42,8 @@ public class OpenAIConver {
 
         openAIRequest.setInput(aiChatInput.getInput());
 
+        openAIRequest.setTemperature(aiChatInput.getTemperature());
+
         return openAIRequest;
     }
 
