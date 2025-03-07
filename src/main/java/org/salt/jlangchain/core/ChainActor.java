@@ -15,7 +15,7 @@
 package org.salt.jlangchain.core;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections.MapUtils;
+import org.apache.commons.collections4.MapUtils;
 import org.salt.function.flow.FlowEngine;
 import org.salt.function.flow.FlowInstance;
 import org.salt.function.flow.context.ContextBus;

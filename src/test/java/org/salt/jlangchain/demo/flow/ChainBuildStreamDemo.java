@@ -20,7 +20,6 @@ import org.junit.runner.RunWith;
 import org.salt.function.flow.FlowInstance;
 import org.salt.function.flow.Info;
 import org.salt.function.flow.context.ContextBus;
-import org.salt.function.flow.node.IResult;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
@@ -132,11 +131,13 @@ public class ChainBuildStreamDemo {
         FlowInstance jokeChain = chainActor.builder().next(joke).next(ChatOllama.builder().model("qwen2.5:0.5b").build()).build();
         FlowInstance poemChain = chainActor.builder().next(poem).next(ChatOllama.builder().model("qwen2.5:0.5b").build()).build();
 
-        FlowInstance chain = chainActor.builder().concurrent(
-                (IResult<Map<String, AIMessageChunk>>) (iContextBus, isTimeout) ->
-                        Map.of("joke", iContextBus.getResult(jokeChain.getFlowId()), "poem", iContextBus.getResult(poemChain.getFlowId())),
-                jokeChain, poemChain
-        ).build();
+        FlowInstance chain = chainActor.builder()
+                .concurrent(jokeChain, poemChain)
+                .next(input -> {
+                    Map<String, Object> map = (Map<String, Object>) input;
+                    return Map.of("joke", map.get(jokeChain.getFlowId()), "poem", map.get(poemChain.getFlowId()));
+                })
+                .build();
 
         Map<String, AIMessageChunk> result = chainActor.stream(chain, Map.of("topic", "bears"));
 
@@ -278,12 +279,12 @@ public class ChainBuildStreamDemo {
 
         FlowInstance fullChain = chainActor.builder()
                 .all(
-                        (iContextBus, isTimeout) -> Map.of(
-                                "question", iContextBus.getResult(contextualizeIfNeeded.getFlowId()).toString(),
-                                "context", iContextBus.getResult("fakeRetriever")),
-                        Info.c(contextualizeIfNeeded),
-                        Info.c(input -> "egypt's population in 2024 is about 111 million").cAlias("fakeRetriever")
+                    Info.c(contextualizeIfNeeded),
+                    Info.c(input -> "egypt's population in 2024 is about 111 million").cAlias("fakeRetriever")
                 )
+                .next(input -> Map.of(
+                        "question", ContextBus.get().getResult(contextualizeIfNeeded.getFlowId()).toString(),
+                        "context", ContextBus.get().getResult("fakeRetriever")))
                 .next(qaPrompt)
                 .next(input -> { System.out.printf("topic: '%s' \n\n", JsonUtil.toJson(input)); return input; })
                 .next(llm)
