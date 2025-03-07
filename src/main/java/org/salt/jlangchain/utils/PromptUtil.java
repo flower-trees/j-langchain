@@ -12,25 +12,22 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.chat.openai.param;
+package org.salt.jlangchain.utils;
 
-import lombok.Data;
+import java.util.HashMap;
+import java.util.Map;
 
-import java.util.List;
+public class PromptUtil {
 
-@Data
-public class OpenAIRequest {
-
-    private String model;
-    private List<Message> messages;
-    private boolean stream;
-    private List<String> input;
-
-    @Data
-    public static class Message {
-        private String role;
-        private String content;
+    public static Map<String, String> stringToMap(String input) {
+        Map<String, String> resultMap = new HashMap<>();
+        String[] lines = input.split("\n");
+        for (String line : lines) {
+            if (line.contains(":")) {
+                String[] parts = line.split(":", 2);
+                resultMap.put(parts[0].trim(), parts[1].trim());
+            }
+        }
+        return resultMap;
     }
-
-    Float temperature;
 }

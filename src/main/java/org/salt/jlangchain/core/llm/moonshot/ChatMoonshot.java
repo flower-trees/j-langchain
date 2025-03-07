@@ -34,12 +34,13 @@ public class ChatMoonshot extends BaseChatModel {
     protected String vendor = "moonshot";
     protected String modelType = "llm";
     protected String model = "moonshot-v1-8k";
-    protected String temperature = "0.7";
+    protected Float temperature = 0.7f;
     protected Map<String, Object> modelKwargs;
 
     @Override
     public void otherInformation(AiChatInput aiChatInput) {
         aiChatInput.setModel(model);
+        aiChatInput.setTemperature(temperature);
     }
 
     @Override

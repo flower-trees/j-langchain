@@ -34,12 +34,13 @@ public class ChatAliyun extends BaseChatModel {
     protected String vendor = "aliyun";
     protected String modelType = "llm";
     protected String model = "qwq-32b-preview";
-    protected String temperature = "0.7";
+    protected Float temperature = 0.7f;
     protected Map<String, Object> modelKwargs;
 
     @Override
     public void otherInformation(AiChatInput aiChatInput) {
         aiChatInput.setModel(model);
+        aiChatInput.setTemperature(temperature);
     }
 
     public Class<? extends AiChatActuator> getActuator() {

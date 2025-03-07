@@ -34,12 +34,13 @@ public class ChatDoubao extends BaseChatModel {
     protected String vendor = "doubao";
     protected String modelType = "llm";
     protected String model = "ep-20240611104225-2d4ww";
-    protected String temperature = "0.7";
+    protected Float temperature = 0.7f;
     protected Map<String, Object> modelKwargs;
 
     @Override
     public void otherInformation(AiChatInput aiChatInput) {
         aiChatInput.setModel(model);
+        aiChatInput.setTemperature(temperature);
     }
 
     public Class<? extends AiChatActuator> getActuator() {

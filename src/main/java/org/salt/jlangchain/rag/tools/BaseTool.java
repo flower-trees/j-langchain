@@ -12,25 +12,9 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.chat.openai.param;
+package org.salt.jlangchain.rag.tools;
 
-import lombok.Data;
+import org.salt.jlangchain.core.BaseRunnable;
 
-import java.util.List;
-
-@Data
-public class OpenAIRequest {
-
-    private String model;
-    private List<Message> messages;
-    private boolean stream;
-    private List<String> input;
-
-    @Data
-    public static class Message {
-        private String role;
-        private String content;
-    }
-
-    Float temperature;
+public abstract class BaseTool<O, I> extends BaseRunnable<O, I> {
 }

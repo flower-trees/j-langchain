@@ -16,12 +16,14 @@ package org.salt.jlangchain.core.prompt.string;
 
 import lombok.Builder;
 import org.apache.commons.text.StringSubstitutor;
-import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
+import org.salt.jlangchain.rag.tools.Tool;
 import org.salt.jlangchain.utils.GroceryUtil;
 import org.salt.jlangchain.utils.JsonUtil;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Builder
 public class PromptTemplate extends StringPromptTemplate {
@@ -52,7 +54,14 @@ public class PromptTemplate extends StringPromptTemplate {
         }
     }
 
-    public static BaseRunnable<StringPromptValue, Object> fromTemplate(String template) {
+    public static PromptTemplate fromTemplate(String template) {
         return PromptTemplate.builder().template(template).build();
+    }
+
+    public void withTools(List<Tool> tools) {
+        String toolInfos = tools.stream().map(tool -> tool.getName() + "(" + tool.getParams() + ") - " + tool.getDescription()).collect(Collectors.joining("\n"));
+        String toolNames = tools.stream().map(Tool::getName).collect(Collectors.joining(","));
+        StringSubstitutor sub = new StringSubstitutor(Map.of("tools", toolInfos, "toolNames", toolNames));
+        template = sub.replace(template);
     }
 }

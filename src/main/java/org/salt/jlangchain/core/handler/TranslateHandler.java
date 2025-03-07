@@ -12,25 +12,24 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.chat.openai.param;
+package org.salt.jlangchain.core.handler;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import org.salt.jlangchain.core.BaseRunnable;
 
-import java.util.List;
+import java.util.function.Function;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
-public class OpenAIRequest {
+@AllArgsConstructor
+public class TranslateHandler<O, I> extends BaseRunnable<O, I> {
 
-    private String model;
-    private List<Message> messages;
-    private boolean stream;
-    private List<String> input;
+    Function<I, O> func;
 
-    @Data
-    public static class Message {
-        private String role;
-        private String content;
+    @Override
+    public O invoke(I input) {
+        return func.apply(input);
     }
-
-    Float temperature;
 }

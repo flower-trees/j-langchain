@@ -50,7 +50,7 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
     protected String vendor = "chatgpt";
     protected String modelType = "llm";
     protected String model = "gpt-4";
-    protected String temperature = "0.7";
+    protected Float temperature = 0.7f;
     protected Map<String, Object> modelKwargs;
 
     Map<String, Object> config = Map.of(
