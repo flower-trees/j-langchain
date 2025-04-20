@@ -30,6 +30,7 @@ import org.salt.jlangchain.rag.loader.ocr.TesseractActuator;
 import org.salt.jlangchain.rag.vector.MilvusContainer;
 import org.salt.jlangchain.utils.SpringContextUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationContext;
@@ -60,7 +61,7 @@ public class JLangchainConfig {
     }
 
     @Bean
-    public TheadHelper theadHelper(@Autowired ThreadPoolTaskExecutor executor) {
+    public TheadHelper theadHelper(@Qualifier("flowThreadPool") ThreadPoolTaskExecutor executor) {
         return TheadHelper.builder().executor(executor.getThreadPoolExecutor()).build();
     }
 
