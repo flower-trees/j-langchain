@@ -307,4 +307,27 @@ public class ChainBuildStreamDemo {
             System.out.println(sb);
         }
     }
+
+    @Test
+    public void SimpleDemoStop() throws TimeoutException {
+
+        BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
+        ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
+
+        FlowInstance chain = chainActor.builder().next(prompt).next(llm).next(new StrOutputParser()).build();
+
+        ChatGenerationChunk chunk = chainActor.stream(chain, Map.of("topic", "bears"));
+
+        int i = 0;
+
+        StringBuilder sb = new StringBuilder();
+        while (chunk.getIterator().hasNext()) {
+            sb.append(chunk.getIterator().next());
+            System.out.println(sb);
+
+            if (i++ > 1) {
+                chainActor.stop(chain);
+            }
+        }
+    }
 }

@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import okio.BufferedSource;
 import org.apache.commons.lang3.StringUtils;
+import org.salt.function.flow.context.ContextBus;
 import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.ai.chat.strategy.ListenerStrategy;
 import org.salt.jlangchain.ai.client.AiException;
@@ -112,6 +113,14 @@ public class HttpStreamClient implements InitializingBean {
                     try {
                         BufferedSource source = responseBody.source();
                         while (!source.exhausted()) {
+                            // is stop call
+                            if (ContextBus.get() != null && ((ContextBus) ContextBus.get()).isStopProcess()) {
+                                log.info("http stream call stop");
+                                dealContent("stop", strategyList);
+                                dealContent("[DONE]", strategyList);
+                                break;
+                            }
+
                             String lineComplete = source.readUtf8LineStrict();
 
                             if (StringUtils.isBlank(lineComplete.trim())) {

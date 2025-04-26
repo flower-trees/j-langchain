@@ -117,4 +117,8 @@ public class ChainActor {
 
         return eventMessageChunk;
     }
+
+    public void stop(FlowInstance flowInstance) {
+        flowEngine.stop(flowInstance);
+    }
 }
