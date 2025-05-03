@@ -131,10 +131,10 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
                 }
             }
             return messages;
-        } if (input instanceof String stringPrompt) {
+        } else if (input instanceof String stringPrompt) {
             return List.of(new AiChatInput.Message(RoleType.USER.getCode(), stringPrompt));
         } else {
-            throw new RuntimeException("input must be StringPromptValue or ChatPromptValue");
+            throw new RuntimeException("input must be StringPromptValue or ChatPromptValue or String");
         }
     }
 

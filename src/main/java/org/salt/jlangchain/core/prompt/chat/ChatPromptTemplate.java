@@ -19,6 +19,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.text.StringSubstitutor;
 import org.salt.jlangchain.core.BaseRunnable;
+import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.message.BaseMessage;
 import org.salt.jlangchain.core.message.PlaceholderMessage;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
@@ -58,15 +59,12 @@ public class ChatPromptTemplate extends BaseChatPromptTemplate {
                     if (message instanceof PlaceholderMessage) {
                         String extracted = StringUtils.substringBetween(message.getContent(), "${", "}");
                         if (StringUtils.isNotEmpty(extracted) && inputMap.containsKey(extracted)) {
-                            if (inputMap.get(extracted) instanceof List) {
-                                for (Object item : (List) inputMap.get(extracted)) {
-                                    if (item instanceof BaseMessage itemMessage) {
-                                        newMessages.add(BaseMessage.fromMessage(itemMessage.getRole(), itemMessage.getContent()));
-                                    } else if (item instanceof Pair) {
-                                        Pair<String, String> pair = (Pair<String, String>) item;
-                                        newMessages.add(BaseMessage.fromMessage(pair.getKey(), pair.getValue()));
-                                    }
+                            if (inputMap.get(extracted) instanceof List list) {
+                                for (Object item : list) {
+                                    addMessage(item, newMessages);
                                 }
+                            } else {
+                                addMessage(inputMap.get(extracted), newMessages);
                             }
                         }
                     } else {
@@ -76,10 +74,23 @@ public class ChatPromptTemplate extends BaseChatPromptTemplate {
                 result = ChatPromptValue.builder().messages(newMessages).build();
                 return result;
             }
-
             throw new RuntimeException("input must not be null");
         } finally {
             eventAction.eventEnd(result, config);
+            if (result != null) {
+                getContextBus().putTransmit(CallInfo.QUESTION.name(), result.getMessages().get(result.getMessages().size() - 1).getContent());
+            }
+        }
+    }
+
+    private void addMessage(Object object, List<BaseMessage> newMessages) {
+        if (object instanceof BaseMessage itemMessage) {
+            newMessages.add(BaseMessage.fromMessage(itemMessage.getRole(), itemMessage.getContent()));
+        } else if (object instanceof Pair) {
+            Pair<String, String> pair = (Pair<String, String>) object;
+            newMessages.add(BaseMessage.fromMessage(pair.getKey(), pair.getValue()));
+        } else {
+            throw new RuntimeException("object must be BaseMessage or Pair");
         }
     }
 

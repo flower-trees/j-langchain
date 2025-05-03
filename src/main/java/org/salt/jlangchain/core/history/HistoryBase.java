@@ -12,17 +12,13 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.core.common;
+package org.salt.jlangchain.core.history;
 
-public enum CallInfo {
-    STREAM,
+import lombok.EqualsAndHashCode;
+import lombok.extern.slf4j.Slf4j;
+import org.salt.jlangchain.core.BaseRunnable;
 
-    EVENT,
-    EVENT_CHAIN,
-    EVENT_MESSAGE_CHUNK,
-    EVENT_FILTER,
-
-    QUESTION,
-    ANSWER,
-    ;
+@Slf4j
+@EqualsAndHashCode(callSuper = true)
+public abstract class HistoryBase extends BaseRunnable<Object, Object> {
 }

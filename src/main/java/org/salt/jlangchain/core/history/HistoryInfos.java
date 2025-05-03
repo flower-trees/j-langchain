@@ -12,17 +12,16 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.core.common;
+package org.salt.jlangchain.core.history;
 
-public enum CallInfo {
-    STREAM,
+import lombok.Data;
+import lombok.experimental.SuperBuilder;
+import org.salt.jlangchain.core.message.BaseMessage;
 
-    EVENT,
-    EVENT_CHAIN,
-    EVENT_MESSAGE_CHUNK,
-    EVENT_FILTER,
+import java.util.List;
 
-    QUESTION,
-    ANSWER,
-    ;
+@Data
+@SuperBuilder
+public class HistoryInfos {
+    private List<BaseMessage> messages;
 }

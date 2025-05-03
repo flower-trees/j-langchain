@@ -5,4 +5,4 @@ rag:
       use: true
   vector:
     milvus:
-      use: true
+      use: false
