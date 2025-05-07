@@ -15,7 +15,6 @@
 package org.salt.jlangchain.utils;
 
 import org.springframework.context.ApplicationContext;
-import org.springframework.web.context.ContextLoader;
 
 public class SpringContextUtil {
 
@@ -26,9 +25,6 @@ public class SpringContextUtil {
     }
 
     public static ApplicationContext getApplicationContext() {
-        if (context == null) {
-            context = ContextLoader.getCurrentWebApplicationContext();
-        }
         if (context == null) {
             throw new IllegalStateException("WebApplicationContext is not initialized");
         }
