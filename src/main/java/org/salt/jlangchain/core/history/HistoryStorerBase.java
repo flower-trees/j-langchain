@@ -35,19 +35,21 @@ public abstract class HistoryStorerBase extends HistoryBase {
     public Object invoke(Object input) {
 
         if (input instanceof Generation generation) {
-            List<BaseMessage> messages = new ArrayList<>();
-            messages.add(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), getContextBus().getTransmit(CallInfo.QUESTION.name())));
-            messages.add(BaseMessage.fromMessage(MessageType.AI.getCode(), generation.getText()));
-            HistoryInfos historyInfos = HistoryInfos.builder().messages(messages).build();
-            storeHistory(historyInfos);
-        } if (input instanceof ChatGenerationChunk chatGenerationChunk) {
-            chatGenerationChunk.addCallback(text -> {
+            if (input instanceof ChatGenerationChunk chatGenerationChunk) {
+                chatGenerationChunk.addCallback(text -> {
+                    List<BaseMessage> messages = new ArrayList<>();
+                    messages.add(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), getContextBus().getTransmit(CallInfo.QUESTION.name())));
+                    messages.add(BaseMessage.fromMessage(MessageType.AI.getCode(), text));
+                    HistoryInfos historyInfos = HistoryInfos.builder().messages(messages).build();
+                    storeHistory(historyInfos);
+                });
+            } else {
                 List<BaseMessage> messages = new ArrayList<>();
                 messages.add(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), getContextBus().getTransmit(CallInfo.QUESTION.name())));
-                messages.add(BaseMessage.fromMessage(MessageType.AI.getCode(), text));
+                messages.add(BaseMessage.fromMessage(MessageType.AI.getCode(), generation.getText()));
                 HistoryInfos historyInfos = HistoryInfos.builder().messages(messages).build();
                 storeHistory(historyInfos);
-            });
+            }
         } else {
             throw new RuntimeException("input must be StringPromptValue or ChatPromptValue or String");
         }
