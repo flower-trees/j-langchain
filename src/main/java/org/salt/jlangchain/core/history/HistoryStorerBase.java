@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.message.BaseMessage;
 import org.salt.jlangchain.core.message.MessageType;
+import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
 import org.salt.jlangchain.core.parser.generation.Generation;
 
 import java.util.ArrayList;
@@ -39,6 +40,14 @@ public abstract class HistoryStorerBase extends HistoryBase {
             messages.add(BaseMessage.fromMessage(MessageType.AI.getCode(), generation.getText()));
             HistoryInfos historyInfos = HistoryInfos.builder().messages(messages).build();
             storeHistory(historyInfos);
+        } if (input instanceof ChatGenerationChunk chatGenerationChunk) {
+            chatGenerationChunk.addCallback(text -> {
+                List<BaseMessage> messages = new ArrayList<>();
+                messages.add(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), getContextBus().getTransmit(CallInfo.QUESTION.name())));
+                messages.add(BaseMessage.fromMessage(MessageType.AI.getCode(), text));
+                HistoryInfos historyInfos = HistoryInfos.builder().messages(messages).build();
+                storeHistory(historyInfos);
+            });
         } else {
             throw new RuntimeException("input must be StringPromptValue or ChatPromptValue or String");
         }

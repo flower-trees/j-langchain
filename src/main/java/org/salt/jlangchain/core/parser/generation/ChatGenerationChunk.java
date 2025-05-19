@@ -17,9 +17,14 @@ package org.salt.jlangchain.core.parser.generation;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.collections.CollectionUtils;
 import org.salt.jlangchain.core.common.Iterator;
 import org.salt.jlangchain.core.common.IteratorAction;
 import org.salt.jlangchain.core.message.BaseMessageChunk;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
 @Setter
 @Getter
@@ -32,6 +37,8 @@ public class ChatGenerationChunk extends ChatGeneration implements IteratorActio
     @JsonIgnore
     @Getter
     protected StringBuilder cumulate = new StringBuilder();
+
+    List<Consumer<String>> callbacks = new ArrayList<>();
 
     private boolean isLast(ChatGenerationChunk chunk) {
         return chunk.isLast();
@@ -51,6 +58,19 @@ public class ChatGenerationChunk extends ChatGeneration implements IteratorActio
     public ChatGenerationChunk add(ChatGenerationChunk chunk) {
         this.cumulate.append(chunk.getText());
         this.text = this.cumulate.toString();
+        invokeCallbacks(chunk);
         return this;
+    }
+
+    public void addCallback(Consumer<String> callback) {
+        callbacks.add(callback);
+    }
+
+    public void invokeCallbacks(ChatGenerationChunk chunk) {
+        if (chunk.isLast && CollectionUtils.isNotEmpty(callbacks)) {
+            for (Consumer<String> callback : callbacks) {
+                callback.accept(this.text);
+            }
+        }
     }
 }
