@@ -22,6 +22,8 @@ import org.salt.jlangchain.rag.loader.BaseLoader;
 import org.salt.jlangchain.rag.loader.ocr.OcrActuator;
 import org.salt.jlangchain.rag.loader.ocr.TesseractActuator;
 
+import java.io.InputStream;
+
 @EqualsAndHashCode(callSuper = true)
 @Data
 @SuperBuilder
@@ -29,6 +31,7 @@ public abstract class BasePDFLoader extends BaseLoader {
 
     protected String filePath;
     protected String webPath;
+    protected InputStream inputStream;
     @Builder.Default
     protected boolean extractImages = false;
     @Builder.Default

@@ -85,6 +85,7 @@ public class HttpStreamClient implements InitializingBean {
                 log.debug("http stream request open");
                 return JsonUtil.fromJson(response.body().string(), clazz);
             } else {
+                log.error("http request call fail, e:response code: {}, msg:{}", response.code(), response.body() != null ? new String(response.body().bytes()) : "");
                 throw new RuntimeException("Request failed with code: " + response.code());
             }
         } catch (IOException e) {
@@ -141,7 +142,7 @@ public class HttpStreamClient implements InitializingBean {
                     }
                 }
             } else {
-                log.error("http stream call fail, e:response code is {}", response.code());
+                log.error("http stream call fail, e:response code: {}, msg:{}", response.code(), response.body() != null ? new String(response.body().bytes()) : "");
                 errorForEach(strategyList, new AiException(response.code(), JsonUtil.toJson(response)));
             }
         } catch (IOException e) {

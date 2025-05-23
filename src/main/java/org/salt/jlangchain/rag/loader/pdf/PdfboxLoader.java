@@ -59,6 +59,14 @@ public class PdfboxLoader extends BasePDFLoader {
             }  catch (Exception e) {
                 log.error("load error reading PDF file:", e);
             }
+        } else if (inputStream != null) {
+            try (PDDocument document = PDDocument.load(inputStream)) {
+                List<Document> documents = new ArrayList<>();
+                readTextFromFile(document, documents::add);
+                return documents;
+            }  catch (Exception e) {
+                log.error("load error reading PDF file:", e);
+            }
         }
 
         return List.of();
@@ -70,6 +78,18 @@ public class PdfboxLoader extends BasePDFLoader {
         SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(() -> {
             if (StringUtils.isNotEmpty(filePath)) {
                 try (PDDocument document = PDDocument.load(new File(filePath))) {
+                    readTextFromFile(document, doc -> {
+                        try {
+                            iterator.append(doc);
+                        } catch (TimeoutException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+                }  catch (Exception e) {
+                    log.error("lazyLoad error reading PDF file:", e);
+                }
+            } else if (inputStream != null) {
+                try (PDDocument document = PDDocument.load(inputStream)) {
                     readTextFromFile(document, doc -> {
                         try {
                             iterator.append(doc);
