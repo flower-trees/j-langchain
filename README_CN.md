@@ -10,13 +10,13 @@
 <dependency>
     <groupId>io.github.flower-trees</groupId>
     <artifactId>j-langchain</artifactId>
-    <version>1.0.8-preview</version>
+    <version>1.0.9</version>
 </dependency>
 ```
 
 ### Gradle
 ```groovy
-implementation 'io.github.flower-trees:j-langchain:1.0.8-preview'
+implementation 'io.github.flower-trees:j-langchain:1.0.9'
 ```
 
 ### 配置
