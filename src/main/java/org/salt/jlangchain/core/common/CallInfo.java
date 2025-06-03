@@ -20,6 +20,9 @@ public enum CallInfo {
     EVENT,
     EVENT_CHAIN,
     EVENT_MESSAGE_CHUNK,
-    EVENT_FILTER
+    EVENT_FILTER,
+
+    QUESTION,
+    ANSWER,
     ;
 }

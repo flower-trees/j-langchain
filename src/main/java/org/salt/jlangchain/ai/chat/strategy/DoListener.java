@@ -23,6 +23,7 @@ import org.salt.jlangchain.utils.JsonUtil;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -48,6 +49,12 @@ public abstract class DoListener implements ListenerStrategy {
 
     @Override
     public void onMessage(String msg) {
+        //stop message
+        if (StringUtils.equals(msg, "stop")) {
+            responder.accept(AiChatOutput.builder().code("stop").data(List.of()).build());
+            return;
+        }
+
         //Convert msg to AiChatResponse
         AiChatOutput aiChatOutput = convertMsg(msg);
 

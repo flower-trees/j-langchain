@@ -19,15 +19,21 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import okio.BufferedSource;
 import org.apache.commons.lang3.StringUtils;
+import org.salt.function.flow.context.ContextBus;
 import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.ai.chat.strategy.ListenerStrategy;
 import org.salt.jlangchain.ai.client.AiException;
 import org.salt.jlangchain.utils.JsonUtil;
 import org.springframework.beans.factory.InitializingBean;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -65,6 +71,25 @@ public class HttpStreamClient implements InitializingBean {
             Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort));
             builder.proxy(proxy);
         }
+
+        TrustManager[] trustAllCerts = new TrustManager[]{
+                new X509TrustManager() {
+                    public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {}
+                    public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) {}
+                    public java.security.cert.X509Certificate[] getAcceptedIssuers() { return new java.security.cert.X509Certificate[0]; }
+                }
+        };
+        SSLContext sslContext = null;
+        try {
+            sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
+        } catch (NoSuchAlgorithmException | KeyManagementException e) {
+            throw new RuntimeException(e);
+        }
+
+        builder.sslSocketFactory(sslContext.getSocketFactory(), (X509TrustManager) trustAllCerts[0]);
+        builder.hostnameVerifier((hostname, session) -> true);
+
         okHttpClient = builder.build();
         okHttpClient.dispatcher().setMaxRequests(maxConnections);
         okHttpClient.dispatcher().setMaxRequestsPerHost(maxConnectionsPerHost);
@@ -84,6 +109,7 @@ public class HttpStreamClient implements InitializingBean {
                 log.debug("http stream request open");
                 return JsonUtil.fromJson(response.body().string(), clazz);
             } else {
+                log.error("http request call fail, e:response code: {}, msg:{}", response.code(), response.body() != null ? new String(response.body().bytes()) : "");
                 throw new RuntimeException("Request failed with code: " + response.code());
             }
         } catch (IOException e) {
@@ -112,6 +138,14 @@ public class HttpStreamClient implements InitializingBean {
                     try {
                         BufferedSource source = responseBody.source();
                         while (!source.exhausted()) {
+                            // is stop call
+                            if (ContextBus.get() != null && ((ContextBus) ContextBus.get()).isStopProcess()) {
+                                log.info("http stream call stop");
+                                dealContent("stop", strategyList);
+                                dealContent("[DONE]", strategyList);
+                                break;
+                            }
+
                             String lineComplete = source.readUtf8LineStrict();
 
                             if (StringUtils.isBlank(lineComplete.trim())) {
@@ -132,7 +166,7 @@ public class HttpStreamClient implements InitializingBean {
                     }
                 }
             } else {
-                log.error("http stream call fail, e:response code is {}", response.code());
+                log.error("http stream call fail, e:response code: {}, msg:{}", response.code(), response.body() != null ? new String(response.body().bytes()) : "");
                 errorForEach(strategyList, new AiException(response.code(), JsonUtil.toJson(response)));
             }
         } catch (IOException e) {

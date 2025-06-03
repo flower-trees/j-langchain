@@ -12,28 +12,27 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.loader.pdf;
+package org.salt.jlangchain.rag.embedding;
 
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.SuperBuilder;
-import org.salt.jlangchain.rag.loader.BaseLoader;
-import org.salt.jlangchain.rag.loader.ocr.OcrActuator;
-import org.salt.jlangchain.rag.loader.ocr.TesseractActuator;
-
-import java.io.InputStream;
+import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
+import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
 @SuperBuilder
-public abstract class BasePDFLoader extends BaseLoader {
+public class AliyunEmbeddings extends Embeddings {
 
-    protected String filePath;
-    protected String webPath;
-    protected InputStream inputStream;
     @Builder.Default
-    protected boolean extractImages = false;
+    protected String model = "text-embedding-v3";
     @Builder.Default
-    protected Class<? extends OcrActuator> ocrClazz = TesseractActuator.class;
+    protected int vectorSize = 768;
+
+    @Override
+    public Class<? extends AiChatActuator> getActuator() {
+        return AliyunActuator.class;
+    }
 }

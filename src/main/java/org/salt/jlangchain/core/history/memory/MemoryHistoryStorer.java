@@ -12,28 +12,32 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.loader.pdf;
+package org.salt.jlangchain.core.history.memory;
 
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
-import org.salt.jlangchain.rag.loader.BaseLoader;
-import org.salt.jlangchain.rag.loader.ocr.OcrActuator;
-import org.salt.jlangchain.rag.loader.ocr.TesseractActuator;
+import lombok.extern.slf4j.Slf4j;
+import org.salt.jlangchain.core.history.HistoryInfos;
+import org.salt.jlangchain.core.history.HistoryStorerBase;
 
-import java.io.InputStream;
-
+@Slf4j
 @EqualsAndHashCode(callSuper = true)
 @Data
-@SuperBuilder
-public abstract class BasePDFLoader extends BaseLoader {
+@Builder
+public class MemoryHistoryStorer extends HistoryStorerBase {
 
-    protected String filePath;
-    protected String webPath;
-    protected InputStream inputStream;
     @Builder.Default
-    protected boolean extractImages = false;
+    protected Long userId = 0L;
     @Builder.Default
-    protected Class<? extends OcrActuator> ocrClazz = TesseractActuator.class;
+    protected Long sessionId = 0L;
+    @Builder.Default
+    protected Integer limit = 10;
+
+    public void storeHistory(HistoryInfos historyInfos) {
+
+        MemoryHistory.init(userId, sessionId);
+
+        MemoryHistory.historyMap.get(String.valueOf(userId)).get(String.valueOf(sessionId)).add(historyInfos);
+    }
 }

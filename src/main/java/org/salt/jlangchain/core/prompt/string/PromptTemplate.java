@@ -16,6 +16,7 @@ package org.salt.jlangchain.core.prompt.string;
 
 import lombok.Builder;
 import org.apache.commons.text.StringSubstitutor;
+import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
 import org.salt.jlangchain.rag.tools.Tool;
 import org.salt.jlangchain.utils.GroceryUtil;
@@ -46,11 +47,16 @@ public class PromptTemplate extends StringPromptTemplate {
                     StringSubstitutor sub = new StringSubstitutor(JsonUtil.toMap(input));
                     result = StringPromptValue.builder().text(sub.replace(template)).build();
                     return result;
+                } else {
+                    throw new RuntimeException("input must be Map or PlainObject");
                 }
             }
             throw new RuntimeException("input must be Map or PlainObject");
         } finally {
             eventAction.eventEnd(result, config);
+            if (result != null) {
+                getContextBus().putTransmit(CallInfo.ANSWER.name(), result.getText());
+            }
         }
     }
 

@@ -12,27 +12,16 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.chat.openai.param;
+package org.salt.jlangchain.core.history;
 
 import lombok.Data;
+import lombok.experimental.SuperBuilder;
+import org.salt.jlangchain.core.message.BaseMessage;
 
 import java.util.List;
 
 @Data
-public class OpenAIRequest {
-
-    private String model;
-    private List<Message> messages;
-    private boolean stream;
-    private List<String> input;
-
-    @Data
-    public static class Message {
-        private String role;
-        private String content;
-    }
-
-    Float temperature;
-
-    String dimension; //aliyun embedding
+@SuperBuilder
+public class HistoryInfos {
+    private List<BaseMessage> messages;
 }

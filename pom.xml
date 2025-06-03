@@ -4,7 +4,7 @@
 
   <groupId>io.github.flower-trees</groupId>
   <artifactId>j-langchain</artifactId>
-  <version>1.0.8-preview</version>
+  <version>1.0.9</version>
   <packaging>jar</packaging>
 
   <name>j-langchain</name>
@@ -32,7 +32,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <salt.function.flow.version>1.1.4</salt.function.flow.version>
+    <salt.function.flow.version>1.1.5</salt.function.flow.version>
     <lombok.version>1.18.24</lombok.version>
     <slf4j.version>2.0.13</slf4j.version>
     <logback.version>1.5.6</logback.version>
@@ -59,10 +59,6 @@
       <scope>test</scope>
     </dependency>
 
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-web</artifactId>
-    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
@@ -151,6 +147,22 @@
       <groupId>net.sourceforge.tess4j</groupId>
       <artifactId>tess4j</artifactId>
       <version>5.14.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>2.15.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.15.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <version>2.15.2</version>
     </dependency>
 
     <dependency>
@@ -261,5 +273,4 @@
       </plugin>
     </plugins>
   </build>
-
 </project>

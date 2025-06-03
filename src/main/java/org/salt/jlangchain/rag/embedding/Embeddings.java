@@ -42,6 +42,7 @@ public abstract class Embeddings {
 
         AiChatInput aiChatInput = AiChatInput.builder()
                 .model(getModel())
+                .vectorSize(getVectorSize())
                 .input(texts)
                 .build();
 

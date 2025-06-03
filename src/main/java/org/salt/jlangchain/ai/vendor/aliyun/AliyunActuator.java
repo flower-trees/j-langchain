@@ -15,13 +15,18 @@
 package org.salt.jlangchain.ai.vendor.aliyun;
 
 import org.salt.jlangchain.ai.chat.openai.OpenAIActuator;
+import org.salt.jlangchain.ai.chat.openai.param.OpenAIRequest;
 import org.salt.jlangchain.ai.client.stream.HttpStreamClient;
+import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.springframework.beans.factory.annotation.Value;
 
 public class AliyunActuator extends OpenAIActuator {
 
     @Value("${models.aliyun.chat-url:https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}")
     private String chatUrl;
+
+    @Value("${models.chatgpt.chat-url:https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings}")
+    private String embeddingUrl;
 
     @Value("${models.aliyun.chat-key:${ALIYUN_KEY:}}")
     private String chatKey;
@@ -31,8 +36,20 @@ public class AliyunActuator extends OpenAIActuator {
     }
 
     @Override
+    protected OpenAIRequest convertRequest(AiChatInput aiChatInput) {
+        OpenAIRequest openAIRequest = super.convertRequest(aiChatInput);
+        openAIRequest.setDimension(String.valueOf(aiChatInput.getVectorSize()));
+        return openAIRequest;
+    }
+
+    @Override
     protected String getChatUrl() {
         return chatUrl;
+    }
+
+    @Override
+    protected String getEmbeddingUrl() {
+        return embeddingUrl;
     }
 
     @Override
