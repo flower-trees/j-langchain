@@ -19,10 +19,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.salt.function.flow.FlowEngine;
 import org.salt.function.flow.config.FlowConfiguration;
 import org.salt.function.flow.thread.TheadHelper;
+import org.salt.jlangchain.ai.client.stream.HttpSseClient;
 import org.salt.jlangchain.ai.client.stream.HttpStreamClient;
 import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 import org.salt.jlangchain.ai.vendor.chatgpt.ChatGPTActuator;
 import org.salt.jlangchain.ai.vendor.doubao.DoubaoActuator;
+import org.salt.jlangchain.ai.vendor.doubao.coze.CozeActuator;
 import org.salt.jlangchain.ai.vendor.moonshot.MoonshotActuator;
 import org.salt.jlangchain.ai.vendor.ollama.OllamaActuator;
 import org.salt.jlangchain.core.ChainActor;
@@ -123,5 +125,15 @@ public class JLangchainConfig {
     @ConditionalOnProperty(name = "rag.vector.milvus.use", havingValue = "true")
     public MilvusContainer milvusContainer() {
         return new MilvusContainer();
+    }
+
+    @Bean
+    public HttpSseClient httpSseClient(TheadHelper theadHelper) {
+        return new HttpSseClient(theadHelper);
+    }
+
+    @Bean
+    public CozeActuator cozeActuator(HttpSseClient httpSseClient) {
+        return new CozeActuator(httpSseClient);
     }
 }

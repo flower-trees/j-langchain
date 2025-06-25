@@ -29,6 +29,7 @@
 package org.salt.jlangchain.ai.common.param;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import org.salt.jlangchain.utils.GroceryUtil;
 
@@ -43,9 +44,16 @@ public class AiChatInput {
     @JsonIgnore
     protected String id = GroceryUtil.generateId();
     @JsonIgnore
+    @JsonProperty("parent_id")
     protected String parentId;
 
     private String model;
+
+    @JsonProperty("bot_id")
+    private String botId;
+
+    @JsonProperty("user_id")
+    private String userId;
 
     private List<Message> messages;
     private boolean stream = false;
