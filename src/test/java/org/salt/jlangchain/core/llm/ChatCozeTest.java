@@ -18,6 +18,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.llm.doubao.ChatCoze;
+import org.salt.jlangchain.core.message.AIMessage;
 import org.salt.jlangchain.core.message.AIMessageChunk;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -33,7 +34,7 @@ public class ChatCozeTest {
     @Test
     public void streamTest() throws TimeoutException {
 
-        ChatCoze prompt = new ChatCoze();
+        ChatCoze prompt = ChatCoze.builder().botId("7519714142241128500").build();
 
         AIMessageChunk result = prompt.stream("who are you? give me 3 words.");
 
@@ -43,6 +44,16 @@ public class ChatCozeTest {
             AIMessageChunk chunk = result.getIterator().next();
             System.out.println("chunk: " + chunk.toJson());
         }
+    }
+
+    @Test
+    public void invokeTest() {
+
+        ChatCoze prompt = ChatCoze.builder().botId("7519714142241128500").build();
+
+        AIMessage result = prompt.invoke("who are you? give me 3 words.");
+
+        System.out.println(result.toJson());
     }
 
 }

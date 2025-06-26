@@ -31,15 +31,20 @@ import java.util.Map;
 @AllArgsConstructor
 public class ChatCoze extends BaseChatModel {
 
+    @Builder.Default
     protected String vendor = "doubao";
-    protected String botId = "7519714142241128500";
+    @Builder.Default
+    protected String botId = "751971414224112XXXX";
     protected Map<String, Object> modelKwargs;
+    @Builder.Default
     protected String userId = "123";
+    protected String key;
 
     @Override
     public void otherInformation(AiChatInput aiChatInput) {
         aiChatInput.setBotId(botId);
         aiChatInput.setUserId(userId);
+        aiChatInput.setKey(key);
     }
 
     public Class<? extends AiChatActuator> getActuator() {
