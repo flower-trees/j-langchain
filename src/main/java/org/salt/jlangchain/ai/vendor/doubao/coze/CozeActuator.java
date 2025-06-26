@@ -58,7 +58,7 @@ public class CozeActuator extends SseBaseAiChatActuator<MessageCompletedEvent, C
 
     @Override
     public AiChatOutput invoke(AiChatInput aiChatInput) {
-        Map<String, String> headers = buildHeaders();
+        Map<String, String> headers = buildHeaders(aiChatInput);
         ChatRequest request = convertRequest(aiChatInput);
 
         AtomicReference<AiChatOutput> r = new AtomicReference<>();

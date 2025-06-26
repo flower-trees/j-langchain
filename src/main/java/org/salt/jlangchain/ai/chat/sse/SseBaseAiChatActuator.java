@@ -14,6 +14,7 @@
 
 package org.salt.jlangchain.ai.chat.sse;
 
+import org.apache.commons.lang3.StringUtils;
 import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.client.stream.HttpSseClient;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
@@ -45,7 +46,7 @@ public abstract class SseBaseAiChatActuator<O, I> implements AiChatActuator {
     //sync request vendor api
     @Override
     public AiChatOutput invoke(AiChatInput aiChatInput) {
-        Map<String, String> headers = buildHeaders();
+        Map<String, String> headers = buildHeaders(aiChatInput);
         I request = convertRequest(aiChatInput);
 
         O response = httpSseClient.request(getChatUrl(), JsonUtil.toJson(request), headers, responseType());
@@ -55,7 +56,7 @@ public abstract class SseBaseAiChatActuator<O, I> implements AiChatActuator {
     //sync stream request vendor api, through the ListenerStrategy to handle the stream response
     @Override
     public AiChatOutput stream(AiChatInput aiChatInput, Consumer<AiChatOutput> responder) {
-        Map<String, String> headers = buildHeaders();
+        Map<String, String> headers = buildHeaders(aiChatInput);
         I request = convertRequest(aiChatInput);
 
         AtomicReference<AiChatOutput> r = new AtomicReference<>();
@@ -66,7 +67,7 @@ public abstract class SseBaseAiChatActuator<O, I> implements AiChatActuator {
     //async stream request vendor api, through the ListenerStrategy to handle the stream response
     @Override
     public void astream(AiChatInput aiChatInput, Consumer<AiChatOutput> responder) {
-        Map<String, String> headers = buildHeaders();
+        Map<String, String> headers = buildHeaders(aiChatInput);
         I request = convertRequest(aiChatInput);
 
         httpSseClient.astream(getChatUrl(), JsonUtil.toJson(request), headers, List.of(getListenerStrategy(aiChatInput, responder, null)));
@@ -74,17 +75,18 @@ public abstract class SseBaseAiChatActuator<O, I> implements AiChatActuator {
 
     @Override
     public void astream(AiChatInput aiChatInput, Consumer<AiChatOutput> responder, BiConsumer<AiChatInput, AiChatOutput> completeCallback) {
-        Map<String, String> headers = buildHeaders();
+        Map<String, String> headers = buildHeaders(aiChatInput);
         I request = convertRequest(aiChatInput);
 
         httpSseClient.astream(getChatUrl(), JsonUtil.toJson(request), headers, List.of(getListenerStrategy(aiChatInput, responder, completeCallback)));
     }
 
     // build vendor api headers
-    protected Map<String, String> buildHeaders() {
+    protected Map<String, String> buildHeaders(AiChatInput aiChatInput) {
+        String key = StringUtils.isNotEmpty(aiChatInput.getKey()) ? aiChatInput.getKey() : getChatKey();
         return Map.of(
                 "Content-Type", "application/json",
-                "Authorization", "Bearer " + getChatKey()
+                "Authorization", "Bearer " + key
         );
     }
 

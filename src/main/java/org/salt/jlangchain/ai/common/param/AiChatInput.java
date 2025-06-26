@@ -70,4 +70,6 @@ public class AiChatInput {
     private Float temperature;
 
     private int vectorSize;
+
+    private String key;
 }

@@ -34,7 +34,7 @@ public class ChatCozeTest {
     @Test
     public void streamTest() throws TimeoutException {
 
-        ChatCoze prompt = new ChatCoze();
+        ChatCoze prompt = ChatCoze.builder().botId("7519714142241128500").build();
 
         AIMessageChunk result = prompt.stream("who are you? give me 3 words.");
 
@@ -49,9 +49,9 @@ public class ChatCozeTest {
     @Test
     public void invokeTest() {
 
-        ChatCoze prompt = new ChatCoze();
+        ChatCoze prompt = ChatCoze.builder().botId("7519714142241128500").build();
 
-        AIMessage result = prompt.invoke("北京的天气怎么样");
+        AIMessage result = prompt.invoke("who are you? give me 3 words.");
 
         System.out.println(result.toJson());
     }
