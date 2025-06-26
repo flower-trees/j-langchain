@@ -36,7 +36,7 @@ import java.util.function.Consumer;
  */
 public abstract class SseBaseAiChatActuator<O, I> implements AiChatActuator {
 
-    HttpSseClient httpSseClient;
+    protected HttpSseClient httpSseClient;
 
     public SseBaseAiChatActuator(HttpSseClient httpSseClient) {
         this.httpSseClient = httpSseClient;

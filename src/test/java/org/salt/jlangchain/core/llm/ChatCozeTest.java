@@ -18,6 +18,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.llm.doubao.ChatCoze;
+import org.salt.jlangchain.core.message.AIMessage;
 import org.salt.jlangchain.core.message.AIMessageChunk;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -43,6 +44,16 @@ public class ChatCozeTest {
             AIMessageChunk chunk = result.getIterator().next();
             System.out.println("chunk: " + chunk.toJson());
         }
+    }
+
+    @Test
+    public void invokeTest() {
+
+        ChatCoze prompt = new ChatCoze();
+
+        AIMessage result = prompt.invoke("北京的天气怎么样");
+
+        System.out.println(result.toJson());
     }
 
 }

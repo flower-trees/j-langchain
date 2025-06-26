@@ -32,7 +32,7 @@ import java.util.Map;
 public class ChatCoze extends BaseChatModel {
 
     protected String vendor = "doubao";
-    protected String botId = "7519714142241128500";
+    protected String botId = "751971414224112XXXX";
     protected Map<String, Object> modelKwargs;
     protected String userId = "123";
 
