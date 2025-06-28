@@ -194,7 +194,7 @@ public class HttpSseClient implements InitializingBean {
                 .post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyJson))
                 .build();
 
-        log.debug("http stream call, url:{}, headers:{}, body:{}", url, headers, JsonUtil.toJson(body));
+        log.info("http stream call, url:{}, body:{}", url, JsonUtil.toJson(body));
 
         return request;
     }
