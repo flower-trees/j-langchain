@@ -273,14 +273,4 @@
       </plugin>
     </plugins>
   </build>
-  <distributionManagement>
-    <repository>
-      <id>2522358-release-cZBeyq</id>
-      <url>https://packages.aliyun.com/67c66d52323741934b797d95/maven/2522358-release-czbeyq</url>
-    </repository>
-    <snapshotRepository>
-      <id>2522358-snapshot-h7sd5Z</id>
-      <url>https://packages.aliyun.com/67c66d52323741934b797d95/maven/2522358-snapshot-h7sd5z</url>
-    </snapshotRepository>
-  </distributionManagement>
 </project>
