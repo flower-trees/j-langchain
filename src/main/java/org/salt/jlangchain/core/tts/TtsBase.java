@@ -16,6 +16,7 @@ package org.salt.jlangchain.core.tts;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.salt.function.flow.context.ContextBus;
@@ -59,7 +60,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
     protected Lock lock = new ReentrantLock();
     protected Condition condition = lock.newCondition();
 
-    protected BlockingQueue<TtsCardChunk> queue = new LinkedBlockingQueue<>();
+    protected PriorityBlockingQueue<PriorityTtsCardChunk> queue = new PriorityBlockingQueue<>();
 
     protected final ExecutorService executor = Executors.newSingleThreadExecutor();
 
@@ -124,6 +125,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
         SpringContextUtil.getApplicationContext().getBean(TheadHelper.class).submit(
                 () -> {
                     eventAction.eventStart(input, config);
+                    int index = 10000;
                     try {
                         while (iterator.hasNext()) {
                             Object chunk = iterator.next();
@@ -135,7 +137,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
                                 if (StringUtils.isNotEmpty(resultChunk.getText()) || resultChunk.isLast()) {
                                     resultChunk.setLast(false);
                                     log.debug("offer aiMessageChunk: {}", JsonUtil.toJson(resultChunk));
-                                    queue.add(resultChunk);
+                                    queue.add(new PriorityTtsCardChunk(resultChunk, index++));
                                     eventAction.eventStream(resultChunk, config);
                                 }
                             } else if (chunk instanceof ChatGenerationChunk chatGenerationChunk) {
@@ -145,7 +147,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
                                 if (StringUtils.isNotEmpty(resultChunk.getText()) || resultChunk.isLast()) {
                                     resultChunk.setLast(false);
                                     log.debug("offer chatGenerationChunk: {}", JsonUtil.toJson(resultChunk));
-                                    queue.add(resultChunk);
+                                    queue.add(new PriorityTtsCardChunk(resultChunk, index++));
                                     eventAction.eventStream(resultChunk, config);
                                 }
                             } else {
@@ -180,14 +182,14 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
                 log.debug("transformAsync next wait off");
 
                 try {
-                    TtsCardChunk chunk;
+                    PriorityTtsCardChunk wrappedChunk;
                     do {
-                        chunk = queue.poll(10000, TimeUnit.MILLISECONDS);
-                        if (chunk != null) {
-                            log.debug("poll chunk: {}", chunk.getText());
-                            result.getIterator().append(chunk);
+                        wrappedChunk = queue.poll(10000, TimeUnit.MILLISECONDS);
+                        if (wrappedChunk != null) {
+                            log.debug("poll chunk: {}", wrappedChunk.getChunk().getText());
+                            result.getIterator().append(wrappedChunk.chunk);
                         }
-                    } while (chunk != null && !chunk.isLast());
+                    } while (wrappedChunk != null && !wrappedChunk.getChunk().isLast());
                 } catch (InterruptedException e) {
                     log.warn("wait interrupted:", e);
                 } catch (TimeoutException e) {
@@ -213,7 +215,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
 
     protected TtsCard parseResult(Card card) {
 
-        if (card.getClass().equals(TtsCard.class)) {
+        if (card.getClass().equals(Card.class)) {
             log.debug("parse card: {}", JsonUtil.toJson(card));
             return callTts(card.getText());
         }
@@ -227,17 +229,31 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
         String text = ttsCardChunk.getText();
 
         if (isLast) {
-            TtsCardChunk endChunk = new TtsCardChunk(ttsCardChunk.getIndex(), ttsCardChunk.getText(), ttsCardChunk.getBase64(), ttsCardChunk.isTts(), true);
-            executor.submit(TheadHelper.getDecoratorAsync(() -> {
-                log.debug("submit tts last: {}", endChunk);
-                queue.add(endChunk);
-            }));
+
+            if (!cumulate.isEmpty()) {
+                log.debug("submit tts last start");
+                final int index = ++ttsIndex;
+                TtsCard ttsCard = callTts(cumulate.toString());
+                TtsCardChunk ttsChunk = new TtsCardChunk(index, ttsCard.getText(), ttsCard.getBase64(), ttsCard.isTts(), true);
+                log.debug("submit offer last ttsChunk: {}", ttsChunk.getText());
+                queue.add(new PriorityTtsCardChunk(ttsChunk, ttsIndex));
+            } else {
+                TtsCardChunk endChunk = new TtsCardChunk(ttsCardChunk.getIndex(), ttsCardChunk.getText(), ttsCardChunk.getBase64(), ttsCardChunk.isTts(), true);
+                executor.submit(TheadHelper.getDecoratorAsync(() -> {
+                    log.debug("submit tts last: {}", endChunk);
+                    queue.add(new PriorityTtsCardChunk(endChunk, Integer.MAX_VALUE));
+                }));
+            }
             return ttsCardChunk;
         }
 
-        if (isPunctuation(text)) {
+        if (StringUtils.isEmpty(text)) {
+            return ttsCardChunk;
+        }
 
-            log.debug("parse punctuation: {}", cumulate.toString());
+        if (isPunctuation(text) && cumulate.length() > 30) {
+
+            log.debug("parse punctuation: {}", cumulate);
 
             String sentence = cumulate.toString();
 
@@ -251,9 +267,9 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
                     log.debug("submit tts start");
 
                     TtsCard ttsCard = callTts(sentence);
-                    TtsCardChunk ttsChunk = new TtsCardChunk(index, ttsCard.getText(), ttsCard.getBase64(), ttsCard.isTts(), isLast);
+                    TtsCardChunk ttsChunk = new TtsCardChunk(index, ttsCard.getText(), ttsCard.getBase64(), ttsCard.isTts(), false);
                     log.debug("submit offer ttsChunk: {}", ttsChunk.getText());
-                    queue.add(ttsChunk);
+                    queue.add(new PriorityTtsCardChunk(ttsChunk, ttsIndex));
 
                     log.debug("submit tts signal");
 
@@ -287,4 +303,22 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
         String regex = "[\\p{Punct}\\s，。！？；：……￥]";
         return text.matches(regex);
     }
+
+    protected static class PriorityTtsCardChunk implements Comparable<PriorityTtsCardChunk> {
+        @Getter
+        private final TtsCardChunk chunk;
+        private final int priority; // 优先级数值
+
+        public PriorityTtsCardChunk(TtsCardChunk chunk, int priority) {
+            this.chunk = chunk;
+            this.priority = priority;
+        }
+
+        @Override
+        public int compareTo(PriorityTtsCardChunk other) {
+            // 数值越小优先级越高
+            return Integer.compare(this.priority, other.priority);
+        }
+    }
+
 }

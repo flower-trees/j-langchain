@@ -22,9 +22,9 @@ import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.llm.ollama.ChatOllama;
 import org.salt.jlangchain.core.parser.StrOutputParser;
-import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.prompt.string.PromptTemplate;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
+import org.salt.jlangchain.core.tts.card.TtsCard;
 import org.salt.jlangchain.core.tts.card.TtsCardChunk;
 import org.salt.jlangchain.core.tts.doubao.DoubaoTts;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,7 +51,7 @@ public class ChainTtsTest {
 
         FlowInstance chain = chainActor.builder().next(prompt).next(llm).next(new StrOutputParser()).next(new DoubaoTts()).build();
 
-        ChatGeneration result = chainActor.invoke(chain, Map.of("topic", "bears"));
+        TtsCard result = chainActor.invoke(chain, Map.of("topic", "bears"));
         System.out.println(result);
     }
 

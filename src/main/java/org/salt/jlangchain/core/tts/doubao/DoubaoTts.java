@@ -20,6 +20,7 @@ import org.salt.jlangchain.ai.tts.doubao.TtsDoubaoRequest;
 import org.salt.jlangchain.ai.tts.doubao.TtsDoubaoResponse;
 import org.salt.jlangchain.core.tts.TtsBase;
 import org.salt.jlangchain.core.tts.card.TtsCard;
+import org.salt.jlangchain.utils.JsonUtil;
 import org.salt.jlangchain.utils.SpringContextUtil;
 
 @Slf4j
@@ -38,8 +39,8 @@ public class DoubaoTts extends TtsBase {
         ttsRequest.getRequest().setText(text);
         ttsRequest.getApp().setAppid("6249868539");
 
+        log.info("doubao tts request: {}", JsonUtil.toJson(ttsRequest));
         TtsDoubaoResponse ttsDoubaoResponse  = ttsDoubaoClient.request(ttsRequest);
-
         log.debug("doubao tts response: {}", ttsDoubaoResponse.getCode());
 
         TtsCard ttsCard = new TtsCard(1, text, ttsDoubaoResponse.getData());
