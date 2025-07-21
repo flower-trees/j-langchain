@@ -63,6 +63,8 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
 
     protected final ExecutorService executor = Executors.newSingleThreadExecutor();
 
+    int ttsIndex = 0;
+
     @Override
     public TtsCard invoke(Object input) {
         if (input instanceof String stringPrompt) {
@@ -239,13 +241,17 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
 
             String sentence = cumulate.toString();
 
+            ttsIndex++;
+
+            final int index = ttsIndex;
+
             // 提交到单线程池执行
             executor.submit(TheadHelper.getDecoratorAsync(() -> {
                 try {
                     log.debug("submit tts start");
 
                     TtsCard ttsCard = callTts(sentence);
-                    TtsCardChunk ttsChunk = new TtsCardChunk(ttsCard.getIndex(), ttsCard.getText(), ttsCard.getBase64(), ttsCard.isTts(), isLast);
+                    TtsCardChunk ttsChunk = new TtsCardChunk(index, ttsCard.getText(), ttsCard.getBase64(), ttsCard.isTts(), isLast);
                     log.debug("submit offer ttsChunk: {}", ttsChunk.getText());
                     queue.add(ttsChunk);
 

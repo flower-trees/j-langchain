@@ -69,7 +69,7 @@ public class ChainTtsTest {
                 sb.append(chunk.getText());
                 System.out.println("answer:" + sb);
             } else {
-                System.out.println("card:" + chunk.getText());
+                System.out.println("card:" + chunk.getIndex() + "," + chunk.getText());
             }
         }
     }
