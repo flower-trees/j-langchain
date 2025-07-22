@@ -24,6 +24,7 @@ import org.salt.jlangchain.core.llm.ollama.ChatOllama;
 import org.salt.jlangchain.core.parser.StrOutputParser;
 import org.salt.jlangchain.core.prompt.string.PromptTemplate;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
+import org.salt.jlangchain.core.tts.aliyun.AliyunTts;
 import org.salt.jlangchain.core.tts.card.TtsCard;
 import org.salt.jlangchain.core.tts.card.TtsCardChunk;
 import org.salt.jlangchain.core.tts.doubao.DoubaoTts;
@@ -60,6 +61,25 @@ public class ChainTtsTest {
         BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
         ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
         FlowInstance chain = chainActor.builder().next(prompt).next(llm).next(new StrOutputParser()).next(new DoubaoTts()).build();
+        TtsCardChunk result = chainActor.stream(chain, Map.of("topic", "bears"));
+        StringBuilder sb = new StringBuilder();
+
+        while (result.getIterator().hasNext()) {
+            TtsCardChunk chunk = result.getIterator().next();
+            if (!chunk.isAudio()) {
+                sb.append(chunk.getText());
+                System.out.println("answer:" + sb);
+            } else {
+                System.out.println("card:" + chunk.getIndex() + "," + chunk.getText());
+            }
+        }
+    }
+
+    @Test
+    public void TtsAliyunStream() throws TimeoutException {
+        BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
+        ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
+        FlowInstance chain = chainActor.builder().next(prompt).next(llm).next(new StrOutputParser()).next(new AliyunTts()).build();
         TtsCardChunk result = chainActor.stream(chain, Map.of("topic", "bears"));
         StringBuilder sb = new StringBuilder();
 

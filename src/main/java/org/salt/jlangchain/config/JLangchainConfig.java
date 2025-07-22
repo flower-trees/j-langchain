@@ -21,6 +21,7 @@ import org.salt.function.flow.config.FlowConfiguration;
 import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.ai.client.stream.HttpSseClient;
 import org.salt.jlangchain.ai.client.stream.HttpStreamClient;
+import org.salt.jlangchain.ai.tts.aliyun.TtsAliyunClient;
 import org.salt.jlangchain.ai.tts.doubao.TtsDoubaoClient;
 import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 import org.salt.jlangchain.ai.vendor.chatgpt.ChatGPTActuator;
@@ -141,5 +142,10 @@ public class JLangchainConfig {
     @Bean
     public TtsDoubaoClient TtsHttpClient(HttpStreamClient commonHttpClient) {
         return new TtsDoubaoClient(commonHttpClient);
+    }
+
+    @Bean
+    public TtsAliyunClient ttsAliyunClient(HttpStreamClient commonHttpClient) {
+        return new TtsAliyunClient(commonHttpClient);
     }
 }

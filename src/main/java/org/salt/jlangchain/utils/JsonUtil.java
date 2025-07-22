@@ -123,4 +123,13 @@ public class JsonUtil {
             return "";
         }
     }
+
+    public static JsonNode fromJson(String json) {
+        try {
+            return objectMapper.readTree(json);
+        } catch (IOException e) {
+            log.warn("fromJson readTree error:{}", e.getMessage());
+            return null;
+        }
+    }
 }

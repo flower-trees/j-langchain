@@ -243,7 +243,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
             return ttsCardChunk;
         }
 
-        if (isPunctuation(text) && cumulate.length() > 30) {
+        if (isPunctuation(text) && cumulate.length() > 20) {
 
             cumulate.append(text);
 

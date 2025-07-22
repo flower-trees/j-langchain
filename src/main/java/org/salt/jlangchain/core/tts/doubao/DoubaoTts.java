@@ -70,6 +70,7 @@ public class DoubaoTts extends TtsBase {
                 log.error("doubao tts fail: {}", ttsDoubaoResponse.getMessage());
                 return new TtsCard(text, null);
             }
+            log.info("doubao tts response size: {}", ttsDoubaoResponse.getData().length());
             return new TtsCard(text, ttsDoubaoResponse.getData(), true);
         } catch (Exception e) {
             log.error("doubao tts fail: {}", e.getMessage(), e);
