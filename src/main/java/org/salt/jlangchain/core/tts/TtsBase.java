@@ -187,7 +187,10 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
                         wrappedChunk = queue.poll(10000, TimeUnit.MILLISECONDS);
                         if (wrappedChunk != null) {
                             log.debug("poll chunk: {}", wrappedChunk.getChunk().getText());
-                            result.getIterator().append(wrappedChunk.chunk);
+                            if (!wrappedChunk.getChunk().isAudio()) {
+                                result.add(wrappedChunk.getChunk()); // add tts chunk cumulate
+                            }
+                            result.getIterator().append(wrappedChunk.getChunk());
                         }
                     } while (wrappedChunk != null && !wrappedChunk.getChunk().isLast());
                 } catch (InterruptedException e) {
@@ -241,6 +244,8 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
         }
 
         if (isPunctuation(text) && cumulate.length() > 30) {
+
+            cumulate.append(text);
 
             log.debug("parse punctuation: {}", cumulate);
 

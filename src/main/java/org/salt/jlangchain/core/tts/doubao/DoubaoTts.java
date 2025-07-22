@@ -63,11 +63,17 @@ public class DoubaoTts extends TtsBase {
         ttsRequest.getRequest().setText(text);
 
         log.info("doubao tts request: {}", JsonUtil.toJson(ttsRequest));
-        TtsDoubaoResponse ttsDoubaoResponse  = ttsDoubaoClient.request(ttsRequest);
-        log.info("doubao tts response: {}", ttsDoubaoResponse.getCode());
-
-        TtsCard ttsCard = new TtsCard(1, text, ttsDoubaoResponse.getData());
-        ttsCard.setAudio(true);
-        return ttsCard;
+        try {
+            TtsDoubaoResponse ttsDoubaoResponse  = ttsDoubaoClient.request(ttsRequest);
+            log.info("doubao tts response: {}", ttsDoubaoResponse.getCode());
+            if (ttsDoubaoResponse.getCode() != 3000) {
+                log.error("doubao tts fail: {}", ttsDoubaoResponse.getMessage());
+                return new TtsCard(text, null);
+            }
+            return new TtsCard(text, ttsDoubaoResponse.getData(), true);
+        } catch (Exception e) {
+            log.error("doubao tts fail: {}", e.getMessage(), e);
+            return new TtsCard(text, null);
+        }
     }
 }

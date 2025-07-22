@@ -24,7 +24,11 @@ import org.salt.jlangchain.core.common.IteratorAction;
 @Getter
 public class TtsCardChunk extends TtsCard implements IteratorAction<TtsCardChunk> {
 
-    @Getter
+    protected Integer index;
+
+    @JsonIgnore
+    protected StringBuilder cumulate = new StringBuilder();
+
     @JsonIgnore
     protected Iterator<TtsCardChunk> iterator = new Iterator<>(this::isLast);
     protected boolean isLast;
@@ -34,13 +38,20 @@ public class TtsCardChunk extends TtsCard implements IteratorAction<TtsCardChunk
     }
 
     public TtsCardChunk(String text, boolean isLast) {
-        super(1, text, null);
+        super(text, null);
         this.isLast = isLast;
     }
 
     public TtsCardChunk(Integer index, String text, String url, boolean isAudio, boolean isLast) {
-        super(index, text, url);
+        super(text, url);
+        this.index = index;
         this.isAudio = isAudio;
         this.isLast = isLast;
+    }
+
+    public TtsCardChunk add(TtsCardChunk chunk) {
+        this.cumulate.append(chunk.getText());
+        this.text = this.cumulate.toString();
+        return this;
     }
 }
