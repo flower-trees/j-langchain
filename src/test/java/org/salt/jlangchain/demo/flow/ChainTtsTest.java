@@ -65,7 +65,7 @@ public class ChainTtsTest {
 
         while (result.getIterator().hasNext()) {
             TtsCardChunk chunk = result.getIterator().next();
-            if (!chunk.isTts()) {
+            if (!chunk.isAudio()) {
                 sb.append(chunk.getText());
                 System.out.println("answer:" + sb);
             } else {

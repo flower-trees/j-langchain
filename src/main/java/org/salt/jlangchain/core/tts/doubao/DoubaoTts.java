@@ -14,6 +14,8 @@
 
 package org.salt.jlangchain.core.tts.doubao;
 
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.ai.tts.doubao.TtsDoubaoClient;
 import org.salt.jlangchain.ai.tts.doubao.TtsDoubaoRequest;
@@ -24,7 +26,19 @@ import org.salt.jlangchain.utils.JsonUtil;
 import org.salt.jlangchain.utils.SpringContextUtil;
 
 @Slf4j
+@EqualsAndHashCode(callSuper = true)
+@Data
 public class DoubaoTts extends TtsBase {
+
+    protected String appId = "6249868539";
+    protected String userId = "123456";
+    protected String cluster = "volcano_icl";
+    protected String voiceType = "S_7zdqme4w1";
+    protected String encoding = "wav";
+    protected float speedRatio = 1.2f;
+    protected float volumeRatio = 1.0f;
+    protected float pitchRatio = 1.0f;
+    protected String emotion = "happy";
 
     @Override
     protected TtsCard callTts(String text) {
@@ -33,18 +47,27 @@ public class DoubaoTts extends TtsBase {
         TtsDoubaoClient ttsDoubaoClient = SpringContextUtil.getBean(TtsDoubaoClient.class);
 
         TtsDoubaoRequest ttsRequest = new TtsDoubaoRequest();
-        ttsRequest.getApp().setCluster("volcano_icl");
-        ttsRequest.getUser().setUid("123456");
-        ttsRequest.getAudio().setVoiceType("S_7zdqme4w1");
+
+        ttsRequest.getApp().setAppid(appId);
+        ttsRequest.getApp().setCluster(cluster);
+
+        ttsRequest.getUser().setUid(userId);
+
+        ttsRequest.getAudio().setVoiceType(voiceType);
+        ttsRequest.getAudio().setEncoding(encoding);
+        ttsRequest.getAudio().setSpeedRatio(speedRatio);
+        ttsRequest.getAudio().setVolumeRatio(volumeRatio);
+        ttsRequest.getAudio().setPitchRatio(pitchRatio);
+        ttsRequest.getAudio().setEmotion(emotion);
+
         ttsRequest.getRequest().setText(text);
-        ttsRequest.getApp().setAppid("6249868539");
 
         log.info("doubao tts request: {}", JsonUtil.toJson(ttsRequest));
         TtsDoubaoResponse ttsDoubaoResponse  = ttsDoubaoClient.request(ttsRequest);
-        log.debug("doubao tts response: {}", ttsDoubaoResponse.getCode());
+        log.info("doubao tts response: {}", ttsDoubaoResponse.getCode());
 
         TtsCard ttsCard = new TtsCard(1, text, ttsDoubaoResponse.getData());
-        ttsCard.setTts(true);
+        ttsCard.setAudio(true);
         return ttsCard;
     }
 }

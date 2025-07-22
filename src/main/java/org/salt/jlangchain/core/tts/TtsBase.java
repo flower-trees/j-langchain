@@ -196,19 +196,6 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
                     log.error("transformAsync timeout:", e);
                     throw new RuntimeException(e);
                 }
-
-
-//                try {
-//                    while (transformChunk.getIterator().hasNext()) {
-//                        Object chunk = iterator.next();
-//                        log.debug("transform chunk: {}", JsonUtil.toJson(chunk));
-//                        result.add((ChatGenerationChunk) chunk);
-//                        result.getIterator().append((ChatGenerationChunk) chunk);
-//                    }
-//                } catch (TimeoutException e) {
-//                    log.error("transformAsync timeout:", e);
-//                    throw new RuntimeException(e);
-//                }
             }
         );
     }
@@ -226,19 +213,19 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
 
         boolean isLast = ttsCardChunk.isLast();
 
-        String text = ttsCardChunk.getText();
-
         if (isLast) {
 
             if (!cumulate.isEmpty()) {
                 log.debug("submit tts last start");
                 final int index = ++ttsIndex;
-                TtsCard ttsCard = callTts(cumulate.toString());
-                TtsCardChunk ttsChunk = new TtsCardChunk(index, ttsCard.getText(), ttsCard.getBase64(), ttsCard.isTts(), true);
-                log.debug("submit offer last ttsChunk: {}", ttsChunk.getText());
-                queue.add(new PriorityTtsCardChunk(ttsChunk, ttsIndex));
+                executor.submit(TheadHelper.getDecoratorAsync(() -> {
+                    TtsCard ttsCard = callTts(cumulate.toString());
+                    TtsCardChunk ttsChunk = new TtsCardChunk(index, ttsCard.getText(), ttsCard.getBase64(), ttsCard.isAudio(), true);
+                    log.debug("submit offer last ttsChunk: {}", ttsChunk.getText());
+                    queue.add(new PriorityTtsCardChunk(ttsChunk, Integer.MAX_VALUE));
+                }));
             } else {
-                TtsCardChunk endChunk = new TtsCardChunk(ttsCardChunk.getIndex(), ttsCardChunk.getText(), ttsCardChunk.getBase64(), ttsCardChunk.isTts(), true);
+                TtsCardChunk endChunk = new TtsCardChunk(ttsCardChunk.getIndex(), ttsCardChunk.getText(), ttsCardChunk.getBase64(), ttsCardChunk.isAudio(), true);
                 executor.submit(TheadHelper.getDecoratorAsync(() -> {
                     log.debug("submit tts last: {}", endChunk);
                     queue.add(new PriorityTtsCardChunk(endChunk, Integer.MAX_VALUE));
@@ -246,6 +233,8 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
             }
             return ttsCardChunk;
         }
+
+        String text = ttsCardChunk.getText().trim();
 
         if (StringUtils.isEmpty(text)) {
             return ttsCardChunk;
@@ -267,7 +256,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
                     log.debug("submit tts start");
 
                     TtsCard ttsCard = callTts(sentence);
-                    TtsCardChunk ttsChunk = new TtsCardChunk(index, ttsCard.getText(), ttsCard.getBase64(), ttsCard.isTts(), false);
+                    TtsCardChunk ttsChunk = new TtsCardChunk(index, ttsCard.getText(), ttsCard.getBase64(), ttsCard.isAudio(), false);
                     log.debug("submit offer ttsChunk: {}", ttsChunk.getText());
                     queue.add(new PriorityTtsCardChunk(ttsChunk, ttsIndex));
 

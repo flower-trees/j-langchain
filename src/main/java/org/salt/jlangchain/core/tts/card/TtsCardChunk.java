@@ -38,9 +38,9 @@ public class TtsCardChunk extends TtsCard implements IteratorAction<TtsCardChunk
         this.isLast = isLast;
     }
 
-    public TtsCardChunk(Integer index, String text, String url, boolean isTts, boolean isLast) {
+    public TtsCardChunk(Integer index, String text, String url, boolean isAudio, boolean isLast) {
         super(index, text, url);
-        this.isTts = isTts;
+        this.isAudio = isAudio;
         this.isLast = isLast;
     }
 }

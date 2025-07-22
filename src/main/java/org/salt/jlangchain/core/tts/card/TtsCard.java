@@ -22,11 +22,17 @@ import org.salt.jlangchain.utils.JsonUtil;
 @Getter
 public class TtsCard extends Card {
 
-    protected boolean isTts;
+    protected boolean isAudio;
     protected Integer index;
     protected String base64;
 
     public TtsCard(Integer index, String text, String base64) {
+        super(text);
+        this.index = index;
+        this.base64 = base64;
+    }
+
+    public TtsCard(Integer index, String text, String base64, boolean isAudio) {
         super(text);
         this.index = index;
         this.base64 = base64;
