@@ -33,7 +33,7 @@ public class DoubaoTts extends TtsBase {
     protected String appId = "6249868539";
     protected String userId = "123456";
     protected String cluster = "volcano_icl";
-    protected String voiceType = "S_7zdqme4w1";
+    protected String voiceType = "S_nTxZIAta1";
     protected String encoding = "wav";
     protected float speedRatio = 1.2f;
     protected float volumeRatio = 1.0f;

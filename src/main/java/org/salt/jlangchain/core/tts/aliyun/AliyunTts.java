@@ -52,7 +52,7 @@ public class AliyunTts extends TtsBase {
 
     @Override
     protected TtsCard callTts(String text) {
-        log.debug("call doubao tts: {}", text);
+        log.debug("call aliyun tts: {}", text);
 
         TtsAliyunClient ttsAliyunClient = SpringContextUtil.getBean(TtsAliyunClient.class);
 
@@ -67,18 +67,17 @@ public class AliyunTts extends TtsBase {
         ttsRequest.setPitchRate(String.valueOf(pitchRate));
         ttsRequest.setSampleRate(sampleRate);
 
-        log.info("doubao tts request: {}", JsonUtil.toJson(ttsRequest));
+        log.info("aliyun tts request: {}", JsonUtil.toJson(ttsRequest));
         try {
             String base64 = ttsAliyunClient.request(ttsRequest);
-            log.info("doubao tts response");
             if (StringUtils.isEmpty(base64)) {
-                log.error("doubao tts fail");
+                log.error("aliyun tts fail");
                 return new TtsCard(text, null);
             }
-            log.info("doubao tts response size: {}", base64.length());
+            log.info("aliyun tts response size: {}", base64.length());
             return new TtsCard(text, base64, true);
         } catch (Exception e) {
-            log.error("doubao tts fail: {}", e.getMessage(), e);
+            log.error("aliyun tts fail: {}", e.getMessage(), e);
             return new TtsCard(text, null);
         }
     }
