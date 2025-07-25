@@ -167,17 +167,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
 
                 log.debug("transformAsync next start");
 
-                lock.lock();
-                try {
-                    boolean isWait = condition.await(10000, TimeUnit.MILLISECONDS);  // 使用 Condition 的 await
-                    if (!isWait) {
-                        log.warn("transformAsync next wait on false: {}", JsonUtil.toJson(result));
-                    }
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                } finally {
-                    lock.unlock();
-                }
+                await();
 
                 log.debug("transformAsync next wait off");
 
@@ -226,12 +216,14 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
                     TtsCardChunk ttsChunk = new TtsCardChunk(index, ttsCard.getText(), ttsCard.getBase64(), ttsCard.isAudio(), true);
                     log.debug("submit offer last ttsChunk: {}", ttsChunk.getText());
                     queue.add(new PriorityTtsCardChunk(ttsChunk, Integer.MAX_VALUE));
+                    signal();
                 }));
             } else {
                 TtsCardChunk endChunk = new TtsCardChunk(ttsCardChunk.getIndex(), ttsCardChunk.getText(), ttsCardChunk.getBase64(), ttsCardChunk.isAudio(), true);
                 executor.submit(TheadHelper.getDecoratorAsync(() -> {
                     log.debug("submit tts last: {}", endChunk);
                     queue.add(new PriorityTtsCardChunk(endChunk, Integer.MAX_VALUE));
+                    signal();
                 }));
             }
             return ttsCardChunk;
@@ -264,15 +256,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
                     TtsCardChunk ttsChunk = new TtsCardChunk(index, ttsCard.getText(), ttsCard.getBase64(), ttsCard.isAudio(), false);
                     log.debug("submit offer ttsChunk: {}", ttsChunk.getText());
                     queue.add(new PriorityTtsCardChunk(ttsChunk, ttsIndex));
-
-                    log.debug("submit tts signal");
-
-                    lock.lock();
-                    try {
-                        condition.signal();
-                    } finally {
-                        lock.unlock();
-                    }
+                    signal();
 
                     log.debug("submit tts end");
 
@@ -315,4 +299,30 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
         }
     }
 
+    protected void await() {
+        log.debug("tts await");
+
+        lock.lock();
+        try {
+            boolean isWait = condition.await(10000, TimeUnit.MILLISECONDS);  // 使用 Condition 的 await
+            if (!isWait) {
+                log.warn("transformAsync next wait on false");
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    protected void signal() {
+        log.debug("tts signal");
+
+        lock.lock();
+        try {
+            condition.signal();
+        } finally {
+            lock.unlock();
+        }
+    }
 }
