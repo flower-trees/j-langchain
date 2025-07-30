@@ -47,7 +47,7 @@ public class HttpStreamClient implements InitializingBean {
 
     private OkHttpClient okHttpClient;
 
-    private long sleepTime = 10;
+    private long sleepTime = 0;
     private int maxConnections = 200;
     private int maxConnectionsPerHost = 200;
     private int maxIdleConnections = 200;
@@ -285,10 +285,12 @@ public class HttpStreamClient implements InitializingBean {
     }
 
     private void pause() {
-        try {
-            Thread.sleep(sleepTime);
-        } catch (InterruptedException e) {
-            log.warn("http stream call pause, e:{}", e.getMessage());
+        if (sleepTime > 0) {
+            try {
+                Thread.sleep(sleepTime);
+            } catch (InterruptedException e) {
+                log.warn("http stream call pause, e:{}", e.getMessage());
+            }
         }
     }
 }
