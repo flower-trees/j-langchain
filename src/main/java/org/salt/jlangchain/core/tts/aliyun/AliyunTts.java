@@ -51,7 +51,7 @@ public class AliyunTts extends TtsBase {
     protected String sampleRate = "16000";
 
     @Override
-    protected TtsCard callTts(String text) {
+    public TtsCard callTts(String text) {
         log.debug("call aliyun tts: {}", text);
 
         TtsAliyunClient ttsAliyunClient = SpringContextUtil.getBean(TtsAliyunClient.class);

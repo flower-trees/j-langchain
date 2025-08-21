@@ -273,7 +273,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
         return ttsCardChunk;
     }
 
-    protected abstract TtsCard callTts(String text);
+    public abstract TtsCard callTts(String text);
 
     private boolean isPunctuation(String text) {
         if (text == null || text.isEmpty()) return false;

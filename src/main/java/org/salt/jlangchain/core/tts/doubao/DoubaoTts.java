@@ -41,7 +41,7 @@ public class DoubaoTts extends TtsBase {
     protected String emotion = "happy";
 
     @Override
-    protected TtsCard callTts(String text) {
+    public TtsCard callTts(String text) {
         log.debug("call doubao tts: {}", text);
 
         TtsDoubaoClient ttsDoubaoClient = SpringContextUtil.getBean(TtsDoubaoClient.class);
