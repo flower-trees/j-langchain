@@ -18,40 +18,249 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 public class OpenAIResponse {
 
+    // Basic response fields
     private String id;
     private String object;
     private int created;
     private String model;
     @JsonProperty("system_fingerprint")
     private String systemFingerprint;
+
+    // Chat completion response
     private List<Choice> choices;
+
+    // Embedding response
     private List<DataObject> data;
+
+    // Usage statistics
+    private Usage usage;
+
+    // Error information
+    private Error error;
+
+    // MCP related response fields
+    private McpResponse mcpResponse;
+
+    // Additional metadata
+    private Map<String, Object> metadata;
+    private String warnings;
 
     @Data
     public static class Choice {
         private int index;
-        private Delta delta;
-        private Object logprobs;
+        private Delta delta; // For streaming responses
+        private Message message; // For non-streaming responses
+        private Object logprobs; // Log probabilities
         @JsonProperty("finish_reason")
-        private String finishReason;
-        private Delta message;
+        private String finishReason; // "stop", "length", "tool_calls", "content_filter", "function_call"
 
         @Data
         public static class Delta {
             private String role;
             private String content;
+            @JsonProperty("tool_calls")
+            private List<ToolCall> toolCalls; // Tool calls in streaming
+            @JsonProperty("function_call")
+            private FunctionCall functionCall; // Deprecated function call format
+        }
+
+        @Data
+        public static class Message {
+            private String role;
+            private String content;
+            @JsonProperty("tool_calls")
+            private List<ToolCall> toolCalls; // Tool calls in response
+            @JsonProperty("function_call")
+            private FunctionCall functionCall; // Deprecated function call format
+            private String name; // Message name
+            private Map<String, Object> metadata; // Additional message metadata
+        }
+
+        @Data
+        public static class ToolCall {
+            private String id;
+            private String type; // "function"
+            private Function function;
+            private int index; // For streaming responses
+
+            @Data
+            public static class Function {
+                private String name;
+                private String arguments; // JSON string
+            }
+        }
+
+        @Data
+        public static class FunctionCall {
+            private String name;
+            private String arguments; // JSON string
+        }
+
+        @Data
+        public static class LogProbs {
+            private List<TokenLogProb> tokens;
+            @JsonProperty("text_offset")
+            private List<Integer> textOffset;
+
+            @Data
+            public static class TokenLogProb {
+                private String token;
+                private Double logprob;
+                private List<Integer> bytes;
+                @JsonProperty("top_logprobs")
+                private List<TopLogProb> topLogprobs;
+
+                @Data
+                public static class TopLogProb {
+                    private String token;
+                    private Double logprob;
+                    private List<Integer> bytes;
+                }
+            }
         }
     }
 
     @Data
     public static class DataObject {
-        private String object;
+        private String object; // "embedding"
         private int index;
-        private List<Float> embedding;
+        private List<Float> embedding; // Embedding vector
+        private Map<String, Object> metadata; // Additional embedding metadata
+    }
+
+    @Data
+    public static class Usage {
+        @JsonProperty("prompt_tokens")
+        private int promptTokens;
+        @JsonProperty("completion_tokens")
+        private int completionTokens;
+        @JsonProperty("total_tokens")
+        private int totalTokens;
+        @JsonProperty("prompt_tokens_details")
+        private PromptTokensDetails promptTokensDetails;
+        @JsonProperty("completion_tokens_details")
+        private CompletionTokensDetails completionTokensDetails;
+
+        @Data
+        public static class PromptTokensDetails {
+            @JsonProperty("cached_tokens")
+            private int cachedTokens;
+        }
+
+        @Data
+        public static class CompletionTokensDetails {
+            @JsonProperty("reasoning_tokens")
+            private int reasoningTokens;
+        }
+    }
+
+    @Data
+    public static class Error {
+        private String message;
+        private String type;
+        private String param;
+        private String code;
+        private Map<String, Object> details; // Additional error details
+    }
+
+    @Data
+    public static class McpResponse {
+        @JsonProperty("server_info")
+        private ServerInfo serverInfo;
+        @JsonProperty("tool_results")
+        private List<ToolResult> toolResults;
+        private String status; // "success", "error", "partial"
+        @JsonProperty("execution_time")
+        private Long executionTime; // Execution time in milliseconds
+
+        @Data
+        public static class ServerInfo {
+            private String name;
+            private String version;
+            @JsonProperty("protocol_version")
+            private String protocolVersion;
+            private List<String> capabilities;
+        }
+
+        @Data
+        public static class ToolResult {
+            @JsonProperty("tool_name")
+            private String toolName;
+            private String status; // "success", "error"
+            private Object result; // Tool execution result
+            private String error; // Error message if failed
+            @JsonProperty("execution_time")
+            private Long executionTime;
+        }
+    }
+
+    // Convenience methods for response type detection
+    public boolean isChatCompletion() {
+        return choices != null && !choices.isEmpty();
+    }
+
+    public boolean isEmbedding() {
+        return data != null && !data.isEmpty();
+    }
+
+    public boolean isError() {
+        return error != null;
+    }
+
+    public boolean isStreaming() {
+        return choices != null && choices.stream().anyMatch(choice -> choice.getDelta() != null);
+    }
+
+    public boolean hasToolCalls() {
+        if (choices == null) return false;
+        return choices.stream().anyMatch(choice ->
+                (choice.getMessage() != null && choice.getMessage().getToolCalls() != null && !choice.getMessage().getToolCalls().isEmpty()) ||
+                        (choice.getDelta() != null && choice.getDelta().getToolCalls() != null && !choice.getDelta().getToolCalls().isEmpty())
+        );
+    }
+
+    public boolean isMcpResponse() {
+        return mcpResponse != null;
+    }
+
+    // Get first choice content (convenience method)
+    public String getContent() {
+        if (choices == null || choices.isEmpty()) return null;
+        Choice firstChoice = choices.get(0);
+
+        if (firstChoice.getMessage() != null) {
+            return firstChoice.getMessage().getContent();
+        } else if (firstChoice.getDelta() != null) {
+            return firstChoice.getDelta().getContent();
+        }
+
+        return null;
+    }
+
+    // Get first choice finish reason (convenience method)
+    public String getFinishReason() {
+        if (choices == null || choices.isEmpty()) return null;
+        return choices.get(0).getFinishReason();
+    }
+
+    // Get total tokens used (convenience method)
+    public int getTotalTokens() {
+        return usage != null ? usage.getTotalTokens() : 0;
+    }
+
+    // Check if response was truncated due to length
+    public boolean wasTruncated() {
+        return "length".equals(getFinishReason());
+    }
+
+    // Check if response was stopped due to content filter
+    public boolean wasFiltered() {
+        return "content_filter".equals(getFinishReason());
     }
 }
 
