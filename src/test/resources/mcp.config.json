@@ -1,0 +1,11 @@
+{
+  "tools": [
+    {
+      "name": "get_export_ip",
+      "description": "Get my network export IP",
+      "url": "http://ipinfo.io/ip",
+      "method": "GET",
+      "params": []
+    }
+  ]
+}
