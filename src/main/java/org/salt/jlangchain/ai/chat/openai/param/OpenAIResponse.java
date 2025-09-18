@@ -14,7 +14,6 @@
 
 package org.salt.jlangchain.ai.chat.openai.param;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.util.List;
@@ -28,7 +27,6 @@ public class OpenAIResponse {
     private String object;
     private int created;
     private String model;
-    @JsonProperty("system_fingerprint")
     private String systemFingerprint;
 
     // Chat completion response
@@ -56,16 +54,13 @@ public class OpenAIResponse {
         private Delta delta; // For streaming responses
         private Message message; // For non-streaming responses
         private Object logprobs; // Log probabilities
-        @JsonProperty("finish_reason")
         private String finishReason; // "stop", "length", "tool_calls", "content_filter", "function_call"
 
         @Data
         public static class Delta {
             private String role;
             private String content;
-            @JsonProperty("tool_calls")
             private List<ToolCall> toolCalls; // Tool calls in streaming
-            @JsonProperty("function_call")
             private FunctionCall functionCall; // Deprecated function call format
         }
 
@@ -73,9 +68,7 @@ public class OpenAIResponse {
         public static class Message {
             private String role;
             private String content;
-            @JsonProperty("tool_calls")
             private List<ToolCall> toolCalls; // Tool calls in response
-            @JsonProperty("function_call")
             private FunctionCall functionCall; // Deprecated function call format
             private String name; // Message name
             private Map<String, Object> metadata; // Additional message metadata
@@ -104,7 +97,6 @@ public class OpenAIResponse {
         @Data
         public static class LogProbs {
             private List<TokenLogProb> tokens;
-            @JsonProperty("text_offset")
             private List<Integer> textOffset;
 
             @Data
@@ -112,7 +104,6 @@ public class OpenAIResponse {
                 private String token;
                 private Double logprob;
                 private List<Integer> bytes;
-                @JsonProperty("top_logprobs")
                 private List<TopLogProb> topLogprobs;
 
                 @Data
@@ -135,26 +126,19 @@ public class OpenAIResponse {
 
     @Data
     public static class Usage {
-        @JsonProperty("prompt_tokens")
         private int promptTokens;
-        @JsonProperty("completion_tokens")
         private int completionTokens;
-        @JsonProperty("total_tokens")
         private int totalTokens;
-        @JsonProperty("prompt_tokens_details")
         private PromptTokensDetails promptTokensDetails;
-        @JsonProperty("completion_tokens_details")
         private CompletionTokensDetails completionTokensDetails;
 
         @Data
         public static class PromptTokensDetails {
-            @JsonProperty("cached_tokens")
             private int cachedTokens;
         }
 
         @Data
         public static class CompletionTokensDetails {
-            @JsonProperty("reasoning_tokens")
             private int reasoningTokens;
         }
     }
@@ -170,31 +154,25 @@ public class OpenAIResponse {
 
     @Data
     public static class McpResponse {
-        @JsonProperty("server_info")
         private ServerInfo serverInfo;
-        @JsonProperty("tool_results")
         private List<ToolResult> toolResults;
         private String status; // "success", "error", "partial"
-        @JsonProperty("execution_time")
         private Long executionTime; // Execution time in milliseconds
 
         @Data
         public static class ServerInfo {
             private String name;
             private String version;
-            @JsonProperty("protocol_version")
             private String protocolVersion;
             private List<String> capabilities;
         }
 
         @Data
         public static class ToolResult {
-            @JsonProperty("tool_name")
             private String toolName;
             private String status; // "success", "error"
             private Object result; // Tool execution result
             private String error; // Error message if failed
-            @JsonProperty("execution_time")
             private Long executionTime;
         }
     }

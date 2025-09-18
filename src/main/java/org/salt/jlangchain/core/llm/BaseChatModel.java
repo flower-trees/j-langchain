@@ -52,6 +52,7 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
     protected String model = "gpt-4";
     protected Float temperature = 0.7f;
     protected Map<String, Object> modelKwargs;
+    protected List<AiChatInput.Tool> tools;
 
     Map<String, Object> config = Map.of(
             "run_name", this.getClass().getSimpleName(),
@@ -72,6 +73,11 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
         if (CollectionUtils.isEmpty(aiChatOutput.getMessages())) {
             return AIMessage.builder().content("").build();
         }
+        List<AiChatOutput.ToolCall> toolCalls = aiChatOutput.getMessages().get(0).getToolCalls();
+        if (toolCalls != null) {
+            return ToolMessage.builder().toolCalls(toolCalls).build();
+        }
+
         return AIMessage.builder().content((String) aiChatOutput.getMessages().get(0).getContent()).build();
     }
 
@@ -128,6 +134,12 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
                         break;
                     case SYSTEM:
                         messages.add(new AiChatInput.Message(RoleType.SYSTEM.getCode(), baseMessage.getContent()));
+                        break;
+                    case TOOL:
+                        messages.add(new AiChatInput.Message(RoleType.TOOL.getCode(), baseMessage.getContent(), ((ToolMessage)baseMessage).getName(), ((ToolMessage)baseMessage).getToolCallId()));
+                        break;
+                    default:
+                        throw new RuntimeException("baseMessage.getRole() is not support");
                 }
             }
             return messages;

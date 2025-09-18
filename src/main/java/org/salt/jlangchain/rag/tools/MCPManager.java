@@ -36,8 +36,9 @@ public class MCPManager {
         public String description;
         public String url;
         public String method;
-        public List<String> params;
+        public Map<String, Object> params;
         public String authorization;
+        public List<String> required;
     }
 
     private final Map<String, ToolConfig> tools = new HashMap<>();
@@ -45,19 +46,25 @@ public class MCPManager {
     private final ObjectMapper mapper = new ObjectMapper();
     private final String configPath;
     private static final int DEFAULT_TIMEOUT_SECONDS = 30;
+    private final String gateway;
 
     public MCPManager(String configPath) throws Exception {
-        this(configPath, DEFAULT_TIMEOUT_SECONDS);
+        this(configPath, DEFAULT_TIMEOUT_SECONDS, null);
     }
 
-    public MCPManager(String configPath, int timeoutSeconds) throws Exception {
+    public MCPManager(String configPath, int timeoutSeconds, String gateway) throws Exception {
         this.configPath = configPath;
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(timeoutSeconds, TimeUnit.SECONDS)
                 .readTimeout(timeoutSeconds, TimeUnit.SECONDS)
                 .writeTimeout(timeoutSeconds, TimeUnit.SECONDS)
                 .build();
+        this.gateway = gateway;
         loadTools();
+    }
+
+    public MCPManager(String configPath, String gateway) throws Exception {
+        this(configPath, DEFAULT_TIMEOUT_SECONDS, gateway);
     }
 
     private void loadTools() throws Exception {
@@ -160,6 +167,10 @@ public class MCPManager {
             throw new IllegalStateException("Tool method is not configured for: " + toolName);
         }
 
+        if (!t.url.startsWith("http://") && !t.url.startsWith("https://")) {
+            t.url = gateway + t.url;
+        }
+
         if ("GET".equalsIgnoreCase(t.method)) {
             HttpUrl parsedUrl = HttpUrl.parse(t.url);
             if (parsedUrl == null) {
@@ -168,7 +179,7 @@ public class MCPManager {
             
             HttpUrl.Builder urlBuilder = parsedUrl.newBuilder();
             if (t.params != null) {
-                for (String p : t.params) {
+                for (String p : t.params.keySet()) {
                     if (p != null && !p.trim().isEmpty()) {
                         Object value = input.get(p);
                         String paramValue = value != null ? String.valueOf(value) : "";
@@ -208,7 +219,7 @@ public class MCPManager {
         } else if ("POST".equalsIgnoreCase(t.method) || "PUT".equalsIgnoreCase(t.method) || "PATCH".equalsIgnoreCase(t.method)) {
             Map<String, Object> bodyMap = new HashMap<>();
             if (t.params != null) {
-                for (String p : t.params) {
+                for (String p : t.params.keySet()) {
                     if (p != null && !p.trim().isEmpty()) {
                         bodyMap.put(p, input.get(p));
                     }

@@ -35,10 +35,15 @@ public class BaseMessage extends Serializable {
     protected String finishReason;
 
     public static BaseMessage fromMessage(String role, String message) {
+        return fromMessage(role, message, null, null);
+    }
+
+    public static BaseMessage fromMessage(String role, String message, String name, String toolCallId) {
         return switch (MessageType.fromCode(role)) {
             case SYSTEM -> SystemMessage.builder().content(message).build();
             case AI -> AIMessage.builder().content(message).build();
             case HUMAN -> HumanMessage.builder().content(message).build();
+            case TOOL -> ToolMessage.builder().content(message).name(name).toolCallId(toolCallId).build();
         };
     }
 }

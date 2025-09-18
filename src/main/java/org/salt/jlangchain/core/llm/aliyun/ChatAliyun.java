@@ -21,6 +21,7 @@ import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 import org.salt.jlangchain.core.llm.BaseChatModel;
 
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -36,11 +37,13 @@ public class ChatAliyun extends BaseChatModel {
     protected String model = "qwq-32b-preview";
     protected Float temperature = 0.7f;
     protected Map<String, Object> modelKwargs;
+    protected List<AiChatInput.Tool> tools;
 
     @Override
     public void otherInformation(AiChatInput aiChatInput) {
         aiChatInput.setModel(model);
         aiChatInput.setTemperature(temperature);
+        aiChatInput.setTools(tools);
     }
 
     public Class<? extends AiChatActuator> getActuator() {

@@ -22,7 +22,8 @@ public enum MessageType {
 
     SYSTEM("system"),
     AI("ai"),
-    HUMAN("human")
+    HUMAN("human"),
+    TOOL("tool")
     ;
 
     private final String code;
