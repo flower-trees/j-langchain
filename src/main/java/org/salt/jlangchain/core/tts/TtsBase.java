@@ -229,9 +229,9 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
             return ttsCardChunk;
         }
 
-        String text = ttsCardChunk.getText().trim();
+        String text = ttsCardChunk.getText();
 
-        if (StringUtils.isEmpty(text)) {
+        if (StringUtils.isBlank(text)) {
             return ttsCardChunk;
         }
 
