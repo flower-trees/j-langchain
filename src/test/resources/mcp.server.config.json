@@ -1,0 +1,30 @@
+{
+  "mcpServers": {
+    "default-test": {
+      "command": "echo",
+      "args": ["default-config-test"],
+      "env": {}
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+      "env": {
+        "NODE_ENV": "test"
+      }
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "env": {
+        "NODE_ENV": "test"
+      }
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://myuser:123456@localhost:5432/mydb"],
+      "env": {
+        "POSTGRES_URL": "${POSTGRES_URL:postgresql://myuser:123456@localhost:5432/mydb}"
+      }
+    }
+  }
+}

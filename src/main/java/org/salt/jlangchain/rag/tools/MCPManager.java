@@ -121,6 +121,14 @@ public class MCPManager {
             }
         }
     }
+    public List<Map<String, Object>> manifest() {
+        return getAllTools().stream().map(t -> Map.of(
+                "name", t.name,
+                "description", t.description,
+                "input_schema", Map.of("type", "object", "properties", t.params == null || t.params.isEmpty() ? Map.of() : t.params, "required", t.required == null || t.required.isEmpty() ? List.of() : t.required)
+        )).toList();
+    }
+
 
     public List<ToolConfig> getAllTools() {
         return List.copyOf(tools.values());
