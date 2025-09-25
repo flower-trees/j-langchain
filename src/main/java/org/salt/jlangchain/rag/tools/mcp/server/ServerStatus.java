@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.npx.server;
+package org.salt.jlangchain.rag.tools.mcp.server;
 
 public class ServerStatus {
     public final boolean connected;

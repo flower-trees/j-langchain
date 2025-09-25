@@ -12,12 +12,14 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.npx.tool;
+package org.salt.jlangchain.rag.tools.mcp.server;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ToolsListResponse {
-    public List<Tool> tools;
+public class McpRequest {
+    public String jsonrpc;
+    public int id;
+    public String method;
+    public Object params;
 }

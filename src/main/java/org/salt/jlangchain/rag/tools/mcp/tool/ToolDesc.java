@@ -12,19 +12,15 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.npx.tool;
+package org.salt.jlangchain.rag.tools.mcp.tool;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.Data;
 
+@Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ToolContent {
-    public String type;
-    public String text;
-
-    public ToolContent() {}
-
-    public ToolContent(String type, String text) {
-        this.type = type;
-        this.text = text;
-    }
+public class ToolDesc {
+    public String name;
+    public String description;
+    public Object inputSchema;
 }

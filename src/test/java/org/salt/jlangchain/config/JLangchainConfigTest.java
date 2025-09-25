@@ -15,8 +15,8 @@
 package org.salt.jlangchain.config;
 
 import lombok.extern.slf4j.Slf4j;
-import org.salt.jlangchain.rag.tools.MCPManager;
-import org.salt.jlangchain.rag.tools.npx.NPXMcpClient;
+import org.salt.jlangchain.rag.tools.mcp.MCPManager;
+import org.salt.jlangchain.rag.tools.mcp.McpClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -29,7 +29,7 @@ public class JLangchainConfigTest {
     }
 
     @Bean(name = "npxMcpClient")
-    public NPXMcpClient npxMcpClient() {
-        return new NPXMcpClient();
+    public McpClient npxMcpClient() {
+        return new McpClient();
     }
 }

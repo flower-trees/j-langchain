@@ -12,15 +12,15 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.npx;
+package org.salt.jlangchain.rag.tools.mcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.salt.jlangchain.rag.tools.npx.config.McpConfig;
-import org.salt.jlangchain.rag.tools.npx.server.McpServerConnection;
-import org.salt.jlangchain.rag.tools.npx.server.ServerStatus;
-import org.salt.jlangchain.rag.tools.npx.tool.Tool;
-import org.salt.jlangchain.rag.tools.npx.tool.ToolResult;
+import org.salt.jlangchain.rag.tools.mcp.server.config.McpConfig;
+import org.salt.jlangchain.rag.tools.mcp.server.McpServerConnection;
+import org.salt.jlangchain.rag.tools.mcp.server.ServerStatus;
+import org.salt.jlangchain.rag.tools.mcp.tool.ToolDesc;
+import org.salt.jlangchain.rag.tools.mcp.tool.ToolResult;
 import org.springframework.beans.factory.DisposableBean;
 
 import java.io.File;
@@ -34,15 +34,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class NPXMcpClient implements DisposableBean {
+public class McpClient implements DisposableBean {
 
     private final Map<String, McpServerConnection> servers = new ConcurrentHashMap<>();
 
-    public NPXMcpClient() {
+    public McpClient() {
         this(null);
     }
 
-    public NPXMcpClient(String configPath) {
+    public McpClient(String configPath) {
         try {
             McpConfig config;
             if (configPath == null) {
@@ -137,7 +137,7 @@ public class NPXMcpClient implements DisposableBean {
         return result.toString();
     }
 
-    public Map<String, List<Tool>> listAllTools() {
+    public Map<String, List<ToolDesc>> listAllTools() {
         return servers.entrySet()
             .stream()
             .collect(Collectors.toMap(
@@ -149,7 +149,7 @@ public class NPXMcpClient implements DisposableBean {
                         return connection.listTools();
                     } catch (Exception e) {
                         log.error("Failed to list tools for {}: {}", serverName, e.getMessage());
-                        return Collections.<Tool>emptyList();
+                        return Collections.<ToolDesc>emptyList();
                     }
                 }
             ));

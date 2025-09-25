@@ -12,15 +12,26 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.npx.tool;
+package org.salt.jlangchain.rag.tools.mcp.tool;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.Data;
+
 import java.util.List;
 
+@Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ToolResult {
     public List<ToolContent> content;
     public boolean isError;
+
+    public ToolResult() {
+    }
+
+    public ToolResult(List<ToolContent> content) {
+        this.content = content;
+        this.isError = false;
+    }
 
     public static ToolResult error(String message) {
         ToolResult result = new ToolResult();

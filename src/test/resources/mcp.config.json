@@ -1,5 +1,5 @@
 {
-  "tools": [
+  "default": [
     {
       "name": "get_export_ip",
       "description": "Get my network export IP",

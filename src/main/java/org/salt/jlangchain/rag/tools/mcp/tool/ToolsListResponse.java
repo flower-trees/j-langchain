@@ -12,13 +12,15 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.npx.config;
+package org.salt.jlangchain.rag.tools.mcp.tool;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.Data;
 
-import java.util.Map;
+import java.util.List;
 
+@Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class McpConfig {
-    public Map<String, ServerConfig> mcpServers;
+public class ToolsListResponse {
+    public List<ToolDesc> tools;
 }

@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools;
+package org.salt.jlangchain.rag.tools.mcp;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -34,12 +34,22 @@ public class MCPManagerTest {
     private MCPManager mcpManager;
 
     @Test
-    public void getAllTools() {
-        System.out.println(JsonUtil.toJson(mcpManager.getAllTools()));
+    public void manifest() {
+        System.out.println(JsonUtil.toJson(mcpManager.manifest()));
+    }
+
+    @Test
+    public void manifestForInput() {
+        System.out.println(JsonUtil.toJson(mcpManager.manifestForInput()));
     }
 
     @Test
     public void run() throws Exception {
-        System.out.println(JsonUtil.toJson(mcpManager.run("get_export_ip", Map.of())));
+        System.out.println(JsonUtil.toJson(mcpManager.run("default", "get_export_ip", Map.of())));
+    }
+
+    @Test
+    public void runForInput() throws Exception {
+        System.out.println(JsonUtil.toJson(mcpManager.runForInput("default", "get_export_ip", Map.of())));
     }
 }

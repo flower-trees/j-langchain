@@ -20,6 +20,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
@@ -31,6 +32,7 @@ import java.util.Map;
 @Slf4j
 public class JsonUtil {
 
+    @Getter
     public static final ObjectMapper objectMapper = new ObjectMapper();
 
     static {

@@ -12,15 +12,14 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.npx.config;
+package org.salt.jlangchain.rag.tools.mcp.server;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import java.util.List;
-import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ServerConfig {
-    public String command;
-    public List<String> args;
-    public Map<String, String> env;
+public class McpResponse {
+    public String jsonrpc;
+    public int id;
+    public Object result;
+    public McpError error;
 }

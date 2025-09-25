@@ -12,17 +12,24 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools;
+package org.salt.jlangchain.rag.tools.mcp;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
+import org.salt.jlangchain.ai.common.param.AiChatInput;
+import org.salt.jlangchain.rag.tools.mcp.tool.ToolContent;
+import org.salt.jlangchain.rag.tools.mcp.tool.ToolDesc;
+import org.salt.jlangchain.rag.tools.mcp.tool.ToolResult;
+import org.salt.jlangchain.utils.JsonUtil;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,18 +48,18 @@ public class MCPManager {
         public List<String> required;
     }
 
-    private final Map<String, ToolConfig> tools = new HashMap<>();
+    private final Map<String, Map<String, ToolConfig>> tools = new HashMap<>();
     private final OkHttpClient client;
     private final ObjectMapper mapper = new ObjectMapper();
     private final String configPath;
     private static final int DEFAULT_TIMEOUT_SECONDS = 30;
-    private final String gateway;
+    private final Map<String, String> gateway;
 
     public MCPManager(String configPath) throws Exception {
-        this(configPath, DEFAULT_TIMEOUT_SECONDS, null);
+        this(configPath, DEFAULT_TIMEOUT_SECONDS, Map.of());
     }
 
-    public MCPManager(String configPath, int timeoutSeconds, String gateway) throws Exception {
+    public MCPManager(String configPath, int timeoutSeconds, Map<String, String> gateway) throws Exception {
         this.configPath = configPath;
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(timeoutSeconds, TimeUnit.SECONDS)
@@ -63,7 +70,7 @@ public class MCPManager {
         loadTools();
     }
 
-    public MCPManager(String configPath, String gateway) throws Exception {
+    public MCPManager(String configPath, Map<String, String> gateway) throws Exception {
         this(configPath, DEFAULT_TIMEOUT_SECONDS, gateway);
     }
 
@@ -86,30 +93,46 @@ public class MCPManager {
                     is, new TypeReference<>() {}
             );
 
-            if (config == null || config.get("tools") == null) {
-                throw new IllegalArgumentException("Invalid configuration: missing 'tools' section");
+            if (config == null || config.isEmpty()) {
+                throw new IllegalArgumentException("Invalid configuration: config is empty");
             }
 
             tools.clear();
-            for (ToolConfig t : config.get("tools")) {
-                if (t.name == null || t.name.trim().isEmpty()) {
-                    log.warn("Skipping tool with empty name");
-                    continue;
-                }
-                if (t.url == null || t.url.trim().isEmpty()) {
-                    log.warn("Skipping tool '{}' with empty URL", t.name);
-                    continue;
-                }
-                if (t.method == null || t.method.trim().isEmpty()) {
-                    log.warn("Skipping tool '{}' with empty method", t.name);
-                    continue;
-                }
-                tools.put(t.name, t);
-                log.info("loadTools: {} from {}", t.name, configPath);
-            }
 
-            if (tools.isEmpty()) {
-                log.warn("No valid tools loaded from configuration: {}", configPath);
+            for (String k : config.keySet()) {
+                tools.put(k, new HashMap<>());
+                for (ToolConfig t : config.get(k)) {
+                    if (t.name == null || t.name.trim().isEmpty()) {
+                        log.warn("Skipping tool with empty name");
+                        continue;
+                    }
+                    if (t.url == null || t.url.trim().isEmpty()) {
+                        log.warn("Skipping tool '{}' with empty URL", t.name);
+                        continue;
+                    }
+                    if (t.method == null || t.method.trim().isEmpty()) {
+                        log.warn("Skipping tool '{}' with empty method", t.name);
+                        continue;
+                    }
+
+                    if (!t.url.startsWith("http://") && !t.url.startsWith("https://") && !t.url.startsWith("wss://")) {
+                        if (!t.url.matches("^\\$\\{[^}]+}.*$")) {
+                            throw new IllegalArgumentException("Invalid URL format for tool: " + t.name);
+                        }
+                        String gatewayKey = t.url.substring(2, t.url.indexOf('}')); // Extract key from ${key}
+                        String gatewayUrl = this.gateway.get(gatewayKey);
+                        if (gatewayUrl == null) {
+                            throw new IllegalArgumentException("Gateway not found for key: " + gatewayKey);
+                        }
+                        t.url = t.url.replaceFirst("^\\$\\{[^}]+}", gatewayUrl);
+                    }
+
+                    tools.get(k).put(t.name, t);
+                    log.info("loadTools: {} from {}", t.name, configPath);
+                }
+                if (tools.isEmpty()) {
+                    log.warn("No valid tools loaded from configuration: {}", configPath);
+                }
             }
         } finally {
             if (is != null) {
@@ -121,39 +144,88 @@ public class MCPManager {
             }
         }
     }
-    public List<Map<String, Object>> manifest() {
-        return getAllTools().stream().map(t -> Map.of(
-                "name", t.name,
-                "description", t.description,
-                "input_schema", Map.of("type", "object", "properties", t.params == null || t.params.isEmpty() ? Map.of() : t.params, "required", t.required == null || t.required.isEmpty() ? List.of() : t.required)
-        )).toList();
+
+    /**
+     * Get manifest of available tools
+     * @return manifest of available tools
+     */
+    public Map<String, List<ToolDesc>> manifest() {
+        Map<String, List<ToolDesc>> result = new HashMap<>();
+
+        for (String serverName : tools.keySet()) {
+            List<ToolDesc> serverTools = tools.get(serverName).values()
+                .stream()
+                .map(t -> {
+                    ToolDesc toolDesc = new ToolDesc();
+                    toolDesc.name = t.name;
+                    toolDesc.description = t.description;
+                    toolDesc.inputSchema = Map.of(
+                        "type", "object",
+                        "properties", t.params == null || t.params.isEmpty() ? Map.of() : t.params,
+                        "required", t.required == null || t.required.isEmpty() ? List.of() : t.required
+                    );
+                    return toolDesc;
+                })
+                .collect(java.util.stream.Collectors.toList());
+            result.put(serverName, serverTools);
+        }
+
+        return result;
     }
 
+    public Map<String, List<AiChatInput.Tool>> manifestForInput() {
+        Map<String, List<AiChatInput.Tool>> result = new HashMap<>();
+        manifest().forEach((key, toolDescList) -> {
+            List<AiChatInput.Tool> tools = new ArrayList<>();
+            for (ToolDesc toolDesc : toolDescList) {
+                try {
+                    AiChatInput.Tool tool = new AiChatInput.Tool();
+                    tool.setType("function");
+                    tool.setFunction(new AiChatInput.Tool.FunctionTool());
+                    tool.getFunction().setName(toolDesc.getName());
+                    tool.getFunction().setDescription(toolDesc.getDescription());
+                    tool.getFunction().setParameters(JsonUtil.getObjectMapper().readValue(JsonUtil.toJson(toolDesc.getInputSchema()), new TypeReference<>() {}));
+                    tools.add(tool);
+                } catch (JsonProcessingException e) {
+                    log.warn("Failed to parse tool node for key {}: {}", key, e.getMessage());
+                }
+            }
+            result.put(key, tools);
+        });
+        return result;
+    }
 
-    public List<ToolConfig> getAllTools() {
-        return List.copyOf(tools.values());
+    public Object runForInput(String serverName, String toolName, Map<String, Object> input) throws Exception {
+        return runForInput(serverName, toolName, input, null);
+    }
+
+    public Object runForInput(String serverName, String toolName, Map<String, Object> input, String authorization) throws Exception {
+        ToolResult result = run(serverName, toolName, input, authorization);
+        return result.isError ? null : result.getContent().get(0).getText();
     }
 
     /**
      * Execute a tool with given parameters
+     * @param serverName the name of the server to execute the tool on
      * @param toolName the name of the tool to execute
      * @param input parameters for the tool as defined in config
      * @return execution result
      * @throws Exception if execution fails
      */
-    public Object run(String toolName, Map<String, Object> input) throws Exception {
-        return run(toolName, input, null);
+    public ToolResult run(String serverName, String toolName, Map<String, Object> input) throws Exception {
+        return run(serverName, toolName, input, null);
     }
 
     /**
      * Execute a tool with given parameters and optional runtime authorization
+     * @param serverName the name of the server to execute the tool on
      * @param toolName the name of the tool to execute
      * @param input parameters for the tool as defined in config
      * @param authorization runtime authorization header value (overrides config authorization)
      * @return execution result
      * @throws Exception if execution fails
      */
-    public Object run(String toolName, Map<String, Object> input, String authorization) throws Exception {
+    public ToolResult run(String serverName, String toolName, Map<String, Object> input, String authorization) throws Exception {
         if (toolName == null || toolName.trim().isEmpty()) {
             throw new IllegalArgumentException("Tool name cannot be null or empty");
         }
@@ -162,7 +234,13 @@ public class MCPManager {
             input = new HashMap<>();
         }
         
-        ToolConfig t = tools.get(toolName);
+        ToolConfig t = null;
+
+        Map<String, ToolConfig> serverTools = tools.get(serverName);
+        if (serverTools != null) {
+            t = serverTools.get(toolName);
+        }
+
         if (t == null) {
             throw new IllegalArgumentException("Tool not found: " + toolName);
         }
@@ -173,10 +251,6 @@ public class MCPManager {
         
         if (t.method == null || t.method.trim().isEmpty()) {
             throw new IllegalStateException("Tool method is not configured for: " + toolName);
-        }
-
-        if (!t.url.startsWith("http://") && !t.url.startsWith("https://")) {
-            t.url = gateway + t.url;
         }
 
         if ("GET".equalsIgnoreCase(t.method)) {
@@ -215,11 +289,11 @@ public class MCPManager {
                 ResponseBody responseBody = response.body();
                 if (responseBody == null) {
                     log.warn("Empty response body for tool: {}", toolName);
-                    return Map.of("result", "", "status", response.code());
+                    return ToolResult.error("Empty response body: " + response.code());
                 }
                 
                 String bodyString = responseBody.string();
-                return Map.of("result", bodyString, "status", response.code());
+                return new ToolResult(List.of(new ToolContent("text", bodyString)));
             } catch (IOException e) {
                 log.error("Error executing GET request for tool: {}", toolName, e);
                 throw new RuntimeException("Failed to execute GET request: " + e.getMessage(), e);
@@ -265,7 +339,7 @@ public class MCPManager {
                 
                 ResponseBody responseBody = response.body();
                 String bodyString = responseBody != null ? responseBody.string() : "";
-                return Map.of("result", bodyString, "status", response.code());
+                return new ToolResult(List.of(new ToolContent("text", bodyString)));
             } catch (IOException e) {
                 log.error("Error executing {} request for tool: {}", t.method, toolName, e);
                 throw new RuntimeException("Failed to execute " + t.method + " request: " + e.getMessage(), e);

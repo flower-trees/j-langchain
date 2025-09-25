@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.npx;
+package org.salt.jlangchain.rag.tools.mcp;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -28,14 +28,14 @@ import java.util.Map;
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestApplication.class)
 @SpringBootConfiguration
-public class NPXMcpClientTest {
+public class McpClientTest {
 
     @Autowired
-    private NPXMcpClient npxMcpClient;
+    private McpClient mcpClient;
 
     @Test
     public void testNPXMcpClient() {
-        System.out.println(JsonUtil.toJson(npxMcpClient.listAllTools()));
-        System.out.println(JsonUtil.toJson(npxMcpClient.callTool("postgres", "query", Map.of("sql", "select * from test.student"))));
+        System.out.println(JsonUtil.toJson(mcpClient.listAllTools()));
+        System.out.println(JsonUtil.toJson(mcpClient.callTool("postgres", "query", Map.of("sql", "select * from test.student"))));
     }
 }

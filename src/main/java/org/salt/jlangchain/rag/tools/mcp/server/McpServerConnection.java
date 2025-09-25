@@ -12,15 +12,15 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.npx.server;
+package org.salt.jlangchain.rag.tools.mcp.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.salt.jlangchain.rag.tools.npx.tool.Tool;
-import org.salt.jlangchain.rag.tools.npx.tool.ToolResult;
-import org.salt.jlangchain.rag.tools.npx.tool.ToolsListResponse;
-import org.salt.jlangchain.rag.tools.npx.config.ServerConfig;
+import org.salt.jlangchain.rag.tools.mcp.tool.ToolDesc;
+import org.salt.jlangchain.rag.tools.mcp.tool.ToolResult;
+import org.salt.jlangchain.rag.tools.mcp.tool.ToolsListResponse;
+import org.salt.jlangchain.rag.tools.mcp.server.config.ServerConfig;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -140,7 +140,7 @@ public class McpServerConnection {
         return response;
     }
 
-    public List<Tool> listTools() throws Exception {
+    public List<ToolDesc> listTools() throws Exception {
         McpResponse response = sendRequest("tools/list", new HashMap<>());
         ToolsListResponse toolsResponse = mapper.convertValue(response.result, ToolsListResponse.class);
         return toolsResponse.tools;

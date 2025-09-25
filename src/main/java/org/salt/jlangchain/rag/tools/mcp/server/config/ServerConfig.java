@@ -12,18 +12,15 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.npx.tool;
+package org.salt.jlangchain.rag.tools.mcp.server.config;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.List;
 import java.util.Map;
 
-public class ToolCallRequest {
-    public String serverName;
-    public String toolName;
-    public Map<String, Object> arguments;
-
-    public ToolCallRequest(String serverName, String toolName, Map<String, Object> arguments) {
-        this.serverName = serverName;
-        this.toolName = toolName;
-        this.arguments = arguments;
-    }
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class ServerConfig {
+    public String command;
+    public List<String> args;
+    public Map<String, String> env;
 }

@@ -12,15 +12,13 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.npx.server;
+package org.salt.jlangchain.rag.tools.mcp.server;
 
-public class McpException extends Exception {
-    public final int code;
-    public final Object data;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-    public McpException(int code, String message, Object data) {
-        super(message);
-        this.code = code;
-        this.data = data;
-    }
+@JsonIgnoreProperties(ignoreUnknown = true)
+class McpError {
+    public int code;
+    public String message;
+    public Object data;
 }

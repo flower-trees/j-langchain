@@ -12,13 +12,13 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.npx;
+package org.salt.jlangchain.rag.tools.mcp;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.jlangchain.TestApplication;
-import org.salt.jlangchain.rag.tools.npx.config.ServerConfig;
-import org.salt.jlangchain.rag.tools.npx.server.McpServerConnection;
+import org.salt.jlangchain.rag.tools.mcp.server.config.ServerConfig;
+import org.salt.jlangchain.rag.tools.mcp.server.McpServerConnection;
 import org.salt.jlangchain.utils.JsonUtil;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
