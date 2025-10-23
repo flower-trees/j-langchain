@@ -17,8 +17,8 @@ package org.salt.jlangchain.core;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.core.message.BaseMessage;
-import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
+import org.salt.jlangchain.core.parser.generation.Generation;
 import org.salt.jlangchain.utils.SpringContextUtil;
 
 @Slf4j
@@ -31,8 +31,8 @@ public class InvokeToStream extends BaseRunnable<Object, Object> {
     @Override
     public Object stream(Object input) {
         String content;
-        if (input instanceof ChatGeneration chatGeneration) {
-            content = chatGeneration.getText();
+        if (input instanceof Generation generation) {
+            content = generation.getText();
         } else if (input instanceof BaseMessage baseMessage) {
             content = baseMessage.getContent();
         } else if (input instanceof String str) {
