@@ -51,6 +51,7 @@ public class InvokeToStream extends BaseRunnable<Object, Object> {
                     text.setLast(i == content.length() - 1);
                     log.debug("do content append: {}", text.toJson());
                     chunk.getIterator().append(text);
+                    chunk.add(text);
                 } catch (Exception e) {
                     log.error("error: {}", e.getMessage(), e);
                 }
