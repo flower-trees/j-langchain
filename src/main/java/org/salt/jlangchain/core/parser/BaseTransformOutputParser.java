@@ -76,15 +76,13 @@ public abstract class BaseTransformOutputParser extends BaseOutputParser {
                         if (chunk instanceof AIMessageChunk aiMessageChunk) {
                             ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(new ChatGenerationChunk(aiMessageChunk)));
                             if (StringUtils.isNotEmpty(resultChunk.getText()) || resultChunk.isLast()) {
-                                rusult.getIterator().append(resultChunk);
-                                rusult.add(resultChunk);
+                                rusult.add(resultChunk).append(resultChunk);
                                 eventAction.eventStream(resultChunk, config);
                             }
                         } else if (chunk instanceof ChatGenerationChunk chatGenerationChunk) {
                             ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(chatGenerationChunk));
                             if (StringUtils.isNotEmpty(resultChunk.getText()) || resultChunk.isLast()) {
-                                rusult.getIterator().append(resultChunk);
-                                rusult.add(resultChunk);
+                                rusult.add(resultChunk).append(resultChunk);
                                 eventAction.eventStream(resultChunk, config);
                             }
                         } else {

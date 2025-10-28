@@ -17,8 +17,14 @@ package org.salt.jlangchain.core.tts.card;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.collections.CollectionUtils;
 import org.salt.jlangchain.core.common.Iterator;
 import org.salt.jlangchain.core.common.IteratorAction;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
 @Setter
 @Getter
@@ -28,6 +34,9 @@ public class TtsCardChunk extends TtsCard implements IteratorAction<TtsCardChunk
 
     @JsonIgnore
     protected StringBuilder cumulate = new StringBuilder();
+
+    @Getter
+    protected List<Consumer<String>> finallyCalls = new ArrayList<>();
 
     @JsonIgnore
     protected Iterator<TtsCardChunk> iterator = new Iterator<>(this::isLast);
@@ -53,5 +62,40 @@ public class TtsCardChunk extends TtsCard implements IteratorAction<TtsCardChunk
         this.cumulate.append(chunk.getText());
         this.text = this.cumulate.toString();
         return this;
+    }
+
+    public void addFinallyCall(Consumer<String> call) {
+        this.finallyCalls.add(call);
+    }
+
+    public void addFinallyCalls(List<Consumer<String>> calls) {
+        this.finallyCalls.addAll(calls);
+    }
+
+    public List<Consumer<String>> cleanFinallyCalls() {
+        List<Consumer<String>> calls = this.finallyCalls;
+        this.finallyCalls = List.of();
+        return calls;
+    }
+
+    private void invokeFinallyCall(TtsCardChunk chunk) {
+        if (chunk.isLast() && CollectionUtils.isNotEmpty(finallyCalls)) {
+            for (Consumer<String> call : finallyCalls) {
+                call.accept(cumulate.toString());
+            }
+        }
+    }
+
+    public void append(TtsCardChunk chunk) throws TimeoutException {
+        if (chunk.isLast() && CollectionUtils.isNotEmpty(finallyCalls)) {
+            chunk.setLast(false);
+            iterator.append(chunk);
+            TtsCardChunk last = new TtsCardChunk("", true);
+//            this.invokeCallbacks(last);
+            this.invokeFinallyCall(last);
+            iterator.append(last);
+        } else {
+            iterator.append(chunk);
+        }
     }
 }

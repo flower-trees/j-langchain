@@ -68,8 +68,8 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
 
     @Override
     public TtsCard invoke(Object input) {
-        if (input instanceof String stringPrompt) {
-            return parseResult(new Card(stringPrompt));
+        if (input instanceof String text) {
+            return parseResult(new Card(text));
         } else if (input instanceof BaseMessage baseMessage) {
             return parseResult(new Card(baseMessage.getContent()));
         } else if (input instanceof Generation generation) {
@@ -100,11 +100,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
     }
 
     protected TtsCardChunk transform(Object input) {
-        if (input instanceof String stringPrompt) {
-            TtsCardChunk ttsCardChunk = new TtsCardChunk(stringPrompt, true);
-            transformAsync(input, ttsCardChunk.getIterator(), ttsCardChunk);
-            return ttsCardChunk;
-        } else if (input instanceof BaseMessageChunk<? extends BaseMessage> baseMessageChunk){
+        if (input instanceof BaseMessageChunk<? extends BaseMessage> baseMessageChunk){
             if (baseMessageChunk instanceof AIMessageChunk aiMessageChunk){
                 TtsCardChunk ttsCardChunk = new TtsCardChunk(aiMessageChunk.getContent(), aiMessageChunk.isLast());
                 transformAsync(input, baseMessageChunk.getIterator(), ttsCardChunk);
@@ -114,6 +110,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
             }
         } else if (input instanceof ChatGenerationChunk chatGenerationChunk){
             TtsCardChunk ttsCardChunk = new TtsCardChunk(chatGenerationChunk.getText(), chatGenerationChunk.isLast());
+            ttsCardChunk.addFinallyCalls(chatGenerationChunk.cleanFinallyCalls());
             transformAsync(input, chatGenerationChunk.getIterator(), ttsCardChunk);
             return ttsCardChunk;
         } else {
@@ -180,7 +177,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
                             if (!wrappedChunk.getChunk().isAudio()) {
                                 result.add(wrappedChunk.getChunk()); // add tts chunk cumulate
                             }
-                            result.getIterator().append(wrappedChunk.getChunk());
+                            result.append(wrappedChunk.getChunk());
                         }
                     } while (wrappedChunk != null && !wrappedChunk.getChunk().isLast());
                 } catch (InterruptedException e) {
