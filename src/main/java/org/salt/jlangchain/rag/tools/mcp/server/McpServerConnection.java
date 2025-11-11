@@ -84,10 +84,30 @@ public class McpServerConnection {
             );
 
             sendRequest("initialize", initParams);
-//            sendRequest("initialized", new HashMap<>());
+
+            // Send initialized notification (no need to wait for response)
+            sendNotification(new HashMap<>());
         } catch (Exception e) {
             throw new IOException("Handshake failed", e);
         }
+    }
+
+    private synchronized void sendNotification(Object params) throws IOException {
+        if (!connected) {
+            throw new IllegalStateException("Not connected to server: " + serverName);
+        }
+
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("jsonrpc", "2.0");
+        notification.put("method", "notifications/initialized");
+        notification.put("params", params);
+        // Note: The notification does not have an ID field
+
+        String notificationJson = mapper.writeValueAsString(notification);
+        stdin.write(notificationJson + "\n");
+        stdin.flush();
+
+        log.debug("Sent notification: {}", "notifications/initialized");
     }
 
     private void startErrorListener() {

@@ -15,7 +15,7 @@
 package org.salt.jlangchain.config;
 
 import lombok.extern.slf4j.Slf4j;
-import org.salt.jlangchain.rag.tools.mcp.MCPManager;
+import org.salt.jlangchain.rag.tools.mcp.McpManager;
 import org.salt.jlangchain.rag.tools.mcp.McpClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,8 +24,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class JLangchainConfigTest {
     @Bean("mcpManager")
-    public MCPManager mcpManager() throws Exception {
-        return new MCPManager("mcp.config.json");
+    public McpManager mcpManager() throws Exception {
+        return new McpManager("mcp.config.json");
     }
 
     @Bean(name = "npxMcpClient")

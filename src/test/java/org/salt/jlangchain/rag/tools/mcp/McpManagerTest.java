@@ -28,10 +28,10 @@ import java.util.Map;
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestApplication.class)
 @SpringBootConfiguration
-public class MCPManagerTest {
+public class McpManagerTest {
 
     @Autowired
-    private MCPManager mcpManager;
+    private McpManager mcpManager;
 
     @Test
     public void manifest() {

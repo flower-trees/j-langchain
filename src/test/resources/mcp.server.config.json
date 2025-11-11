@@ -16,10 +16,19 @@
     },
     "postgres": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://myuser:123456@localhost:5432/mydb"],
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://postgres:123456@localhost:5432/postgres"],
       "env": {
-        "POSTGRES_URL": "${POSTGRES_URL:postgresql://myuser:123456@localhost:5432/mydb}"
+        "POSTGRES_URL": "${POSTGRES_URL:postgresql://postgres:123456@localhost:5432/postgres}"
       }
+    },
+    "cognee": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/Users/chuanzhizhu/Documents/tools/cognee/cognee-mcp",
+        "run",
+        "cognee-mcp"
+      ]
     }
   }
 }

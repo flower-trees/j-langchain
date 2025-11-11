@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-public class MCPManager {
+public class McpManager {
 
     public static class ToolConfig {
         public String name;
@@ -55,11 +55,11 @@ public class MCPManager {
     private static final int DEFAULT_TIMEOUT_SECONDS = 30;
     private final Map<String, String> gateway;
 
-    public MCPManager(String configPath) throws Exception {
+    public McpManager(String configPath) throws Exception {
         this(configPath, DEFAULT_TIMEOUT_SECONDS, Map.of());
     }
 
-    public MCPManager(String configPath, int timeoutSeconds, Map<String, String> gateway) throws Exception {
+    public McpManager(String configPath, int timeoutSeconds, Map<String, String> gateway) throws Exception {
         this.configPath = configPath;
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(timeoutSeconds, TimeUnit.SECONDS)
@@ -70,7 +70,7 @@ public class MCPManager {
         loadTools();
     }
 
-    public MCPManager(String configPath, Map<String, String> gateway) throws Exception {
+    public McpManager(String configPath, Map<String, String> gateway) throws Exception {
         this(configPath, DEFAULT_TIMEOUT_SECONDS, gateway);
     }
 
