@@ -12,16 +12,16 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.mcp.server;
+package org.salt.jlangchain.rag.tools.mcp.server.param;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.Data;
+public class ServerStatus {
+    public final boolean connected;
+    public final String name;
+    public final String lastError;
 
-@Data
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class McpResponse {
-    public String jsonrpc = "2.0";
-    public Integer id;                    // Corresponding request ID
-    public Object result;                 // Result on success
-    public McpError error;                // Error information on failure
+    public ServerStatus(boolean connected, String name, String lastError) {
+        this.connected = connected;
+        this.name = name;
+        this.lastError = lastError;
+    }
 }

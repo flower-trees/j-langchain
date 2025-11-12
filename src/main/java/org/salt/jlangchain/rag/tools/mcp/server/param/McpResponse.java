@@ -12,12 +12,16 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.mcp.server;
+package org.salt.jlangchain.rag.tools.mcp.server.param;
 
-public class McpErrorCode {
-    public static final int PARSE_ERROR = -32700;        // 解析错误
-    public static final int INVALID_REQUEST = -32600;    // 无效请求
-    public static final int METHOD_NOT_FOUND = -32601;   // 方法不存在
-    public static final int INVALID_PARAMS = -32602;     // 参数无效
-    public static final int INTERNAL_ERROR = -32603;     // 内部错误
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.Data;
+
+@Data
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class McpResponse {
+    public String jsonrpc = "2.0";
+    public Integer id;                    // Corresponding request ID
+    public Object result;                 // Result on success
+    public McpError error;                // Error information on failure
 }

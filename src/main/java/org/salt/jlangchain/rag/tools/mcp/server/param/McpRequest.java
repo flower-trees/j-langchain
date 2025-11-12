@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.mcp.server;
+package org.salt.jlangchain.rag.tools.mcp.server.param;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;

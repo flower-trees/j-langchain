@@ -12,18 +12,12 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.mcp.server;
+package org.salt.jlangchain.rag.tools.mcp.server.param;
 
-import lombok.Getter;
-
-@Getter
-public class McpException extends Exception {
-    private final int code;
-    private final Object data;
-
-    public McpException(int code, String message, Object data) {
-        super(message);
-        this.code = code;
-        this.data = data;
-    }
+public class McpErrorCode {
+    public static final int PARSE_ERROR = -32700;        // 解析错误
+    public static final int INVALID_REQUEST = -32600;    // 无效请求
+    public static final int METHOD_NOT_FOUND = -32601;   // 方法不存在
+    public static final int INVALID_PARAMS = -32602;     // 参数无效
+    public static final int INTERNAL_ERROR = -32603;     // 内部错误
 }

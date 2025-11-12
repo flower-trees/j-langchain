@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.rag.tools.mcp.server.config.ServerConfig;
+import org.salt.jlangchain.rag.tools.mcp.server.param.McpResponse;
 import org.salt.jlangchain.rag.tools.mcp.tool.ToolDesc;
 import org.salt.jlangchain.rag.tools.mcp.tool.ToolResult;
 import org.salt.jlangchain.rag.tools.mcp.tool.ToolsListResponse;

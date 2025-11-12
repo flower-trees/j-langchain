@@ -12,16 +12,18 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.rag.tools.mcp.server;
+package org.salt.jlangchain.rag.tools.mcp.server.param;
 
-public class ServerStatus {
-    public final boolean connected;
-    public final String name;
-    public final String lastError;
+import lombok.Getter;
 
-    public ServerStatus(boolean connected, String name, String lastError) {
-        this.connected = connected;
-        this.name = name;
-        this.lastError = lastError;
+@Getter
+public class McpException extends Exception {
+    private final int code;
+    private final Object data;
+
+    public McpException(int code, String message, Object data) {
+        super(message);
+        this.code = code;
+        this.data = data;
     }
 }

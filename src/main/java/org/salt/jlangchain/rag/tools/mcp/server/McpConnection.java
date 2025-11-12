@@ -14,6 +14,7 @@
 
 package org.salt.jlangchain.rag.tools.mcp.server;
 
+import org.salt.jlangchain.rag.tools.mcp.server.param.McpResponse;
 import org.salt.jlangchain.rag.tools.mcp.tool.ToolDesc;
 import org.salt.jlangchain.rag.tools.mcp.tool.ToolResult;
 
