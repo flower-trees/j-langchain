@@ -49,7 +49,7 @@ public class McpHttpConnection extends AbstractMcpConnection {
                     Response response = chain.proceed(request);
                     log.debug("[{}] HTTP Response: {} {}", serverName, response.code(), response.message());
 
-                    // 从响应头中获取 MCP session ID
+                    // Get MCP session ID from response header
                     String mcpSessionId = response.header("mcp-session-id");
                     if (mcpSessionId != null) {
                         if (sessionId == null) {
@@ -101,7 +101,7 @@ public class McpHttpConnection extends AbstractMcpConnection {
 
         String responseText = sendHttpRequest(requestJson);
 
-        // 解析 SSE 格式的响应
+        // Parse SSE format response
         String responseJson = parseSseResponse(responseText);
         log.debug("[{}] Parsed JSON response: {}", serverName, responseJson);
 
@@ -128,23 +128,23 @@ public class McpHttpConnection extends AbstractMcpConnection {
     }
 
     /**
-     * 解析 SSE 格式的响应
+     * Parse SSE format response
      *
-     * SSE 格式示例:
+     * SSE format example:
      * event: message
      * data: {"jsonrpc":"2.0","id":1,"result":{...}}
      *
-     * @param sseText SSE 格式文本
-     * @return 提取的 JSON 字符串
+     * @param sseText SSE format text
+     * @return extracted JSON string
      */
     private String parseSseResponse(String sseText) throws IOException {
         if (sseText == null || sseText.trim().isEmpty()) {
             return "{}";
         }
 
-        // 检查是否是 SSE 格式
+        // Check if it's SSE format
         if (!sseText.contains("data:")) {
-            // 如果不是 SSE 格式，直接返回（可能是纯 JSON）
+            // If not SSE format, return directly (might be pure JSON)
             return sseText.trim();
         }
 
@@ -158,17 +158,17 @@ public class McpHttpConnection extends AbstractMcpConnection {
                 line = line.trim();
 
                 if (line.isEmpty()) {
-                    // 空行表示一个事件结束
+                    // Empty line indicates end of an event
                     continue;
                 }
 
                 if (line.startsWith("event:")) {
-                    // 事件类型行
+                    // Event type line
                     String eventType = line.substring(6).trim();
                     log.debug("[{}] SSE event type: {}", serverName, eventType);
                     isDataLine = false;
                 } else if (line.startsWith("data:")) {
-                    // 数据行
+                    // Data line
                     String data = line.substring(5).trim();
                     if (jsonData.length() > 0) {
                         jsonData.append("\n");
@@ -176,13 +176,13 @@ public class McpHttpConnection extends AbstractMcpConnection {
                     jsonData.append(data);
                     isDataLine = true;
                 } else if (line.startsWith(":")) {
-                    // 注释行，忽略
+                    // Comment line, ignore
                     continue;
                 } else if (isDataLine) {
-                    // 多行数据的延续
+                    // Continuation of multi-line data
                     jsonData.append("\n").append(line);
                 } else if (line.startsWith("id:") || line.startsWith("retry:")) {
-                    // SSE 的其他字段，忽略
+                    // Other SSE fields, ignore
                     continue;
                 }
             }

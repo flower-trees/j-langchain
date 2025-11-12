@@ -39,7 +39,7 @@ public class ResourceContent extends ToolContent {
     public static class ResourceInfo {
         public String uri;
         public String mimeType;
-        public String text;      // 文本资源
-        public String blob;      // Base64 编码的二进制资源
+        public String text;      // Text resource
+        public String blob;      // Base64 encoded binary resource
     }
 }

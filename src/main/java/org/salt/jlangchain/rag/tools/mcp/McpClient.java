@@ -16,9 +16,10 @@ package org.salt.jlangchain.rag.tools.mcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.salt.jlangchain.rag.tools.mcp.server.*;
+import org.salt.jlangchain.rag.tools.mcp.server.McpConnection;
+import org.salt.jlangchain.rag.tools.mcp.server.McpConnectionFactory;
+import org.salt.jlangchain.rag.tools.mcp.server.ServerStatus;
 import org.salt.jlangchain.rag.tools.mcp.server.config.McpConfig;
-import org.salt.jlangchain.rag.tools.mcp.server.config.ServerConfig;
 import org.salt.jlangchain.rag.tools.mcp.tool.ToolDesc;
 import org.salt.jlangchain.rag.tools.mcp.tool.ToolResult;
 import org.springframework.beans.factory.DisposableBean;
@@ -59,24 +60,12 @@ public class McpClient implements DisposableBean {
     public void initializeFromConfig(McpConfig config) {
         config.mcpServers.forEach((serverName, serverConfig) -> {
             try {
-                McpConnection connection = null;
-                if (serverConfig.command != null) {
-                    connection = new McpServerConnection(serverName, serverConfig);
-                } else {
-                    if (serverConfig.type == ServerConfig.Type.sse) {
-                        connection = new McpSseConnection(serverName, serverConfig);
-                    } else if (serverConfig.type == ServerConfig.Type.http) {
-                        connection = new McpHttpConnection(serverName, serverConfig);
-                    } else {
-                        log.error("Unknown server type: {}", serverConfig.type);
-                        throw new RuntimeException("Unknown server type: " + serverConfig.type);
-                    }
-                }
+                McpConnection connection = McpConnectionFactory.createConnection(serverName, serverConfig);
                 connection.connect();
                 servers.put(serverName, connection);
                 log.info("Connected to MCP server: {}", serverName);
             } catch (Exception e) {
-                log.error("Failed to connect to {}: {}", serverName, e.getMessage());
+                log.error("Failed to connect to {}, e:", serverName, e);
             }
         });
     }
@@ -112,7 +101,7 @@ public class McpClient implements DisposableBean {
             configJson = replaceEnvironmentVariables(configJson);
             return mapper.readValue(configJson, McpConfig.class);
         } catch (Exception e) {
-            System.err.println("Warning: Failed to process environment variables: " + e.getMessage());
+            log.warn("Failed to process environment variables: ", e);
             return config;
         }
     }
@@ -138,7 +127,7 @@ public class McpClient implements DisposableBean {
             } else if (defaultValue != null) {
                 replacement = defaultValue;
             } else {
-                System.err.println("Warning: Environment variable '" + varName + "' not found");
+                log.warn("Environment variable '{}' not found", varName);
                 replacement = matcher.group(0);
             }
 
@@ -197,7 +186,7 @@ public class McpClient implements DisposableBean {
 
     @Override
     public void destroy() {
-        log.info("Shutting down NPXMcpClient...");
+        log.info("Shutting down McpClient...");
         try {
             servers.values().forEach(connection -> {
                 try {
@@ -207,9 +196,9 @@ public class McpClient implements DisposableBean {
                 }
             });
             servers.clear();
-            log.info("NPXMcpClient shutdown completed");
+            log.info("McpClient shutdown completed");
         } catch (Exception e) {
-            log.error("Error during NPXMcpClient shutdown: {}", e.getMessage(), e);
+            log.error("Error during McpClient shutdown: {}", e.getMessage(), e);
             throw e;
         }
     }

@@ -14,12 +14,14 @@
 
 package org.salt.jlangchain.rag.tools.mcp.server;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.Data;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
+@Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class McpRequest {
-    public String jsonrpc;
-    public int id;
-    public String method;
-    public Object params;
+    public String jsonrpc = "2.0";   // Must be "2.0"
+    public Integer id;               // Request ID (null for notifications)
+    public String method;            // Method name, e.g. "initialize", "tools/list"
+    public Object params;            // Parameter object
 }

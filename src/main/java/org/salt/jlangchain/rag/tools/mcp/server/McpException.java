@@ -14,9 +14,12 @@
 
 package org.salt.jlangchain.rag.tools.mcp.server;
 
+import lombok.Getter;
+
+@Getter
 public class McpException extends Exception {
-    public final int code;
-    public final Object data;
+    private final int code;
+    private final Object data;
 
     public McpException(int code, String message, Object data) {
         super(message);

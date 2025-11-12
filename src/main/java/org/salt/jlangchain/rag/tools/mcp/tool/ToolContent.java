@@ -21,8 +21,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * MCP Tool Content 基类
- * 支持多种内容类型：text, image, resource
+ * MCP Tool Content base class
+ * Supports multiple content types: text, image, resource
  */
 @Data
 @NoArgsConstructor

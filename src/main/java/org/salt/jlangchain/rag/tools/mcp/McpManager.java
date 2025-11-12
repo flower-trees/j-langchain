@@ -201,7 +201,7 @@ public class McpManager {
 
     public Object runForInput(String serverName, String toolName, Map<String, Object> input, String authorization) throws Exception {
         ToolResult result = run(serverName, toolName, input, authorization);
-        return result.isError ? null : result.getContent().size() == 1 && result.getContent().get(0).getType().equals("text") ? ((TextContent) result.getContent().get(0)).getText() : result;
+        return result.isError ? null : result.getFirstText();
     }
 
     /**

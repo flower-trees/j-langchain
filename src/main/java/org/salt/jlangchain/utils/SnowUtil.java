@@ -58,6 +58,11 @@ public class SnowUtil {
                 sequence;
     }
 
+    public synchronized int nextIntId() {
+        return (int) (nextId() & 0x7FFFFFFF);
+    }
+
+
     private long tilNextMillis(long lastTimestamp) {
         long timestamp = timeGen();
         while (timestamp <= lastTimestamp) {
@@ -72,7 +77,7 @@ public class SnowUtil {
 
     private static synchronized SnowUtil getInstance() {
         if (instance == null) {
-            // 创建雪花算法实例，随机生成工作机器ID和数据中心ID
+            // Create Snowflake algorithm instance with random worker ID and data center ID
             Random random = new Random();
             instance = new SnowUtil(random.nextInt(31), random.nextInt(31));
         }
@@ -81,5 +86,9 @@ public class SnowUtil {
 
     public static long next() {
         return getInstance().nextId();
+    }
+
+    public static int nextInt() {
+        return getInstance().nextIntId();
     }
 }

@@ -23,4 +23,5 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ToolsListResponse {
     public List<ToolDesc> tools;
+    public String nextCursor;  // Paging cursor (optional)
 }

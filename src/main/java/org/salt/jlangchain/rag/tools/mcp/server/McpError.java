@@ -15,10 +15,12 @@
 package org.salt.jlangchain.rag.tools.mcp.server;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.Data;
 
+@Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-class McpError {
-    public int code;
-    public String message;
-    public Object data;
+public class McpError {
+    public int code;          // Error code (JSON-RPC standard)
+    public String message;    // Error message
+    public Object data;       // Additional error data
 }

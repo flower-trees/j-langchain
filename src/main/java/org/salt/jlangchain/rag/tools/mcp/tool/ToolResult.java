@@ -14,29 +14,71 @@
 
 package org.salt.jlangchain.rag.tools.mcp.tool;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
+@NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ToolResult {
-    public List<ToolContent> content;
-    public boolean isError;
-
-    public ToolResult() {
-    }
+    public List<ToolContent> content;  // Content list (supports multiple types)
+    public boolean isError;            // Whether it is an error result
 
     public ToolResult(List<ToolContent> content) {
         this.content = content;
         this.isError = false;
     }
 
+    // Convenience constructor
     public static ToolResult error(String message) {
         ToolResult result = new ToolResult();
         result.isError = true;
-        result.content = List.of(new TextContent(message));
+        result.content = new ArrayList<>();
+        result.content.add(new TextContent(message));
         return result;
+    }
+
+    public static ToolResult text(String text) {
+        ToolResult result = new ToolResult();
+        result.isError = false;
+        result.content = new ArrayList<>();
+        result.content.add(new TextContent(text));
+        return result;
+    }
+
+    // Convenience getter methods
+    @JsonIgnore
+    public String getFirstText() {
+        if (content == null || content.isEmpty()) {
+            return null;
+        }
+        for (ToolContent c : content) {
+            if (c instanceof TextContent) {
+                return ((TextContent) c).text;
+            }
+        }
+        return null;
+    }
+
+    @JsonIgnore
+    public String getAllText() {
+        if (content == null || content.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (ToolContent c : content) {
+            if (c instanceof TextContent) {
+                if (!sb.isEmpty()) {
+                    sb.append("\n");
+                }
+                sb.append(((TextContent) c).text);
+            }
+        }
+        return sb.toString();
     }
 }

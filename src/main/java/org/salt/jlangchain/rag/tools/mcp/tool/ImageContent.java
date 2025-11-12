@@ -26,8 +26,8 @@ import lombok.NoArgsConstructor;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("image")
 public class ImageContent extends ToolContent {
-    public String data;      // Base64 编码的图片数据
-    public String mimeType;  // 图片 MIME 类型，如 "image/png"
+    public String data;      // Base64 encoded image data
+    public String mimeType;  // Image MIME type, such as "image/png"
 
     public ImageContent(String data, String mimeType) {
         super("image");

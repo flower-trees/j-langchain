@@ -35,7 +35,7 @@ public class McpClientTest {
 
     @Test
     public void testNPXMcpClient() {
-//        System.out.println(JsonUtil.toJson(mcpClient.listAllTools()));
+        System.out.println(JsonUtil.toJson(mcpClient.listAllTools()));
 //        System.out.println(JsonUtil.toJson(mcpClient.callTool("postgres", "query", Map.of("sql", "select * from test"))));
         System.out.println(JsonUtil.toJson(mcpClient.callTool("cognee", "search", Map.of("search_query", "what is cognee?", "search_type", "GRAPH_COMPLETION"))));
     }

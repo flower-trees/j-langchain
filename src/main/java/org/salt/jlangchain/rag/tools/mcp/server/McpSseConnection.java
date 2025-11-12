@@ -19,6 +19,7 @@ import okhttp3.*;
 import okhttp3.sse.EventSource;
 import okhttp3.sse.EventSourceListener;
 import okhttp3.sse.EventSources;
+import org.jetbrains.annotations.NotNull;
 import org.salt.jlangchain.rag.tools.mcp.server.config.ServerConfig;
 
 import java.io.IOException;
@@ -34,7 +35,7 @@ public class McpSseConnection extends AbstractMcpConnection {
     private final String sseUrl;
     private final OkHttpClient httpClient;
     private EventSource eventSource;
-    private String messageEndpoint;  // 动态获取的消息端点
+    private String messageEndpoint;  // Dynamically obtained message endpoint
     private final CountDownLatch endpointLatch = new CountDownLatch(1);
 
     private final Map<Integer, CompletableFuture<McpResponse>> pendingResponses = new ConcurrentHashMap<>();
@@ -43,10 +44,10 @@ public class McpSseConnection extends AbstractMcpConnection {
         super(serverName, config);
         this.sseUrl = config.url;
 
-        // 创建 OkHttp 客户端
+        // Create OkHttp client
         this.httpClient = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(0, TimeUnit.SECONDS)  // SSE 需要长连接
+                .readTimeout(0, TimeUnit.SECONDS)  // SSE requires long connection
                 .writeTimeout(10, TimeUnit.SECONDS)
                 .build();
     }
@@ -61,7 +62,7 @@ public class McpSseConnection extends AbstractMcpConnection {
         try {
             startSseConnection();
 
-            // 等待接收到 endpoint 事件
+            // Wait for endpoint event
             boolean received = endpointLatch.await(10, TimeUnit.SECONDS);
             if (!received) {
                 throw new IOException("Timeout waiting for endpoint event from SSE server");
@@ -75,7 +76,7 @@ public class McpSseConnection extends AbstractMcpConnection {
 
             log.info("[{}] SSE connection established, message endpoint: {}", serverName, messageEndpoint);
 
-            // 执行握手
+            // Perform handshake
             performHandshake();
 
         } catch (InterruptedException e) {
@@ -95,19 +96,19 @@ public class McpSseConnection extends AbstractMcpConnection {
 
         EventSourceListener listener = new EventSourceListener() {
             @Override
-            public void onOpen(EventSource eventSource, Response response) {
+            public void onOpen(@NotNull EventSource eventSource, @NotNull Response response) {
                 log.info("[{}] SSE connection opened", serverName);
             }
 
             @Override
-            public void onEvent(EventSource eventSource, String id, String type, String data) {
+            public void onEvent(@NotNull EventSource eventSource, String id, String type, @NotNull String data) {
                 log.debug("[{}] SSE event - type: {}, data: {}", serverName, type, data);
 
                 if ("endpoint".equals(type)) {
-                    // 收到端点事件，提取消息端点
+                    // Received endpoint event, extract message endpoint
                     handleEndpointEvent(data);
                 } else if ("message".equals(type) || type == null) {
-                    // 收到消息响应
+                    // Received message response
                     processMessage(data);
                 } else {
                     log.debug("[{}] Received unknown event type: {}", serverName, type);
@@ -115,8 +116,8 @@ public class McpSseConnection extends AbstractMcpConnection {
             }
 
             @Override
-            public void onClosed(EventSource eventSource) {
-                log.info("[{}] SSE connection closed", serverName);
+            public void onClosed(@NotNull EventSource eventSource) {
+                log.info("[{}] SSE connection onClosed", serverName);
                 if (connected) {
                     connected = false;
                     lastError = "SSE connection closed by server";
@@ -124,10 +125,10 @@ public class McpSseConnection extends AbstractMcpConnection {
             }
 
             @Override
-            public void onFailure(EventSource eventSource, Throwable t, Response response) {
-                log.error("[{}] SSE connection failed: {}", serverName, t.getMessage(), t);
+            public void onFailure(@NotNull EventSource eventSource, Throwable t, Response response) {
+                log.error("[{}] SSE connection failed: ", serverName, t);
                 if (connected) {
-                    lastError = "SSE connection failed: " + t.getMessage();
+                    lastError = "SSE connection failed: " + (t != null ? t.getMessage() : "");
                 }
                 connected = false;
             }
@@ -139,8 +140,8 @@ public class McpSseConnection extends AbstractMcpConnection {
 
     private void handleEndpointEvent(String data) {
         try {
-            // data 格式: /messages/?session_id=276347cd41ae4b7686b4d97b9112980b
-            // 构建完整的消息端点 URL
+            // data format: /messages/?session_id=276347cd41ae4b7686b4d97b9112980b
+            // Build complete message endpoint URL
             String baseUrl = sseUrl.substring(0, sseUrl.lastIndexOf("/sse"));
             messageEndpoint = baseUrl + data;
 
@@ -172,7 +173,7 @@ public class McpSseConnection extends AbstractMcpConnection {
                     log.warn("[{}] Received response for unknown request id: {}", serverName, response.id);
                 }
             } else {
-                // 服务器主动发送的通知
+                // Notification sent by server proactively
                 log.info("[{}] Received server notification: {}", serverName, message);
             }
         } catch (Exception e) {
@@ -264,13 +265,13 @@ public class McpSseConnection extends AbstractMcpConnection {
     public void close() {
         connected = false;
 
-        // 取消所有待处理的请求
+        // Cancel all pending requests
         pendingResponses.values().forEach(future ->
                 future.completeExceptionally(new IOException("Connection closed"))
         );
         pendingResponses.clear();
 
-        // 关闭 SSE 连接
+        // Close SSE connection
         if (eventSource != null) {
             eventSource.cancel();
             eventSource = null;

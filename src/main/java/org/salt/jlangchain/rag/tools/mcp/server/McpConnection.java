@@ -22,85 +22,85 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MCP (Model Context Protocol) 连接接口
- * 定义了与 MCP 服务器交互的统一方法
+ * MCP (Model Context Protocol) connection interface
+ * Defines unified methods for interacting with MCP servers
  */
 public interface McpConnection {
 
     /**
-     * 连接到 MCP 服务器并完成初始化握手
+     * Connect to MCP server and complete initialization handshake
      *
-     * @throws IOException 连接失败时抛出
+     * @throws IOException thrown when connection fails
      */
     void connect() throws IOException;
 
     /**
-     * 发送请求到 MCP 服务器并等待响应
+     * Send request to MCP server and wait for response
      *
-     * @param method 方法名
-     * @param params 参数对象
-     * @return MCP 响应
-     * @throws Exception 请求失败时抛出
+     * @param method method name
+     * @param params parameter object
+     * @return MCP response
+     * @throws Exception thrown when request fails
      */
     McpResponse sendRequest(String method, Object params) throws Exception;
 
     /**
-     * 列出服务器提供的所有工具
+     * List all tools provided by the server
      *
-     * @return 工具描述列表
-     * @throws Exception 请求失败时抛出
+     * @return list of tool descriptions
+     * @throws Exception thrown when request fails
      */
     List<ToolDesc> listTools() throws Exception;
 
     /**
-     * 调用指定的工具
+     * Call the specified tool
      *
-     * @param toolName 工具名称
-     * @param arguments 工具参数
-     * @return 工具执行结果
-     * @throws Exception 调用失败时抛出
+     * @param toolName tool name
+     * @param arguments tool arguments
+     * @return tool execution result
+     * @throws Exception thrown when call fails
      */
     ToolResult callTool(String toolName, Map<String, Object> arguments) throws Exception;
 
     /**
-     * 检查连接是否活跃
+     * Check if connection is active
      *
-     * @return true 如果连接正常，否则 false
+     * @return true if connection is normal, otherwise false
      */
     boolean isConnected();
 
     /**
-     * 关闭连接并释放资源
+     * Close connection and release resources
      */
     void close();
 
     /**
-     * 获取服务器名称
+     * Get server name
      *
-     * @return 服务器名称
+     * @return server name
      */
     String getServerName();
 
     /**
-     * 获取最后一次错误信息
+     * Get last error message
      *
-     * @return 错误信息，如果没有错误则返回 null
+     * @return error message, or null if no error
      */
     String getLastError();
 
     /**
-     * 获取连接类型
+     * Get connection type
      *
-     * @return 连接类型（STDIO, SSE, HTTP）
+     * @return connection type (STDIO, SSE, HTTP)
      */
     ConnectionType getConnectionType();
 
     /**
-     * 连接类型枚举
+     * Connection type enumeration
      */
     enum ConnectionType {
-        STDIO,  // 标准输入输出（进程间通信）
-        SSE,    // Server-Sent Events（服务器推送事件）
-        HTTP    // HTTP 请求/响应
+        STDIO,  // Standard input/output (inter-process communication)
+        SSE,    // Server-Sent Events (server push events)
+        HTTP    // HTTP request/response
     }
 }

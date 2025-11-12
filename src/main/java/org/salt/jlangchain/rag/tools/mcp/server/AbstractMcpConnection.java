@@ -27,8 +27,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MCP 连接抽象基类
- * 提供公共的实现逻辑
+ * Abstract base class for MCP connections
+ * Provides common implementation logic
  */
 @Slf4j
 public abstract class AbstractMcpConnection implements McpConnection {
@@ -50,11 +50,11 @@ public abstract class AbstractMcpConnection implements McpConnection {
     }
 
     /**
-     * 执行初始化握手
-     * 所有实现类的握手流程相同
+     * Perform initialization handshake
+     * All implementation classes have the same handshake process
      */
     protected void performHandshake() throws Exception {
-        // 步骤 1 & 2: 发送 initialize 请求并等待响应
+        // Step 1 & 2: Send initialize request and wait for response
         Map<String, Object> initParams = Map.of(
                 "protocolVersion", "2024-11-05",
                 "capabilities", Map.of(),
@@ -67,15 +67,15 @@ public abstract class AbstractMcpConnection implements McpConnection {
         McpResponse initResponse = sendRequest("initialize", initParams);
         log.info("[{}] Initialize response: {}", serverName, mapper.writeValueAsString(initResponse));
 
-        // 步骤 3: 发送 initialized 通知
+        // Step 3: Send initialized notification
         sendNotification("notifications/initialized", new HashMap<>());
 
         log.info("[{}] Handshake completed", serverName);
     }
 
     /**
-     * 发送通知（不需要响应）
-     * 子类需要实现具体的发送逻辑
+     * Send notification (no response required)
+     * Subclasses need to implement the specific sending logic
      */
     protected abstract void sendNotification(String method, Object params) throws Exception;
 
@@ -103,7 +103,7 @@ public abstract class AbstractMcpConnection implements McpConnection {
     }
 
     /**
-     * 生成下一个请求 ID
+     * Generate the next request ID
      */
     protected synchronized int nextRequestId() {
         return requestId++;
