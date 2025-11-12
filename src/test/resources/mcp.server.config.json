@@ -22,13 +22,8 @@
       }
     },
     "cognee": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/Users/chuanzhizhu/Documents/tools/cognee/cognee-mcp",
-        "run",
-        "cognee-mcp"
-      ]
+      "type": "sse",
+      "url": "http://127.0.0.1:8000/sse"
     }
   }
 }

@@ -16,9 +16,9 @@ package org.salt.jlangchain.rag.tools.mcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.salt.jlangchain.rag.tools.mcp.server.*;
 import org.salt.jlangchain.rag.tools.mcp.server.config.McpConfig;
-import org.salt.jlangchain.rag.tools.mcp.server.McpServerConnection;
-import org.salt.jlangchain.rag.tools.mcp.server.ServerStatus;
+import org.salt.jlangchain.rag.tools.mcp.server.config.ServerConfig;
 import org.salt.jlangchain.rag.tools.mcp.tool.ToolDesc;
 import org.salt.jlangchain.rag.tools.mcp.tool.ToolResult;
 import org.springframework.beans.factory.DisposableBean;
@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class McpClient implements DisposableBean {
 
-    private final Map<String, McpServerConnection> servers = new ConcurrentHashMap<>();
+    private final Map<String, McpConnection> servers = new ConcurrentHashMap<>();
 
     public McpClient() {
         this(null);
@@ -59,7 +59,19 @@ public class McpClient implements DisposableBean {
     public void initializeFromConfig(McpConfig config) {
         config.mcpServers.forEach((serverName, serverConfig) -> {
             try {
-                McpServerConnection connection = new McpServerConnection(serverName, serverConfig);
+                McpConnection connection = null;
+                if (serverConfig.command != null) {
+                    connection = new McpServerConnection(serverName, serverConfig);
+                } else {
+                    if (serverConfig.type == ServerConfig.Type.sse) {
+                        connection = new McpSseConnection(serverName, serverConfig);
+                    } else if (serverConfig.type == ServerConfig.Type.http) {
+                        connection = new McpHttpConnection(serverName, serverConfig);
+                    } else {
+                        log.error("Unknown server type: {}", serverConfig.type);
+                        throw new RuntimeException("Unknown server type: " + serverConfig.type);
+                    }
+                }
                 connection.connect();
                 servers.put(serverName, connection);
                 log.info("Connected to MCP server: {}", serverName);
@@ -144,7 +156,7 @@ public class McpClient implements DisposableBean {
                 Map.Entry::getKey,
                 entry -> {
                     String serverName = entry.getKey();
-                    McpServerConnection connection = entry.getValue();
+                    McpConnection connection = entry.getValue();
                     try {
                         return connection.listTools();
                     } catch (Exception e) {
@@ -156,7 +168,7 @@ public class McpClient implements DisposableBean {
     }
 
     public ToolResult callTool(String serverName, String toolName, Map<String, Object> arguments) {
-        McpServerConnection connection = servers.get(serverName);
+        McpConnection connection = servers.get(serverName);
         if (connection == null) {
             throw new IllegalArgumentException("Server not found: " + serverName);
         }
@@ -173,7 +185,7 @@ public class McpClient implements DisposableBean {
             .collect(Collectors.toMap(
                 Map.Entry::getKey,
                 entry -> {
-                    McpServerConnection conn = entry.getValue();
+                    McpConnection conn = entry.getValue();
                     return new ServerStatus(
                         conn.isConnected(),
                         conn.getServerName(),

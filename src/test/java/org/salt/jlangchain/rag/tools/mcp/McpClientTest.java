@@ -23,6 +23,8 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.util.Map;
+
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestApplication.class)
 @SpringBootConfiguration
@@ -33,7 +35,8 @@ public class McpClientTest {
 
     @Test
     public void testNPXMcpClient() {
-        System.out.println(JsonUtil.toJson(mcpClient.listAllTools()));
-//        System.out.println(JsonUtil.toJson(mcpClient.callTool("postgres", "query", Map.of("sql", "select * from test.student"))));
+//        System.out.println(JsonUtil.toJson(mcpClient.listAllTools()));
+//        System.out.println(JsonUtil.toJson(mcpClient.callTool("postgres", "query", Map.of("sql", "select * from test"))));
+        System.out.println(JsonUtil.toJson(mcpClient.callTool("cognee", "search", Map.of("search_query", "what is cognee?", "search_type", "GRAPH_COMPLETION"))));
     }
 }

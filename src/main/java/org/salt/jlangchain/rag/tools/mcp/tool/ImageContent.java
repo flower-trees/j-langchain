@@ -15,28 +15,23 @@
 package org.salt.jlangchain.rag.tools.mcp.tool;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import lombok.Data;
-
-import java.util.List;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
+@EqualsAndHashCode(callSuper = true)
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ToolResult {
-    public List<ToolContent> content;
-    public boolean isError;
+@JsonTypeName("image")
+public class ImageContent extends ToolContent {
+    public String data;      // Base64 编码的图片数据
+    public String mimeType;  // 图片 MIME 类型，如 "image/png"
 
-    public ToolResult() {
-    }
-
-    public ToolResult(List<ToolContent> content) {
-        this.content = content;
-        this.isError = false;
-    }
-
-    public static ToolResult error(String message) {
-        ToolResult result = new ToolResult();
-        result.isError = true;
-        result.content = List.of(new TextContent(message));
-        return result;
+    public ImageContent(String data, String mimeType) {
+        super("image");
+        this.data = data;
+        this.mimeType = mimeType;
     }
 }

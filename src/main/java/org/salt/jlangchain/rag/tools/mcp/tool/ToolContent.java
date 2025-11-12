@@ -15,16 +15,33 @@
 package org.salt.jlangchain.rag.tools.mcp.tool;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
+/**
+ * MCP Tool Content 基类
+ * 支持多种内容类型：text, image, resource
+ */
 @Data
+@NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ToolContent {
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.EXISTING_PROPERTY,
+        property = "type",
+        visible = true
+)
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = TextContent.class, name = "text"),
+        @JsonSubTypes.Type(value = ImageContent.class, name = "image"),
+        @JsonSubTypes.Type(value = ResourceContent.class, name = "resource")
+})
+public abstract class ToolContent {
     public String type;
-    public String text;
 
-    public ToolContent(String type, String text) {
+    public ToolContent(String type) {
         this.type = type;
-        this.text = text;
     }
 }

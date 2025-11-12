@@ -23,4 +23,11 @@ public class ServerConfig {
     public String command;
     public List<String> args;
     public Map<String, String> env;
+    
+    public Type type;
+    public String url;
+
+    public enum Type {
+        stdio, sse, http
+    }
 }

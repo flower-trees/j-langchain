@@ -15,28 +15,31 @@
 package org.salt.jlangchain.rag.tools.mcp.tool;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import lombok.Data;
-
-import java.util.List;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
+@EqualsAndHashCode(callSuper = true)
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ToolResult {
-    public List<ToolContent> content;
-    public boolean isError;
+@JsonTypeName("resource")
+public class ResourceContent extends ToolContent {
+    public ResourceInfo resource;
 
-    public ToolResult() {
+    public ResourceContent(ResourceInfo resource) {
+        super("resource");
+        this.resource = resource;
     }
 
-    public ToolResult(List<ToolContent> content) {
-        this.content = content;
-        this.isError = false;
-    }
-
-    public static ToolResult error(String message) {
-        ToolResult result = new ToolResult();
-        result.isError = true;
-        result.content = List.of(new TextContent(message));
-        return result;
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ResourceInfo {
+        public String uri;
+        public String mimeType;
+        public String text;      // 文本资源
+        public String blob;      // Base64 编码的二进制资源
     }
 }

@@ -20,7 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
-import org.salt.jlangchain.rag.tools.mcp.tool.ToolContent;
+import org.salt.jlangchain.rag.tools.mcp.tool.TextContent;
 import org.salt.jlangchain.rag.tools.mcp.tool.ToolDesc;
 import org.salt.jlangchain.rag.tools.mcp.tool.ToolResult;
 import org.salt.jlangchain.utils.JsonUtil;
@@ -201,7 +201,7 @@ public class McpManager {
 
     public Object runForInput(String serverName, String toolName, Map<String, Object> input, String authorization) throws Exception {
         ToolResult result = run(serverName, toolName, input, authorization);
-        return result.isError ? null : result.getContent().get(0).getText();
+        return result.isError ? null : result.getContent().size() == 1 && result.getContent().get(0).getType().equals("text") ? ((TextContent) result.getContent().get(0)).getText() : result;
     }
 
     /**
@@ -293,7 +293,7 @@ public class McpManager {
                 }
                 
                 String bodyString = responseBody.string();
-                return new ToolResult(List.of(new ToolContent("text", bodyString)));
+                return new ToolResult(List.of(new TextContent(bodyString)));
             } catch (IOException e) {
                 log.error("Error executing GET request for tool: {}", toolName, e);
                 throw new RuntimeException("Failed to execute GET request: " + e.getMessage(), e);
@@ -339,7 +339,7 @@ public class McpManager {
                 
                 ResponseBody responseBody = response.body();
                 String bodyString = responseBody != null ? responseBody.string() : "";
-                return new ToolResult(List.of(new ToolContent("text", bodyString)));
+                return new ToolResult(List.of(new TextContent(bodyString)));
             } catch (IOException e) {
                 log.error("Error executing {} request for tool: {}", t.method, toolName, e);
                 throw new RuntimeException("Failed to execute " + t.method + " request: " + e.getMessage(), e);

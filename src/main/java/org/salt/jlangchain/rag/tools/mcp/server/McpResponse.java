@@ -19,7 +19,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class McpResponse {
     public String jsonrpc;
-    public int id;
+    public Integer id;
     public Object result;
     public McpError error;
 }

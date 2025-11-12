@@ -1,25 +1,6 @@
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.salt.jlangchain.rag.tools.mcp.server;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.salt.jlangchain.rag.tools.mcp.tool.ToolDesc;
-import org.salt.jlangchain.rag.tools.mcp.tool.ToolResult;
-import org.salt.jlangchain.rag.tools.mcp.tool.ToolsListResponse;
 import org.salt.jlangchain.rag.tools.mcp.server.config.ServerConfig;
 
 import java.io.*;
@@ -30,26 +11,23 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-public class McpServerConnection {
+public class McpServerConnection extends AbstractMcpConnection {
 
-    @Getter
-    private final String serverName;
-    private final ServerConfig config;
-    private final ObjectMapper mapper = new ObjectMapper();
     private Process serverProcess;
     private BufferedWriter stdin;
     private BufferedReader stdout;
     private BufferedReader stderr;
-    private int requestId = 1;
-    private volatile boolean connected = false;
-    @Getter
-    private String lastError;
 
     public McpServerConnection(String serverName, ServerConfig config) {
-        this.serverName = serverName;
-        this.config = config;
+        super(serverName, config);
     }
 
+    @Override
+    public ConnectionType getConnectionType() {
+        return ConnectionType.STDIO;
+    }
+
+    @Override
     public void connect() throws IOException {
         List<String> command = new ArrayList<>();
         command.add(config.command);
@@ -69,45 +47,12 @@ public class McpServerConnection {
         connected = true;
 
         startErrorListener();
-        performHandshake();
-    }
 
-    private void performHandshake() throws IOException {
         try {
-            Map<String, Object> initParams = Map.of(
-                "protocolVersion", "2024-11-05",
-                "capabilities", Map.of(),
-                "clientInfo", Map.of(
-                    "name", "multi-mcp-java-client",
-                    "version", "1.0.0"
-                )
-            );
-
-            sendRequest("initialize", initParams);
-
-            // Send initialized notification (no need to wait for response)
-            sendNotification(new HashMap<>());
+            performHandshake();
         } catch (Exception e) {
             throw new IOException("Handshake failed", e);
         }
-    }
-
-    private synchronized void sendNotification(Object params) throws IOException {
-        if (!connected) {
-            throw new IllegalStateException("Not connected to server: " + serverName);
-        }
-
-        Map<String, Object> notification = new HashMap<>();
-        notification.put("jsonrpc", "2.0");
-        notification.put("method", "notifications/initialized");
-        notification.put("params", params);
-        // Note: The notification does not have an ID field
-
-        String notificationJson = mapper.writeValueAsString(notification);
-        stdin.write(notificationJson + "\n");
-        stdin.flush();
-
-        log.debug("Sent notification: {}", "notifications/initialized");
     }
 
     private void startErrorListener() {
@@ -123,14 +68,15 @@ public class McpServerConnection {
                     }
                 }
             } catch (IOException e) {
-                log.error("error start server {}: {}", serverName, e.getMessage());
-                lastError = "error start server: " + serverName + ", " +e.getMessage();
+                log.error("[{}] Error reading stderr: {}", serverName, e.getMessage());
+                lastError = "Error reading stderr: " + e.getMessage();
             }
         });
         errorThread.setDaemon(true);
         errorThread.start();
     }
 
+    @Override
     public synchronized McpResponse sendRequest(String method, Object params) throws Exception {
         if (!connected) {
             throw new IllegalStateException("Not connected to server: " + serverName);
@@ -138,7 +84,7 @@ public class McpServerConnection {
 
         McpRequest request = new McpRequest();
         request.jsonrpc = "2.0";
-        request.id = requestId++;
+        request.id = nextRequestId();
         request.method = method;
         request.params = params;
 
@@ -160,26 +106,30 @@ public class McpServerConnection {
         return response;
     }
 
-    public List<ToolDesc> listTools() throws Exception {
-        McpResponse response = sendRequest("tools/list", new HashMap<>());
-        ToolsListResponse toolsResponse = mapper.convertValue(response.result, ToolsListResponse.class);
-        return toolsResponse.tools;
+    @Override
+    protected void sendNotification(String method, Object params) throws Exception {
+        if (!connected) {
+            throw new IllegalStateException("Not connected to server: " + serverName);
+        }
+
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("jsonrpc", "2.0");
+        notification.put("method", method);
+        notification.put("params", params);
+
+        String notificationJson = mapper.writeValueAsString(notification);
+        stdin.write(notificationJson + "\n");
+        stdin.flush();
+
+        log.debug("[{}] Sent notification: {}", serverName, method);
     }
 
-    public ToolResult callTool(String toolName, Map<String, Object> arguments) throws Exception {
-        Map<String, Object> params = Map.of(
-            "name", toolName,
-            "arguments", arguments != null ? arguments : new HashMap<>()
-        );
-
-        McpResponse response = sendRequest("tools/call", params);
-        return mapper.convertValue(response.result, ToolResult.class);
-    }
-
+    @Override
     public boolean isConnected() {
         return connected && serverProcess != null && serverProcess.isAlive();
     }
 
+    @Override
     public void close() {
         connected = false;
         try {
@@ -193,7 +143,8 @@ public class McpServerConnection {
                 }
             }
         } catch (Exception e) {
-            log.error("Error close server {}: {}", serverName, e.getMessage());
+            log.error("[{}] Error closing connection: {}", serverName, e.getMessage());
         }
+        log.info("[{}] Connection closed", serverName);
     }
 }
