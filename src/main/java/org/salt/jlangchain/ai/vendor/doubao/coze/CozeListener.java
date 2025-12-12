@@ -43,6 +43,15 @@ public class CozeListener extends SseDoListener {
                 log.warn("convertMsg deltaEvent fromJson fail: {}", deltaEvent);
                 return null;
             }
+            if (deltaEvent.getCode() != null && deltaEvent.getCode() != 0) {
+                AiChatOutput aiChatOutput = new AiChatOutput();
+                aiChatOutput.setCode(String.valueOf(deltaEvent.getCode()));
+                aiChatOutput.setMessage(deltaEvent.getMsg());
+                AiChatOutput.Message message = new AiChatOutput.Message();
+                message.setContent(deltaEvent.getMsg());
+                aiChatOutput.setMessages(List.of(message));
+                return aiChatOutput;
+            }
             AiChatOutput aiChatOutput = new AiChatOutput();
 
             aiChatOutput.setId(response.getId());

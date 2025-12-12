@@ -26,6 +26,9 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode(callSuper = true)
 public class MessageDeltaEvent extends BaseEventData {
 
+    private Integer code;
+    private String msg;
+
     private String role;        // assistant / user
     private String type;        // function_call / tool_response …
     private String content;

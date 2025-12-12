@@ -6,3 +6,8 @@ rag:
   vector:
     milvus:
       use: false
+
+coze:
+  client-id: ${COZE_CLIENT_ID}
+  private-key-path: ${COZE_PRIVATE_KEY_PATH}
+  public-key-id: ${COZE_PUBLIC_KEY_ID}

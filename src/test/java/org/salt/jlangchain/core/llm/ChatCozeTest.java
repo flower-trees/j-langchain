@@ -17,9 +17,11 @@ package org.salt.jlangchain.core.llm;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.jlangchain.TestApplication;
+import org.salt.jlangchain.ai.vendor.doubao.coze.auth.CozeOAuthHelper;
 import org.salt.jlangchain.core.llm.doubao.ChatCoze;
 import org.salt.jlangchain.core.message.AIMessage;
 import org.salt.jlangchain.core.message.AIMessageChunk;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -31,12 +33,15 @@ import java.util.concurrent.TimeoutException;
 @SpringBootConfiguration
 public class ChatCozeTest {
 
+    @Autowired
+    CozeOAuthHelper cozeOAuthHelper;
+
     @Test
     public void streamTest() throws TimeoutException {
 
-        ChatCoze prompt = ChatCoze.builder().botId("7519714142241128500").build();
+        ChatCoze llm = ChatCoze.builder().key(cozeOAuthHelper.getAccessToken().getAccessToken()).botId("7520096482519891994").build();
 
-        AIMessageChunk result = prompt.stream("who are you? give me 3 words.");
+        AIMessageChunk result = llm.stream("who are you? give me 3 words.");
 
         System.out.println(result.toJson());
 
@@ -49,9 +54,9 @@ public class ChatCozeTest {
     @Test
     public void invokeTest() {
 
-        ChatCoze prompt = ChatCoze.builder().botId("7519714142241128500").build();
+        ChatCoze llm = ChatCoze.builder().key(cozeOAuthHelper.getAccessToken().getAccessToken()).botId("7520096482519891994").build();
 
-        AIMessage result = prompt.invoke("who are you? give me 3 words.");
+        AIMessage result = llm.invoke("who are you? give me 3 words.");
 
         System.out.println(result.toJson());
     }
