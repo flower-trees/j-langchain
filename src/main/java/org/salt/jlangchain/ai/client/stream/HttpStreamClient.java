@@ -37,6 +37,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 @Slf4j
 @Data
@@ -46,7 +47,7 @@ public class HttpStreamClient implements InitializingBean {
 
     private OkHttpClient okHttpClient;
 
-    private long sleepTime = 10;
+    private long sleepTime = 0;
     private int maxConnections = 200;
     private int maxConnectionsPerHost = 200;
     private int maxIdleConnections = 200;
@@ -106,10 +107,28 @@ public class HttpStreamClient implements InitializingBean {
 
         try (Response response = okHttpClient.newCall(request).execute()) {
             if (response.isSuccessful() && response.body() != null) {
-                log.debug("http stream request open");
+                log.debug("http request open");
                 return JsonUtil.fromJson(response.body().string(), clazz);
             } else {
                 log.error("http request call fail, e:response code: {}, msg:{}", response.code(), response.body() != null ? new String(response.body().bytes()) : "");
+                throw new RuntimeException("Request failed with code: " + response.code());
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public <T, R> R request(String url, T body, Map<String, String> headers, Function<Response, R> function) {
+        log.debug("http request call function start");
+
+        Request request = buildRequest(url, body, headers);
+
+        try (Response response = okHttpClient.newCall(request).execute()) {
+            if (response.isSuccessful() && response.body() != null) {
+                log.debug("http request function open");
+                return function.apply(response);
+            } else {
+                log.error("http request call function fail, e:response code: {}, msg:{}", response.code(), response.body() != null ? new String(response.body().bytes()) : "");
                 throw new RuntimeException("Request failed with code: " + response.code());
             }
         } catch (IOException e) {
@@ -266,10 +285,12 @@ public class HttpStreamClient implements InitializingBean {
     }
 
     private void pause() {
-        try {
-            Thread.sleep(sleepTime);
-        } catch (InterruptedException e) {
-            log.warn("http stream call pause, e:{}", e.getMessage());
+        if (sleepTime > 0) {
+            try {
+                Thread.sleep(sleepTime);
+            } catch (InterruptedException e) {
+                log.warn("http stream call pause, e:{}", e.getMessage());
+            }
         }
     }
 }

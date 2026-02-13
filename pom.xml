@@ -4,7 +4,7 @@
 
   <groupId>io.github.flower-trees</groupId>
   <artifactId>j-langchain</artifactId>
-  <version>1.0.9</version>
+  <version>1.0.10</version>
   <packaging>jar</packaging>
 
   <name>j-langchain</name>
@@ -199,6 +199,18 @@
       <groupId>io.milvus</groupId>
       <artifactId>milvus-sdk-java</artifactId>
       <version>2.5.4</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.2.5</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-scratchpad</artifactId>
+      <version>5.2.3</version>
     </dependency>
 
   </dependencies>

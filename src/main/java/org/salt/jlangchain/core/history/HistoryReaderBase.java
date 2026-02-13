@@ -18,10 +18,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
-import org.salt.jlangchain.core.message.AIMessage;
-import org.salt.jlangchain.core.message.BaseMessage;
-import org.salt.jlangchain.core.message.HumanMessage;
-import org.salt.jlangchain.core.message.SystemMessage;
+import org.salt.jlangchain.core.message.*;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
 
@@ -39,11 +36,11 @@ public abstract class HistoryReaderBase extends HistoryBase {
         ChatPromptValue chatPromptValueAll;
 
         if (input instanceof StringPromptValue stringPromptValue) {
-            chatPromptValueAll = ChatPromptValue.builder().messages(List.of(BaseMessage.fromMessage("user", stringPromptValue.getText()))).build();
+            chatPromptValueAll = ChatPromptValue.builder().messages(List.of(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), stringPromptValue.getText()))).build();
         } else if(input instanceof ChatPromptValue chatPromptValue) {
             chatPromptValueAll = chatPromptValue;
         } else if (input instanceof String stringPrompt) {
-            chatPromptValueAll = ChatPromptValue.builder().messages(List.of(BaseMessage.fromMessage("user", stringPrompt))).build();
+            chatPromptValueAll = ChatPromptValue.builder().messages(List.of(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), stringPrompt))).build();
         } else {
             throw new RuntimeException("input must be StringPromptValue or ChatPromptValue or String");
         }

@@ -33,6 +33,7 @@ public class OpenAIRequest {
     }
 
     Float temperature;
+    Float topP;
 
     String dimension; //aliyun embedding
 }

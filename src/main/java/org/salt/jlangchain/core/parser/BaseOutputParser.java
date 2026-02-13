@@ -20,6 +20,7 @@ import org.salt.function.flow.context.ContextBus;
 import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.event.EventMessageChunk;
 import org.salt.jlangchain.core.message.BaseMessage;
+import org.salt.jlangchain.core.message.MessageType;
 import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
 import org.salt.jlangchain.core.parser.generation.Generation;
@@ -32,10 +33,12 @@ public abstract class BaseOutputParser extends BaseLLMOutputParser<Generation> {
 
     @Override
     public Generation invoke(Object input) {
-        if (input instanceof String stringPrompt){
+        if (input instanceof String stringPrompt) {
             return parseResult(List.of(new Generation(stringPrompt)));
-        } else if (input instanceof BaseMessage baseMessage){
+        } else if (input instanceof BaseMessage baseMessage) {
             return parseResult(List.of(new ChatGeneration(baseMessage)));
+        } else if (input instanceof Generation generation) {
+            return parseResult(List.of(new ChatGeneration(BaseMessage.fromMessage(MessageType.AI.getCode(), generation.getText()))));
         } else {
             throw new RuntimeException("Unsupported input type: " + input.getClass().getName());
         }
