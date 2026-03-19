@@ -1,0 +1,28 @@
+{
+  "default": [
+    {
+      "name": "get_export_ip",
+      "description": "Get my network export IP",
+      "url": "http://ipinfo.io/ip",
+      "method": "GET",
+      "params": {}
+    },
+    {
+      "name": "post_with_params",
+      "description": "Example POST request with parameters",
+      "url": "https://example.com/api/data",
+      "method": "POST",
+      "params": {
+        "param1": {
+          "description": "Example parameter 1",
+          "type": "string"
+        },
+        "param2": {
+          "description": "Example parameter 2",
+          "type": "integer"
+        },
+        "required": ["param1"]
+      }
+    }
+  ]
+}

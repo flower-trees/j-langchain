@@ -22,7 +22,8 @@ public enum RoleType {
 
     SYSTEM("system"),
     ASSISTANT("assistant"),
-    USER("user")
+    USER("user"),
+    TOOL("tool")
     ;
 
     private final String code;

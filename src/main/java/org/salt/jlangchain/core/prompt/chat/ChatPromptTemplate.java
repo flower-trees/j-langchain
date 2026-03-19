@@ -21,6 +21,7 @@ import org.apache.commons.text.StringSubstitutor;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.message.BaseMessage;
+import org.salt.jlangchain.core.message.MessageType;
 import org.salt.jlangchain.core.message.PlaceholderMessage;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
 import org.salt.jlangchain.utils.GroceryUtil;
@@ -89,6 +90,8 @@ public class ChatPromptTemplate extends BaseChatPromptTemplate {
         } else if (object instanceof Pair) {
             Pair<String, String> pair = (Pair<String, String>) object;
             newMessages.add(BaseMessage.fromMessage(pair.getKey(), pair.getValue()));
+        } else if (object instanceof String input) {
+            newMessages.add(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), input));
         } else {
             throw new RuntimeException("object must be BaseMessage or Pair");
         }

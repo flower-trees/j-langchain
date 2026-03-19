@@ -64,7 +64,7 @@ public abstract class BaseCumulativeTransformOutputParser extends BaseTransformO
         }
         ChatGenerationChunk resultChunk = (ChatGenerationChunk) parseResult(List.of(chatGenerationChunk));
         if (StringUtils.isNotEmpty(resultChunk.getText()) || resultChunk.isLast()) {
-            rusult.getIterator().append(resultChunk);
+            rusult.append(resultChunk);
             eventAction.eventStream(resultChunk, config);
         }
 

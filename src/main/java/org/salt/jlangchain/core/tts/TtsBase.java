@@ -56,6 +56,8 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
     EventAction eventAction = new EventAction("tts");
 
     protected StringBuilder cumulate = new StringBuilder();
+    protected StringBuilder cumulateForTts = new StringBuilder(); // Accumulated text for TTS (filtered to remove bracketed content)
+    protected boolean inParentheses = false; // Track whether currently inside parentheses
 
     protected Lock lock = new ReentrantLock();
     protected Condition condition = lock.newCondition();
@@ -68,8 +70,8 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
 
     @Override
     public TtsCard invoke(Object input) {
-        if (input instanceof String stringPrompt) {
-            return parseResult(new Card(stringPrompt));
+        if (input instanceof String text) {
+            return parseResult(new Card(text));
         } else if (input instanceof BaseMessage baseMessage) {
             return parseResult(new Card(baseMessage.getContent()));
         } else if (input instanceof Generation generation) {
@@ -100,11 +102,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
     }
 
     protected TtsCardChunk transform(Object input) {
-        if (input instanceof String stringPrompt) {
-            TtsCardChunk ttsCardChunk = new TtsCardChunk(stringPrompt, true);
-            transformAsync(input, ttsCardChunk.getIterator(), ttsCardChunk);
-            return ttsCardChunk;
-        } else if (input instanceof BaseMessageChunk<? extends BaseMessage> baseMessageChunk){
+        if (input instanceof BaseMessageChunk<? extends BaseMessage> baseMessageChunk){
             if (baseMessageChunk instanceof AIMessageChunk aiMessageChunk){
                 TtsCardChunk ttsCardChunk = new TtsCardChunk(aiMessageChunk.getContent(), aiMessageChunk.isLast());
                 transformAsync(input, baseMessageChunk.getIterator(), ttsCardChunk);
@@ -114,6 +112,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
             }
         } else if (input instanceof ChatGenerationChunk chatGenerationChunk){
             TtsCardChunk ttsCardChunk = new TtsCardChunk(chatGenerationChunk.getText(), chatGenerationChunk.isLast());
+            ttsCardChunk.addFinallyCalls(chatGenerationChunk.cleanFinallyCalls());
             transformAsync(input, chatGenerationChunk.getIterator(), ttsCardChunk);
             return ttsCardChunk;
         } else {
@@ -180,7 +179,7 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
                             if (!wrappedChunk.getChunk().isAudio()) {
                                 result.add(wrappedChunk.getChunk()); // add tts chunk cumulate
                             }
-                            result.getIterator().append(wrappedChunk.getChunk());
+                            result.append(wrappedChunk.getChunk());
                         }
                     } while (wrappedChunk != null && !wrappedChunk.getChunk().isLast());
                 } catch (InterruptedException e) {
@@ -197,7 +196,12 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
 
         if (card.getClass().equals(Card.class)) {
             log.debug("parse card: {}", JsonUtil.toJson(card));
-            return callTts(card.getText());
+            String textForTts = removeParenthesesContent(card.getText());
+            if (StringUtils.isEmpty(textForTts)) {
+                // If all content is within parentheses, return empty TtsCard
+                return new TtsCard("", "", false);
+            }
+            return callTts(textForTts);
         }
 
         log.debug("parse card chunk: {}", JsonUtil.toJson(card));
@@ -212,10 +216,17 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
                 log.debug("submit tts last start");
                 final int index = ++ttsIndex;
                 executor.submit(TheadHelper.getDecoratorAsync(() -> {
-                    TtsCard ttsCard = callTts(cumulate.toString());
-                    TtsCardChunk ttsChunk = new TtsCardChunk(index, ttsCard.getText(), ttsCard.getBase64(), ttsCard.isAudio(), true);
-                    log.debug("submit offer last ttsChunk: {}", ttsChunk.getText());
-                    queue.add(new PriorityTtsCardChunk(ttsChunk, Integer.MAX_VALUE));
+                    String textForTts = cumulateForTts.toString().trim();
+                    if (StringUtils.isNotEmpty(textForTts)) {
+                        TtsCard ttsCard = callTts(textForTts);
+                        TtsCardChunk ttsChunk = new TtsCardChunk(index, ttsCard.getText(), ttsCard.getBase64(), ttsCard.isAudio(), true);
+                        log.debug("submit offer last ttsChunk: {}", ttsChunk.getText());
+                        queue.add(new PriorityTtsCardChunk(ttsChunk, Integer.MAX_VALUE));
+                    } else {
+                        // If all content is within parentheses, send empty end chunk
+                        TtsCardChunk endChunk = new TtsCardChunk(index, "", "", false, true);
+                        queue.add(new PriorityTtsCardChunk(endChunk, Integer.MAX_VALUE));
+                    }
                     signal();
                 }));
             } else {
@@ -237,11 +248,12 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
 
         if (isPunctuation(text) && cumulate.length() > 20) {
 
-            cumulate.append(text);
+            appendTextToCumulate(text);
 
             log.debug("parse punctuation: {}", cumulate);
 
-            String sentence = cumulate.toString();
+//            String sentence = cumulate.toString();
+            String sentenceForTts = cumulateForTts.toString().trim();
 
             ttsIndex++;
 
@@ -252,11 +264,15 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
                 try {
                     log.debug("submit tts start");
 
-                    TtsCard ttsCard = callTts(sentence);
-                    TtsCardChunk ttsChunk = new TtsCardChunk(index, ttsCard.getText(), ttsCard.getBase64(), ttsCard.isAudio(), false);
-                    log.debug("submit offer ttsChunk: {}", ttsChunk.getText());
-                    queue.add(new PriorityTtsCardChunk(ttsChunk, ttsIndex));
-                    signal();
+                    if (StringUtils.isNotEmpty(sentenceForTts)) {
+                        TtsCard ttsCard = callTts(sentenceForTts);
+                        TtsCardChunk ttsChunk = new TtsCardChunk(index, ttsCard.getText(), ttsCard.getBase64(), ttsCard.isAudio(), false);
+                        log.debug("submit offer ttsChunk: {}", ttsChunk.getText());
+                        queue.add(new PriorityTtsCardChunk(ttsChunk, ttsIndex));
+                        signal();
+                    } else {
+                        log.debug("skip tts for content within parentheses");
+                    }
 
                     log.debug("submit tts end");
 
@@ -265,10 +281,10 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
                 }
             }));
 
-            cumulate = new StringBuilder();
+            clearCumulate();
 
         } else {
-            cumulate.append(text);
+            appendTextToCumulate(text);
         }
         return ttsCardChunk;
     }
@@ -280,6 +296,61 @@ public abstract class TtsBase extends BaseRunnable<TtsCard, Object> {
 //        String regex = "[\\p{Punct}，。！？；：……￥]";
         String regex = "[\\p{Punct}\\s，。！？；：……￥]";
         return text.matches(regex);
+    }
+
+    /**
+     * Remove content within parentheses (Chinese and English parentheses)
+     * Used for TTS conversion to skip action descriptions
+     * Example: "(He raised his head) I don't know (then lowered it again), really don't know"
+     *
+     * @param text Original text
+     * @return Text with parentheses content removed
+     */
+    protected String removeParenthesesContent(String text) {
+        if (StringUtils.isEmpty(text)) {
+            return text;
+        }
+        // Remove Chinese parentheses and their content
+        String result = text.replaceAll("（[^）]*）", "");
+        // Remove English parentheses and their content
+        result = result.replaceAll("\\([^)]*\\)", "");
+        return result.trim();
+    }
+
+    /**
+     * Append text to cumulate buffers while tracking parentheses state
+     * This handles streaming cases where parentheses may be split across chunks
+     *
+     * @param text Text chunk to append
+     */
+    protected void appendTextToCumulate(String text) {
+        if (StringUtils.isEmpty(text)) {
+            return;
+        }
+
+        for (char ch : text.toCharArray()) {
+            // Always append to original cumulate
+            cumulate.append(ch);
+
+            // Track parentheses state and filter for TTS
+            if (ch == '（' || ch == '(') {
+                inParentheses = true;
+            } else if (ch == '）' || ch == ')') {
+                inParentheses = false;
+            } else if (!inParentheses) {
+                // Only append non-parentheses content for TTS
+                cumulateForTts.append(ch);
+            }
+        }
+    }
+
+    /**
+     * Clear cumulate buffers and reset parentheses state
+     */
+    protected void clearCumulate() {
+        cumulate = new StringBuilder();
+        cumulateForTts = new StringBuilder();
+        inParentheses = false;
     }
 
     protected static class PriorityTtsCardChunk implements Comparable<PriorityTtsCardChunk> {

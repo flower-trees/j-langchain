@@ -34,6 +34,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -50,11 +51,18 @@ public class AiChatOutput {
 
     private List<DataObject> data;
 
+    // MCP related response fields
+    private McpResponse mcpResponse;
+
     @Data
     public static class Message {
         private String role;
         private Object content;
         private String type;
+        private List<ToolCall> toolCalls; // Tool calls in response
+        private FunctionCall functionCall; // Deprecated function call format
+        private String name; // Message name
+        private Map<String, Object> metadata; // Additional message metadata
     }
 
     @Data
@@ -62,5 +70,49 @@ public class AiChatOutput {
         private String object;
         private int index;
         private List<Float> embedding;
+    }
+
+    @Data
+    public static class ToolCall {
+        private String id;
+        private String type; // "function"
+        private Function function;
+        private int index; // For streaming responses
+
+        @Data
+        public static class Function {
+            private String name;
+            private String arguments; // JSON string
+        }
+    }
+
+    @Data
+    public static class FunctionCall {
+        private String name;
+        private String arguments; // JSON string
+    }
+    @Data
+    public static class McpResponse {
+        private ServerInfo serverInfo;
+        private List<ToolResult> toolResults;
+        private String status; // "success", "error", "partial"
+        private Long executionTime; // Execution time in milliseconds
+
+        @Data
+        public static class ServerInfo {
+            private String name;
+            private String version;
+            private String protocolVersion;
+            private List<String> capabilities;
+        }
+
+        @Data
+        public static class ToolResult {
+            private String toolName;
+            private String status; // "success", "error"
+            private Object result; // Tool execution result
+            private String error; // Error message if failed
+            private Long executionTime;
+        }
     }
 }

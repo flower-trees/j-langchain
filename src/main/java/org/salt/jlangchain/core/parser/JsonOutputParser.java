@@ -16,6 +16,7 @@ package org.salt.jlangchain.core.parser;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.parser.generation.ChatGenerationChunk;
 import org.salt.jlangchain.core.parser.generation.Generation;
 import org.salt.jlangchain.utils.JsonUtil;
@@ -51,6 +52,36 @@ public class JsonOutputParser extends BaseCumulativeTransformOutputParser {
             chatGenerationChunk.getMessage().setContent(text);
             chatGenerationChunk.setText(text);
             return chatGenerationChunk;
+        } else if (input instanceof ChatGeneration chatGeneration) {
+            String content = chatGeneration.getMessage() != null
+                    ? chatGeneration.getMessage().getContent()
+                    : chatGeneration.getText();
+            String trimmedInput = content != null ? content.trim() : "";
+            if (StringUtils.isEmpty(trimmedInput)) {
+                return chatGeneration;
+            }
+            if (isJson(trimmedInput)) {
+                String text = JsonUtil.compactJson(parsePartialJson(trimmedInput));
+                if (chatGeneration.getMessage() != null) {
+                    chatGeneration.getMessage().setContent(text);
+                }
+                chatGeneration.setText(text);
+                return chatGeneration;
+            }
+            String json = processInput(trimmedInput);
+            if (StringUtils.isEmpty(json)) {
+                if (chatGeneration.getMessage() != null) {
+                    chatGeneration.getMessage().setContent("");
+                }
+                chatGeneration.setText("");
+                return chatGeneration;
+            }
+            String text = JsonUtil.compactJson(parsePartialJson(json));
+            if (chatGeneration.getMessage() != null) {
+                chatGeneration.getMessage().setContent(text);
+            }
+            chatGeneration.setText(text);
+            return chatGeneration;
         } else {
             throw new RuntimeException("Unsupported input type: " + input.getClass().getName());
         }

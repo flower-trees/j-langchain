@@ -21,6 +21,7 @@ import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.vendor.moonshot.MoonshotActuator;
 import org.salt.jlangchain.core.llm.BaseChatModel;
 
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -36,11 +37,13 @@ public class ChatMoonshot extends BaseChatModel {
     protected String model = "moonshot-v1-8k";
     protected Float temperature = 0.7f;
     protected Map<String, Object> modelKwargs;
+    protected List<AiChatInput.Tool> tools;
 
     @Override
     public void otherInformation(AiChatInput aiChatInput) {
         aiChatInput.setModel(model);
         aiChatInput.setTemperature(temperature);
+        aiChatInput.setTools(tools);
     }
 
     @Override

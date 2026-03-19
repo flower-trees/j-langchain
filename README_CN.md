@@ -1,501 +1,461 @@
-# j-langchain
+<div align="center">
 
-## 介绍
-本项目是一个Java版的LangChain开发框架，旨在简化和加速各类大模型应用在Java平台的落地开发。它提供了一组实用的工具和类，使得开发人员能够更轻松地构建类似于LangChain的Java应用程序。
+# J-LangChain
 
-## 快速开始
+**🚀 Java 平台的企业级 LLM 应用开发框架**
 
-### Maven
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.flower-trees/j-langchain.svg)](https://search.maven.org/artifact/io.github.flower-trees/j-langchain)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Java](https://img.shields.io/badge/Java-17+-green.svg)](https://www.oracle.com/java/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2+-green.svg)](https://spring.io/projects/spring-boot)
+
+[English](#) | [中文文档](./README_CN.md)
+
+一个强大、灵活、易用的 Java LangChain 实现，让 AI 应用开发像搭积木一样简单
+
+</div>
+
+---
+
+## ✨ 核心特性
+
+### 🎯 多厂商 LLM 支持
+开箱即用的主流大模型集成，一套 API 统一调用：
+- **OpenAI (ChatGPT)** - GPT-4/GPT-3.5 系列
+- **Ollama** - 本地开源模型（Llama3, Qwen2.5 等）
+- **阿里云千问** - 企业级云端服务
+- **Moonshot (Kimi)** - 长上下文支持
+- **豆包 (Doubao)** - 字节跳动大模型
+- **扣子 (Coze)** - OAuth 2.0 + SSE 实时推送
+
+### 🔗 灵活的调用链编排
+基于 [salt-function-flow](https://github.com/flower-trees/salt-function-flow) 强大的流程编排能力：
+- **串行/并行/嵌套** - 多种执行模式随心组合
+- **条件路由** - 动态选择执行路径
+- **流式输出** - 实时 Token 推送
+- **事件监控** - 完整的生命周期追踪
+
+### 📚 完整的 RAG 支持
+端到端的检索增强生成能力：
+- **文档加载器** - PDF, Word (DOC/DOCX) + OCR 识别
+- **文本分割** - 智能分块 + 重叠处理
+- **向量嵌入** - OpenAI/Ollama/阿里云多端支持
+- **向量数据库** - Milvus 集成 + 相似度搜索
+
+### 🔧 工具调用 & MCP 协议
+- **Tool Calling** - 函数调用 + 参数 Schema
+- **MCP (Model Context Protocol)** - 3 种连接方式（Stdio/SSE/HTTP）
+- **环境变量配置** - 动态网关路由
+
+### 🎤 智能语音合成 (TTS)
+- **多厂商支持** - 阿里云/豆包
+- **括号内容过滤** - 自动优化 TTS 文本
+- **智能分句** - 基于标点的流式生成
+- **流式音频** - 实时块级推送
+
+---
+
+## 🚀 5 分钟快速上手
+
+### 1️⃣ 添加依赖
+
+**Maven:**
 ```xml
 <dependency>
     <groupId>io.github.flower-trees</groupId>
     <artifactId>j-langchain</artifactId>
-    <version>1.0.10</version>
+    <version>1.0.11</version>
 </dependency>
 ```
 
-### Gradle
+**Gradle:**
 ```groovy
-implementation 'io.github.flower-trees:j-langchain:1.0.10'
+implementation 'io.github.flower-trees:j-langchain:1.0.11'
 ```
 
-### 配置
+### 2️⃣ 配置启动类
+
 ```java
-@Import(JLangchainConfig.class)
-public class YourApplication {
+@SpringBootApplication
+@Import(JLangchainConfig.class)  // 导入 J-LangChain 配置
+public class Application {
     public static void main(String[] args) {
-        SpringApplication.run(YourApplication.class, args);
+        SpringApplication.run(Application.class, args);
     }
 }
 ```
-```shell
-export CHATGPT_KEY=xxx-xxx-xxx-xxx
+
+### 3️⃣ 设置 API Key
+
+```bash
+# LLM 对话模型
+export CHATGPT_KEY=sk-xxx...      # OpenAI (ChatGPT) API Key
+export ALIYUN_KEY=sk-xxx...      # 阿里云千问 API Key
+export MOONSHOT_KEY=sk-xxx...    # Moonshot (Kimi) API Key
+export DOUBAO_KEY=sk-xxx...      # 豆包 API Key
+export COZE_KEY=xxx...           # 扣子 API Key（或使用下方 OAuth 方式）
+export OLLAMA_KEY1=              # Ollama 本地模型通常可留空，网关/代理场景可配置
+
+# 扣子 OAuth 2.0 方式（二选一）
+# export COZE_CLIENT_ID=xxx
+# export COZE_PRIVATE_KEY_PATH=/path/to/private-key.pem
+# export COZE_PUBLIC_KEY_ID=xxx
+
+# TTS 语音合成
+export ALIYUN_TTS_KEY=xxx...     # 阿里云语音合成
+export DOUBAO_TTS_KEY=xxx...     # 豆包语音合成
+
+# 或在 application.yml 中配置 models.xxx.chat-key、tts.xxx.api-key
 ```
 
-### 使用
+### 4️⃣ 编写第一个 AI 应用
 
 ```java
 @Component
-public class ChainBuildDemo {
+public class MyFirstAIApp {
 
     @Autowired
-    ChainActor chainActor;
+    private ChainActor chainActor;
 
-    public void SimpleDemo() {
+    public void hello() {
+        // 1. 创建 Prompt 模板
+        PromptTemplate prompt = PromptTemplate.fromTemplate(
+            "Tell me a joke about ${topic}"
+        );
 
-        BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
-        ChatOpenAI chatOpenAI = ChatOpenAI.builder().model("gpt-4").build();
+        // 2. 选择大模型（阿里云千问）
+        ChatAliyun llm = ChatAliyun.builder()
+            .model("qwen-plus")
+            .build();
 
-        FlowInstance chain = chainActor.builder().next(prompt).next(oll).next(new StrOutputParser()).build();
-
-        ChatGeneration result = chainActor.invoke(chain, Map.of("topic", "bears"));
-        System.out.println(result);
-    }
-}
-```
-💡 **Notes:**
-- 系统基于salt-function-flow流程编排框架开发，具体语法可 [参考](https://github.com/flower-trees/salt-function-flow)。
-- 目前系统暂只提供预览版。
-
-## 调用链构建
-
-### 分支路由
-
-```java
-public void SwitchDemo() {
-
-    BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
-    ChatOllama chatOllama = ChatOllama.builder().model("llama3:8b").build();
-    ChatOpenAI chatOpenAI = ChatOpenAI.builder().model("gpt-4").build();
-
-    FlowInstance chain = chainActor.builder()
+        // 3. 构建调用链
+        FlowInstance chain = chainActor.builder()
             .next(prompt)
-            .next(
-                    Info.c("vendor == 'ollama'", chatOllama),
-                    Info.c("vendor == 'chatgpt'", chatOpenAI),
-                    Info.c(input -> "sorry, I don't know how to do that")
-            )
-            .next(new StrOutputParser()).build();
-
-    Generation result = chainActor.invoke(chain, Map.of("topic", "bears", "vendor", "ollama"));
-    System.out.println(result);
-}
-```
-
-### 组合嵌套
-
-```java
-public void ComposeDemo() {
-
-        ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
-        StrOutputParser parser = new StrOutputParser();
-
-        BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
-        FlowInstance chain = chainActor.builder().next(prompt).next(llm).next(parser).build();
-
-        BaseRunnable<StringPromptValue, ?> analysisPrompt = PromptTemplate.fromTemplate("is this a funny joke? ${joke}");
-
-        FlowInstance analysisChain = chainActor.builder()
-                .next(chain)
-                .next(input -> Map.of("joke", ((Generation)input).getText()))
-                .next(analysisPrompt)
-                .next(llm)
-                .next(parser).build();
-
-        ChatGeneration result = chainActor.invoke(analysisChain, Map.of("topic", "bears"));
-        System.out.println(result);
-    }
-```
-
-### 并行执行
-
-```java
-public void ParallelDemo() {
-        ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
-
-        BaseRunnable<StringPromptValue, ?> joke = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
-        BaseRunnable<StringPromptValue, ?> poem = PromptTemplate.fromTemplate("write a 2-line poem about ${topic}");
-
-        FlowInstance jokeChain = chainActor.builder().next(joke).next(llm).build();
-        FlowInstance poemChain = chainActor.builder().next(poem).next(llm).build();
-
-        FlowInstance chain = chainActor.builder().concurrent(
-                (IResult<Map<String, String>>) (iContextBus, isTimeout) -> {
-                    AIMessage jokeResult = iContextBus.getResult(jokeChain.getFlowId());
-                    AIMessage poemResult = iContextBus.getResult(poemChain.getFlowId());
-                    return Map.of("joke", jokeResult.getContent(), "poem", poemResult.getContent());
-                }, jokeChain, poemChain).build();
-
-        Map<String, String> result = chainActor.invoke(chain, Map.of("topic", "bears"));
-        System.out.println(JsonUtil.toJson(result));
-    }
-```
-
-### 动态路由
-
-```java
-public void RouteDemo() {
-        ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
-
-        BaseRunnable<StringPromptValue, Object> prompt = PromptTemplate.fromTemplate(
-                """
-                Given the user question below, classify it as either being about `LangChain`, `Anthropic`, or `Other`.
-        
-                Do not respond with more than one word.
-        
-                <question>
-                ${question}
-                </question>
-        
-                Classification:
-                """
-        );
-
-        FlowInstance chain = chainActor.builder().next(prompt).next(llm).next(new StrOutputParser()).build();
-
-        FlowInstance langchainChain = chainActor.builder().next(PromptTemplate.fromTemplate(
-                """
-                You are an expert in langchain. \
-                Always answer questions starting with "As Harrison Chase told me". \
-                Respond to the following question:
-                
-                Question: ${question}
-                Answer:
-                """
-        )).next(ChatOllama.builder().model("llama3:8b").build()).build();
-
-        FlowInstance anthropicChain = chainActor.builder().next(PromptTemplate.fromTemplate(
-                """
-                You are an expert in anthropic. \
-                Always answer questions starting with "As Dario Amodei told me". \
-                Respond to the following question:
-            
-                Question: ${question}
-                Answer:
-                """
-        )).next(ChatOllama.builder().model("llama3:8b").build()).build();
-
-        FlowInstance generalChain = chainActor.builder().next(PromptTemplate.fromTemplate(
-                """
-                Respond to the following question:
-            
-                Question: ${question}
-                Answer:
-                """
-        )).next(ChatOllama.builder().model("llama3:8b").build()).build();
-
-        FlowInstance fullChain = chainActor.builder()
-                .next(chain)
-                .next(input -> Map.of("topic", input, "question", ((Map<?, ?>)ContextBus.get().getFlowParam()).get("question")))
-                .next(
-                        Info.c("topic == 'anthropic'", anthropicChain),
-                        Info.c("topic == 'langchain'", langchainChain),
-                        Info.c(generalChain)
-                ).build();
-
-        AIMessage result = chainActor.invoke(fullChain, Map.of("question", "how do I use Anthropic?"));
-        System.out.println(result.getContent());
-    }
-```
-
-### 动态构建
-
-```java
-public void DynamicDemo() {
-        ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
-
-        String contextualizeInstructions = """
-                Convert the latest user question into a standalone question given the chat history. Don't answer the question, return the question and nothing else (no descriptive text).""";
-
-        BaseRunnable<ChatPromptValue, Object> contextualizePrompt = ChatPromptTemplate.fromMessages(
-                List.of(
-                        Pair.of("system", contextualizeInstructions),
-                        Pair.of("placeholder", "${chatHistory}"),
-                        Pair.of("human", "${question}")
-                )
-        );
-
-        FlowInstance contextualizeQuestion = chainActor.builder()
-                .next(contextualizePrompt)
-                .next(llm)
-                .next(new StrOutputParser())
-                .build();
-
-        FlowInstance contextualizeIfNeeded = chainActor.builder().next(
-                Info.c("chatHistory != null", contextualizeQuestion),
-                Info.c(input -> Map.of("question", ((Map<String, String>)input).get("question")))
-        ).build();
-
-        String qaInstructions =
-                """
-                Answer the user question given the following context:\n\n${context}.
-                """;
-        BaseRunnable<ChatPromptValue, Object>  qaPrompt = ChatPromptTemplate.fromMessages(
-                List.of(
-                        Pair.of("system", qaInstructions),
-                        Pair.of("human", "${question}")
-                )
-        );
-
-        FlowInstance fullChain = chainActor.builder()
-                .all(
-                        (iContextBus, isTimeout) -> Map.of(
-                                "question", iContextBus.getResult(contextualizeIfNeeded.getFlowId()).toString(),
-                                "context", iContextBus.getResult("fakeRetriever")),
-                        Info.c(contextualizeIfNeeded),
-                        Info.c(input -> "egypt's population in 2024 is about 111 million").cAlias("fakeRetriever")
-                )
-                .next(qaPrompt)
-                .next(input -> {System.out.println(JsonUtil.toJson(input)); return input;})
-                .next(llm)
-                .next(new StrOutputParser())
-                .build();
-
-        ChatGeneration result = chainActor.invoke(fullChain,
-                Map.of(
-                        "question", "what about egypt",
-                        "chatHistory",
-                                List.of(
-                                        Pair.of("human", "what's the population of indonesia"),
-                                        Pair.of("ai", "about 276 million")
-                                )
-                )
-        );
-        System.out.println(result);
-    }
-```
-## 流式运行
-
-### 使用流
-
-```java
-@Component
-public class ChainExtDemo {
-
-    @Autowired
-    ChainActor chainActor;
-
-    public void StreamDemo() throws TimeoutException, InterruptedException {
-
-        ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
-
-        AIMessageChunk chunk = llm.stream("what color is the sky?");
-        StringBuilder sb = new StringBuilder();
-        while (chunk.getIterator().hasNext()) {
-            sb.append(chunk.getIterator().next().getContent()).append("|");
-            System.out.println(sb);
-        }
-    }
-}
-```
-**输出**
-```
-The|
-The| sky|
-The| sky| is|
-The| sky| is| blue|
-The| sky| is| blue|.|
-The| sky| is| blue|.||
-```
-
-### 调用链流式执行
-
-```java
-public void ChainStreamDemo() throws TimeoutException, InterruptedException {
-
-	ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
-	
-    BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
-    StrOutputParser parser = new StrOutputParser();
-
-    FlowInstance chain = chainActor.builder().next(prompt).next(llm).next(parser).build();
-
-    ChatGenerationChunk chunk = chainActor.stream(chain, Map.of("topic", "parrot"));
-    StringBuilder sb = new StringBuilder();
-    while (chunk.getIterator().hasNext()) {
-        sb.append(chunk.getIterator().next()).append("|");
-        System.out.println(sb);
-        Thread.sleep(100);
-    }
-}
-```
-
-### 处理输入流
-
-**输出JSON**
-```java
-public void InputDemo() throws TimeoutException, InterruptedException {
-    
-    ChatOllama model = ChatOllama.builder().model("llama3:8b").build();
-    
-    FlowInstance chain = chainActor.builder().next(model).next(new JsonOutputParser()).build();
-    
-    ChatGenerationChunk chunk = chainActor.stream(chain, "output a list of countries and their populations in JSON format. limit 3 countries.");
-    while (chunk.getIterator().hasNext()) {
-        System.out.println(chunk.getIterator().next());
-    }
-}
-```
-**输出**
-```
-[]
-[]
-[{}]
-[{}]
-[{"country":""}]
-[{"country":"China"}]
-[{"country":"China","population":143}]
-[{"country":"China","population":143932}]
-[{"country":"China","population":143932377}]
-[{"country":"China","population":1439323776}]
-[{"country":"China","population":1439323776}]
-[{"country":"China","population":1439323776}]
-[{"country":"China","population":1439323776},{}]
-......
-```
-
-### 生成器函数
-
-```java
-public void OutputFunctionDemo() throws TimeoutException, InterruptedException {
-
-    ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
-
-    FlowInstance chain = chainActor.builder()
             .next(llm)
-            .next(new JsonOutputParser())
-            .next(new FunctionOutputParser(this::extractCountryNamesStreaming))
+            .next(new StrOutputParser())
             .build();
 
-    ChatGenerationChunk chunk = chainActor.stream(chain, """
-    output a list of the countries france, spain and japan and their populations in JSON format. "
-    'Use a dict with an outer key of "countries" which contains a list of countries. '
-    "Each country should have the key `name` and `population`""");
+        // 4. 执行并获取结果
+        ChatGeneration result = chainActor.invoke(
+            chain,
+            Map.of("topic", "programmers")
+        );
 
-    StringBuilder sb = new StringBuilder();
-    while (chunk.getIterator().hasNext()) {
-        ChatGenerationChunk chunkIterator = chunk.getIterator().next();
-        if (StringUtils.isNotEmpty(chunkIterator.getText())) {
-            sb.append(chunkIterator).append("|");
-            System.out.println(sb);
-        }
+        System.out.println(result.getText());
+        // 输出: Why do programmers prefer dark mode?
+        //       Because light attracts bugs! 🐛
     }
 }
+```
 
-Set<Object> set = new HashSet<>();
-private String extractCountryNamesStreaming(String chunk) {
-    if (JsonUtil.isValidJson(chunk)) {
-        Map chunkMap = JsonUtil.fromJson(chunk, Map.class);
-        if (chunkMap != null && chunkMap.get("countries") != null) {
-            Map countries = (Map) chunkMap.get("countries");
-            for (Object name : countries.keySet()) {
-                if (!set.contains(name)) {
-                    set.add(name);
-                    return (String) name;
-                }
-            }
-        }
-    }
-    return "";
-}
-```
-**输出**
-```
-France|
-France|Spain|
-France|Spain|Japan|
-```
-### 使用流事件
+✅ **就是这么简单！** 3 行核心代码，完成一个完整的 AI 对话应用。
 
-J-LangChain提供了事件流式处理的API（`streamEvents`），支持流式监控中间步骤。
+---
+
+## 💡 核心能力展示
+
+### 🔀 动态路由 - 根据用户输入智能切换模型
 
 ```java
-public void EventDemo() throws TimeoutException {
-    ChatOllama model = ChatOllama.builder().model("llama3:8b").build();
+ChatOllama ollamaModel = ChatOllama.builder().model("qwen2.5:0.5b").build();
+ChatAliyun qwenModel = ChatAliyun.builder().model("qwen-plus").build();
 
-    List<EventMessageChunk> events = new ArrayList<>();
-    EventMessageChunk chunk = model.streamEvent("hello");
-    while (chunk.getIterator().hasNext()) {
-        events.add(chunk.getIterator().next());
-    }
-    events.subList(events.size()-3, events.size()).forEach(event -> System.out.println(event.toJson()));
-}
+FlowInstance chain = chainActor.builder()
+    .next(prompt)
+    .next(
+        Info.c("vendor == 'ollama'", ollamaModel),
+        Info.c("vendor == 'aliyun'", qwenModel),
+        Info.c(input -> "Unsupported vendor")
+    )
+    .next(new StrOutputParser())
+    .build();
+
+// 动态选择模型：ollama=本地，aliyun=阿里云千问
+chainActor.invoke(chain, Map.of("topic", "AI", "vendor", "aliyun"));
 ```
 
-**输出**
-```
-{"event":"on_llm_stream","data":{"chunk":{"role":"ai","content":".","last":false}},"name":"ChatOllama","parentIds":[],"metadata":{"ls_model_name":"gpt-4","ls_provider":"chatgpt","ls_model_type":"llm"},"tags":[]}
-{"event":"on_llm_stream","data":{"chunk":{"role":"ai","content":"","finishReason":"stop","last":true}},"name":"ChatOllama","parentIds":[],"metadata":{"ls_model_name":"gpt-4","ls_provider":"chatgpt","ls_model_type":"llm"},"tags":[]}
-{"event":"on_llm_end","data":{"output":"Hello! How can I help you today? Let me know if you have any questions or need assistance with anything else."},"name":"ChatOllama","parentIds":[],"metadata":{},"tags":[]}
-```
-
-### 调用链流事件
+### ⚡ 并行执行 - 同时生成笑话和诗歌
 
 ```java
-public void EventChainDemo() throws TimeoutException {
+FlowInstance jokeChain = chainActor.builder()
+    .next(jokePrompt).next(llm).build();
 
-    ChatOllama oll = ChatOllama.builder().model("llama3:8b").build();
-    
-    BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
-    
-    FlowInstance chain = chainActor.builder().next(prompt).next(oll).next(new StrOutputParser()).build();
+FlowInstance poemChain = chainActor.builder()
+    .next(poemPrompt).next(llm).build();
 
-    EventMessageChunk chunk = chainActor.streamEvent(chain, Map.of("topic", "dog"));
-    while (chunk.getIterator().hasNext()) {
-        System.out.println(chunk.getIterator().next().toJson());
-    }
-}
-```
-**输出**
-```
-{"event":"on_chain_start","data":{"input":{"topic":"dog"}},"name":"ChainActor","runId":"9fbfb04d3101465daa9e762716a59ecd","parentIds":[],"metadata":{},"tags":[]}
-{"event":"on_prompt_start","data":{"input":{"topic":"dog"}},"name":"PromptTemplate","runId":"6f0a038fe9a847768922ce2c559f06ec","parentIds":["9fbfb04d3101465daa9e762716a59ecd"],"metadata":{},"tags":[]}
-{"event":"on_prompt_end","data":{"output":{"text":"tell me a joke about dog"}},"name":"PromptTemplate","runId":"6f0a038fe9a847768922ce2c559f06ec","parentIds":["9fbfb04d3101465daa9e762716a59ecd"],"metadata":{},"tags":[]}
-{"event":"on_llm_start","data":{"input":{"text":"tell me a joke about dog"}},"name":"ChatOllama","runId":"0e21f6ad4fc84c16a50b3db3d3d54193","parentIds":["6f0a038fe9a847768922ce2c559f06ec"],"metadata":{"ls_model_type":"llm","ls_provider":"chatgpt","ls_model_name":"gpt-4"},"tags":[]}
-{"event":"on_parser_start","data":{"input":{"role":"ai","last":false}},"name":"StrOutputParser","runId":"d1d0efcadd904b2090f4d202003d4c04","parentIds":["0e21f6ad4fc84c16a50b3db3d3d54193"],"metadata":{},"tags":[]}
-{"event":"on_llm_stream","data":{"chunk":{"role":"ai","content":"Why","last":false}},"name":"ChatOllama","runId":"0e21f6ad4fc84c16a50b3db3d3d54193","parentIds":["6f0a038fe9a847768922ce2c559f06ec"],"metadata":{"ls_model_type":"llm","ls_provider":"chatgpt","ls_model_name":"gpt-4"},"tags":[]}
-{"event":"on_parser_stream","data":{"chunk":{"text":"Why","message":{"role":"ai","content":"Why"},"last":false}},"name":"StrOutputParser","runId":"d1d0efcadd904b2090f4d202003d4c04","parentIds":["0e21f6ad4fc84c16a50b3db3d3d54193"],"metadata":{},"tags":[]}
-{"event":"on_chain_stream","data":{"chunk":{"text":"Why","message":{"role":"ai","content":"Why"},"last":false}},"name":"ChainActor","runId":"d1d0efcadd904b2090f4d202003d4c04","parentIds":["d1d0efcadd904b2090f4d202003d4c04"],"metadata":{},"tags":[]}
-......
-```
-### 过滤流事件
+FlowInstance parallelChain = chainActor.builder()
+    .concurrent(
+        (ctx, timeout) -> Map.of(
+            "joke", ctx.getResult(jokeChain.getFlowId()),
+            "poem", ctx.getResult(poemChain.getFlowId())
+        ),
+        jokeChain,
+        poemChain
+    )
+    .build();
 
-可以根据组件的名称、类型或标签等过滤事件：
+Map<String, String> result = chainActor.invoke(
+    parallelChain,
+    Map.of("topic", "cats")
+);
+// 同时返回笑话和诗歌 🎭
+```
+
+### 🌊 流式输出 - ChatGPT 打字效果
 
 ```java
-public void EventFilterDemo() throws TimeoutException {
+ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
 
-    ChatOllama model = ChatOllama.builder().model("llama3:8b").build();
-
-    FlowInstance chain = chainActor.builder()
-            .next(model.withConfig(Map.of("run_name", "model")))
-            .next((new JsonOutputParser()).withConfig(Map.of("run_name", "my_parser", "tags", List.of("my_chain"))))
-            .build();
-
-    EventMessageChunk chunk = chainActor.streamEvent(chain,"Generate JSON data.");
-    while (chunk.getIterator().hasNext()) {
-        System.out.println(chunk.getIterator().next().toJson());
-    }
-
-    System.out.println("\n----------------\n");
-
-    EventMessageChunk chunkFilterByName = chainActor.streamEvent(chain,"Generate JSON data.", event -> List.of("my_parser").contains(event.getName()));
-    while (chunkFilterByName.getIterator().hasNext()) {
-        System.out.println(chunkFilterByName.getIterator().next().toJson());
-    }
-
-    System.out.println("\n----------------\n");
-
-    EventMessageChunk chunkFilterByType = chainActor.streamEvent(chain,"Generate JSON data.", event -> List.of("llm").contains(event.getType()));
-    while (chunkFilterByType.getIterator().hasNext()) {
-        System.out.println(chunkFilterByType.getIterator().next().toJson());
-    }
-
-    System.out.println("\n----------------\n");
-
-    EventMessageChunk chunkFilterByTag = chainActor.streamEvent(chain,"Generate JSON data.", event -> Stream.of("my_chain").anyMatch(event.getTags()::contains));
-    while (chunkFilterByTag.getIterator().hasNext()) {
-        System.out.println(chunkFilterByTag.getIterator().next().toJson());
-    }
+AIMessageChunk chunk = llm.stream("What is the meaning of life?");
+while (chunk.getIterator().hasNext()) {
+    String token = chunk.getIterator().next().getContent();
+    System.out.print(token); // 逐字输出
 }
 ```
+
+**输出效果：**
+```
+The| meaning| of| life| is| to| find| your| purpose|...
+```
+
+### 📊 JSON 结构化输出
+
+```java
+FlowInstance chain = chainActor.builder()
+    .next(llm)
+    .next(new JsonOutputParser())  // 自动解析 JSON
+    .build();
+
+List<Map> countries = chainActor.stream(chain,
+    "List 3 countries with populations in JSON format");
+// 返回: [{"country":"China","population":1439323776}, ...]
+```
+
+### 🔍 事件流监控 - 调试神器
+
+```java
+EventMessageChunk events = chainActor.streamEvent(chain, input);
+while (events.getIterator().hasNext()) {
+    EventMessageChunk event = events.getIterator().next();
+    System.out.println(event.toJson());
+}
+```
+
+**输出（完整执行链路）：**
+```json
+{"event":"on_chain_start","data":{"input":{"topic":"AI"}},"name":"ChainActor"}
+{"event":"on_prompt_start","data":{"input":{"topic":"AI"}},"name":"PromptTemplate"}
+{"event":"on_llm_start","data":{"input":"Tell me about AI"},"name":"ChatOpenAI"}
+{"event":"on_llm_stream","data":{"chunk":"Artificial"},"name":"ChatOpenAI"}
+{"event":"on_llm_end","data":{"output":"..."},"name":"ChatOpenAI"}
+```
+
+### 🎙️ TTS 语音合成（带智能过滤）
+
+```java
+AliyunTts tts = AliyunTts.builder()
+    .appKey("your-app-key")
+    .voice("xiaoyun")
+    .format("wav")
+    .build();
+
+TtsCardChunk audioChunk = tts.stream("你好(Hello)，欢迎使用 J-LangChain！");
+// 自动过滤括号内容，只合成: "你好，欢迎使用 J-LangChain！"
+```
+
+---
+
+## 📚 RAG 完整示例
+
+构建一个"文档问答助手"：
+
+```java
+// 1. 加载 PDF 文档
+PdfboxLoader loader = new PdfboxLoader("path/to/document.pdf");
+List<Document> docs = loader.load();
+
+// 2. 文本分割
+TextSplitter splitter = StanfordNLPTextSplitter.builder().chunkSize(500).chunkOverlap(50).build();
+List<Document> chunks = splitter.splitDocument(docs);
+
+// 3. 向量嵌入
+OllamaEmbeddings embeddings = new OllamaEmbeddings();
+List<List<Float>> vectors = embeddings.embedDocuments(chunks);
+
+// 4. 存储到向量数据库
+Milvus vectorStore = new Milvus(embeddings);
+vectorStore.addDocuments(chunks);
+
+// 5. 检索 + 回答
+String query = "What is the main topic of the document?";
+List<Document> relevantDocs = vectorStore.similaritySearch(query, 3);
+
+ChatPromptTemplate qaPrompt = ChatPromptTemplate.fromMessages(List.of(
+    Pair.of("system", "Answer based on: ${context}"),
+    Pair.of("human", "${question}")
+));
+
+FlowInstance qaChain = chainActor.builder()
+    .next(qaPrompt)
+    .next(ChatOpenAI.builder().build())
+    .next(new StrOutputParser())
+    .build();
+
+String answer = chainActor.invoke(qaChain, Map.of(
+    "context", relevantDocs.stream()
+        .map(Document::getPageContent)
+        .collect(Collectors.joining("\n")),
+    "question", query
+));
+```
+
+---
+
+## 🛠️ MCP 工具调用
+
+连接外部工具扩展 LLM 能力：
+
+```java
+// 1. 配置 MCP 工具（支持 Stdio/SSE/HTTP）
+McpClient mcpClient = new McpClient("path/to/mcp-config.json");
+
+// 2. 获取可用工具
+List<ToolDesc> tools = mcpClient.manifest();
+
+// 3. 执行工具
+ToolResult result = mcpClient.run("weather_tool", Map.of(
+    "city", "Beijing"
+));
+System.out.println(result.getContent());
+// 输出: "Beijing: 25°C, Sunny"
+
+// 4. 与 LLM 结合使用
+ChatOpenAI llm = ChatOpenAI.builder()
+    .tools(tools)  // 注入工具定义
+    .build();
+
+AIMessage response = llm.invoke("What's the weather in Beijing?");
+// LLM 自动调用 weather_tool 并返回结果
+```
+
+---
+
+## 📖 完整文档
+
+| 文档 | 说明 |
+|------|------|
+| [快速开始](./docs/guide/quickstart_cn.md) | 详细的入门教程 |
+| [API 文档](./docs/api/reference_cn.md) | 完整的 API 参考 |
+| [示例代码](./src/test/java/org/salt/jlangchain/demo/) | 30+ 实际案例 |
+| [最佳实践](./docs/best-practices.md) | 生产环境建议 |
+
+---
+
+## 🏗️ 架构设计
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Application Layer                    │
+│          (Your AI Application / Spring Boot)            │
+└─────────────────────────────────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│                   J-LangChain Core                      │
+│  ┌─────────────┬──────────────┬──────────────────────┐ │
+│  │ ChainActor  │ PromptTpl    │ OutputParser         │ │
+│  │ (Orchestr.) │ (Templates)  │ (Str/JSON/Function)  │ │
+│  └─────────────┴──────────────┴──────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+                           ▼
+┌───────────────┬──────────────┬─────────────┬───────────┐
+│  LLM Vendors  │     RAG      │     TTS     │    MCP    │
+│ ChatGPT/Ollama│ Loader/Split │ Aliyun/豆包  │ Tools     │
+│ Aliyun/Moonshot│ Embed/Vector│ 智能过滤     │ 3 Protocols│
+│ Doubao/Coze   │ Milvus Store │ 流式合成     │ OAuth     │
+└───────────────┴──────────────┴─────────────┴───────────┘
+```
+
+---
+
+## 🌟 为什么选择 J-LangChain？
+
+### 🆚 对比其他方案
+
+| 特性 | J-LangChain | LangChain4j | Spring AI |
+|------|-------------|-------------|-----------|
+| **多厂商支持** | ✅ 6+ (含国内) | ✅ 5+ | ⚠️ 主流 |
+| **流程编排** | ✅ 强大的 salt-flow | ⚠️ 链式调用 | ⚠️ 基础 |
+| **RAG 完整性** | ✅ 端到端 | ✅ 完整 | ⚠️ 部分 |
+| **TTS 支持** | ✅ 智能优化 | ❌ | ❌ |
+| **MCP 协议** | ✅ 3 种连接 | ❌ | ❌ |
+| **事件监控** | ✅ 完整生命周期 | ⚠️ 基础 | ❌ |
+| **Spring Boot** | ✅ 原生支持 | ✅ | ✅ |
+| **学习曲线** | 🟢 简单 | 🟡 中等 | 🟢 简单 |
+
+### 💪 核心优势
+
+1. **🇨🇳 国内大模型优先** - 深度集成阿里云、豆包、Kimi 等
+2. **🔄 强大的编排能力** - 基于 salt-function-flow 的工作流引擎
+3. **📦 开箱即用** - Spring Boot 自动配置，零配置启动
+4. **🎯 生产级设计** - 事件追踪、错误处理、性能优化
+5. **🔧 高度可扩展** - 清晰的抽象层，易于添加新厂商
+
+---
+
+## 🤝 参与贡献
+
+我们欢迎各种形式的贡献！
+
+- 🐛 [提交 Bug](https://github.com/flower-trees/j-langchain/issues)
+- 💡 [功能建议](https://github.com/flower-trees/j-langchain/issues)
+- 📝 改进文档
+- 🔧 提交 Pull Request
+
+### 贡献步骤
+```bash
+# 1. Fork 项目
+# 2. 创建特性分支
+git checkout -b feature/amazing-feature
+
+# 3. 提交更改
+git commit -m 'Add amazing feature'
+
+# 4. 推送分支
+git push origin feature/amazing-feature
+
+# 5. 创建 Pull Request
+```
+
+---
+
+## 📄 开源协议
+
+本项目采用 [Apache License 2.0](./LICENSE) 开源协议。
+
+---
+
+## 🙏 致谢
+
+- [LangChain](https://github.com/langchain-ai/langchain) - 灵感来源
+- [salt-function-flow](https://github.com/flower-trees/salt-function-flow) - 流程编排引擎
+- [Spring Boot](https://spring.io/projects/spring-boot) - 应用框架
+
+---
+
+## 📞 联系我们
+
+- 📧 Email: huaqianshu_z@163.com
+- 🐛 Issues: [GitHub Issues](https://github.com/flower-trees/j-langchain/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/flower-trees/j-langchain/discussions)
+
+---
+
+<div align="center">
+
+**⭐ 如果这个项目对你有帮助，请给我们一个 Star！**
+
+Made with ❤️ by J-LangChain Team
+
+[快速开始](./docs/guide/quickstart_cn.md) • [MyFirstAIApp](./src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java) • [示例代码](./src/test/java/org/salt/jlangchain/demo/) • [API 文档](./docs/api/reference_cn.md)
+
+</div>

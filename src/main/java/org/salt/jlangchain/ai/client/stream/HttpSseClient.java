@@ -23,6 +23,7 @@ import org.salt.function.flow.context.ContextBus;
 import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.ai.chat.sse.SseListenerStrategy;
 import org.salt.jlangchain.ai.client.AiException;
+import org.salt.jlangchain.ai.vendor.doubao.coze.SseEventType;
 import org.salt.jlangchain.utils.JsonUtil;
 import org.springframework.beans.factory.InitializingBean;
 
@@ -147,7 +148,11 @@ public class HttpSseClient implements InitializingBean {
                                 break;
                             }
 
-                            String lineComplete = source.readUtf8LineStrict();
+                            //String lineComplete = source.readUtf8LineStrict();
+                            String lineComplete = source.readUtf8Line();
+                            if (lineComplete == null) {
+                                break;
+                            }
 
                             if (StringUtils.isBlank(lineComplete.trim())) {
                                 continue;
@@ -160,6 +165,9 @@ public class HttpSseClient implements InitializingBean {
                                 dealContent(event, content, strategyList);
                             } else if (lineComplete.startsWith("event:")) {
                                 event = getEvent(lineComplete);
+                            } else {
+                                dealContent(lineComplete, strategyList);
+                                break;
                             }
                         }
                     } finally {
@@ -219,6 +227,12 @@ public class HttpSseClient implements InitializingBean {
         } else {
             closeForEach(strategyList);
         }
+    }
+
+    private void dealContent(String content, List<SseListenerStrategy> strategyList) {
+        messageForEach(strategyList, SseEventType.MESSAGE_DELTA.getCode(), content);
+        messageForEach(strategyList, SseEventType.CHAT_COMPLETED.getCode(), "[DONE]");
+//        closeForEach(strategyList);
     }
 
     private void openForEach(List<SseListenerStrategy> strategyList) {

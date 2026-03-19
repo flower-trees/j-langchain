@@ -16,11 +16,12 @@ package org.salt.jlangchain.core.llm.doubao;
 
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
-import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
+import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.vendor.doubao.DoubaoActuator;
 import org.salt.jlangchain.core.llm.BaseChatModel;
 
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -36,11 +37,13 @@ public class ChatDoubao extends BaseChatModel {
     protected String model = "ep-20240611104225-2d4ww";
     protected Float temperature = 0.7f;
     protected Map<String, Object> modelKwargs;
+    protected List<AiChatInput.Tool> tools;
 
     @Override
     public void otherInformation(AiChatInput aiChatInput) {
         aiChatInput.setModel(model);
         aiChatInput.setTemperature(temperature);
+        aiChatInput.setTools(tools);
     }
 
     public Class<? extends AiChatActuator> getActuator() {

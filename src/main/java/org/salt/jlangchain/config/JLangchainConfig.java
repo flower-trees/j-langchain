@@ -27,6 +27,8 @@ import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 import org.salt.jlangchain.ai.vendor.chatgpt.ChatGPTActuator;
 import org.salt.jlangchain.ai.vendor.doubao.DoubaoActuator;
 import org.salt.jlangchain.ai.vendor.doubao.coze.CozeActuator;
+import org.salt.jlangchain.ai.vendor.doubao.coze.auth.CozeOAuthHelper;
+import org.salt.jlangchain.ai.vendor.doubao.coze.auth.CozeProperties;
 import org.salt.jlangchain.ai.vendor.moonshot.MoonshotActuator;
 import org.salt.jlangchain.ai.vendor.ollama.OllamaActuator;
 import org.salt.jlangchain.core.ChainActor;
@@ -137,6 +139,16 @@ public class JLangchainConfig {
     @Bean
     public CozeActuator cozeActuator(HttpSseClient httpSseClient) {
         return new CozeActuator(httpSseClient);
+    }
+
+    @Bean
+    public CozeProperties cozeProperties() {
+        return new CozeProperties();
+    }
+
+    @Bean
+    public CozeOAuthHelper cozeOAuthHelper() {
+        return new CozeOAuthHelper(cozeProperties());
     }
 
     @Bean

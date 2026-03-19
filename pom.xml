@@ -4,7 +4,7 @@
 
   <groupId>io.github.flower-trees</groupId>
   <artifactId>j-langchain</artifactId>
-  <version>1.0.10</version>
+  <version>1.0.11-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>j-langchain</name>
@@ -43,6 +43,7 @@
     <jsoup.version>1.18.1</jsoup.version>
     <okhttp.version>4.12.0</okhttp.version>
     <commons-text.version>1.12.0</commons-text.version>
+    <jwt.version>0.12.6</jwt.version>
   </properties>
 
   <parent>
@@ -97,6 +98,12 @@
     <dependency>
       <groupId>com.squareup.okhttp3</groupId>
       <artifactId>okhttp</artifactId>
+      <version>${okhttp.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.squareup.okhttp3</groupId>
+      <artifactId>okhttp-sse</artifactId>
       <version>${okhttp.version}</version>
     </dependency>
 
@@ -211,6 +218,30 @@
       <groupId>org.apache.poi</groupId>
       <artifactId>poi-scratchpad</artifactId>
       <version>5.2.3</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.coze</groupId>
+      <artifactId>coze-api</artifactId>
+      <version>0.3.2</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>${jwt.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>${jwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>${jwt.version}</version>
+      <scope>runtime</scope>
     </dependency>
 
   </dependencies>
