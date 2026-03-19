@@ -332,7 +332,7 @@ Chain building uses [salt-function-flow](https://github.com/flower-trees/salt-fu
 
 ### Environment Variables
 
-See [README - Set API Key](../README.md#3️⃣-set-api-key).
+See [README - Set API Key](../../README.md#3️⃣-set-api-key).
 
 ### application.yml Example
 
@@ -350,4 +350,4 @@ rag:
 
 ---
 
-**Related**: [Quick Start](./quickstart.md) | [Sample Code](../src/test/java/org/salt/jlangchain/demo/)
+**Related**: [Quick Start](../guide/quickstart.md) | [Sample Code](../../src/test/java/org/salt/jlangchain/demo/)

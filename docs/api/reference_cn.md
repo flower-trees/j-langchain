@@ -246,6 +246,6 @@ McpClient mcpClient = new McpClient("path/to/mcp-config.json");
 
 ## 相关链接
 
-- [快速开始](./quickstart_cn.md)
-- [示例代码](../src/test/java/org/salt/jlangchain/demo/)
+- [快速开始](../guide/quickstart_cn.md)
+- [示例代码](../../src/test/java/org/salt/jlangchain/demo/)
 - [salt-function-flow](https://github.com/flower-trees/salt-function-flow)

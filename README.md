@@ -347,9 +347,9 @@ AIMessage response = llm.invoke("What's the weather in Beijing?");
 
 | Document | Description |
 |----------|-------------|
-| [Quick Start](./docs/quickstart.md) | Detailed getting started guide |
-| [API Reference](./docs/api.md) | Complete API reference |
-| [Sample Code](./src/test/java/org/salt/jlangchain/demo/) | 30+ real-world examples |
+| [Quick Start](./docs/guide/quickstart.md) | Detailed getting started guide |
+| [API Reference](./docs/api/reference.md) | Complete API reference |
+| [MyFirstAIApp](./src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java) / [Sample Code](./src/test/java/org/salt/jlangchain/demo/) | Quick start + 30+ real-world examples |
 | [Best Practices](./docs/best-practices.md) | Production recommendations |
 
 ---
@@ -459,6 +459,6 @@ This project is licensed under the [Apache License 2.0](./LICENSE).
 
 Made with ❤️ by J-LangChain Team
 
-[Quick Start](#-5-minute-quick-start) • [Sample Code](./src/test/java/org/salt/jlangchain/demo/) • [API Reference](#)
+[Quick Start](#-5-minute-quick-start) • [MyFirstAIApp](./src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java) • [Sample Code](./src/test/java/org/salt/jlangchain/demo/) • [API Reference](#)
 
 </div>

@@ -1,10 +1,10 @@
-# J-LangChain Quick Start
+# J-LangChain 快速开始
 
-Get up and running in 5 minutes. For more examples, see [README Core Capabilities](../README.md#-core-capabilities) and [MyFirstAIApp source](../src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java).
+5 分钟让你跑起来。详细示例见 [README 核心能力展示](../../README_CN.md#-核心能力展示) 和 [MyFirstAIApp 源码](../../src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java)。
 
 ---
 
-## 1. Add Dependency
+## 1. 添加依赖
 
 ```xml
 <dependency>
@@ -14,7 +14,7 @@ Get up and running in 5 minutes. For more examples, see [README Core Capabilitie
 </dependency>
 ```
 
-## 2. Configure
+## 2. 配置
 
 ```java
 @SpringBootApplication
@@ -27,10 +27,10 @@ public class Application {
 ```
 
 ```bash
-export ALIYUN_KEY=sk-xxx...   # Alibaba Cloud Qwen (used in this tutorial)
+export ALIYUN_KEY=sk-xxx...   # 阿里云千问（本教程示例）
 ```
 
-## 3. Your First AI Application
+## 3. 第一个 AI 应用
 
 ```java
 @Autowired ChainActor chainActor;
@@ -50,7 +50,7 @@ public void hello() {
 }
 ```
 
-## 4. Run
+## 4. 运行
 
 ```bash
 export ALIYUN_KEY=your-key
@@ -59,26 +59,26 @@ mvn test -Dtest=MyFirstAIApp#hello
 
 ---
 
-## 5. RAG Document Q&A
+## 5. RAG 文档问答
 
-Build a document Q&A assistant: load PDF → split → embed → store in Milvus → retrieve + LLM answer.
+构建文档问答助手：加载 PDF → 分块 → 向量嵌入 → 存入 Milvus → 检索 + LLM 回答。
 
 ```java
-// 1. Load and split document
+// 1. 加载并分割文档
 PdfboxLoader loader = PdfboxLoader.builder().filePath("path/to/document.pdf").build();
 List<Document> docs = loader.load();
 StanfordNLPTextSplitter splitter = StanfordNLPTextSplitter.builder().chunkSize(500).chunkOverlap(50).build();
 List<Document> chunks = splitter.splitDocument(docs);
 
-// 2. Vector store (requires Milvus + Ollama)
+// 2. 向量存储（需配置 Milvus 和 Ollama）
 OllamaEmbeddings embeddings = OllamaEmbeddings.builder().model("nomic-embed-text").vectorSize(768).build();
 VectorStore vectorStore = Milvus.fromDocuments(chunks, embeddings, "my_collection");
 
-// 3. Retrieve + answer
-String query = "What is the main topic of the document?";
+// 3. 检索 + 回答
+String query = "文档的主题是什么？";
 List<Document> relevantDocs = vectorStore.similaritySearch(query, 3);
 ChatPromptTemplate qaPrompt = ChatPromptTemplate.fromMessages(List.of(
-    Pair.of("system", "Answer based on: ${context}"),
+    Pair.of("system", "根据以下内容回答: ${context}"),
     Pair.of("human", "${question}")
 ));
 FlowInstance qaChain = chainActor.builder()
@@ -92,31 +92,31 @@ String answer = chainActor.invoke(qaChain, Map.of(
 ));
 ```
 
-**Prerequisites**: Local Ollama + `ollama pull nomic-embed-text`, Milvus service, `rag.vector.milvus.use=true`.
+**前置条件**：本地 Ollama + `ollama pull nomic-embed-text`，Milvus 服务，`rag.vector.milvus.use=true`。
 
 ---
 
-## 6. MCP Tool Calling
+## 6. MCP 工具调用
 
-Connect external tools for LLM to invoke automatically:
+连接外部工具，让 LLM 自动调用：
 
 ```java
-// 1. Load MCP config (supports Stdio/SSE/HTTP)
+// 1. 加载 MCP 配置（支持 Stdio/SSE/HTTP）
 McpClient mcpClient = new McpClient("path/to/mcp-config.json");
 
-// 2. Get tool list
+// 2. 获取工具列表
 List<ToolDesc> tools = mcpClient.manifest();
 
-// 3. Execute tool directly
+// 3. 直接执行工具
 ToolResult result = mcpClient.run("weather_tool", Map.of("city", "Beijing"));
 
-// 4. Inject into LLM for auto tool-calling
+// 4. 注入 LLM，自动决策调用
 ChatAliyun llm = ChatAliyun.builder().model("qwen-plus").tools(tools).build();
-AIMessage response = llm.invoke("What's the weather in Beijing?");
+AIMessage response = llm.invoke("北京今天天气怎么样？");
 ```
 
-**Config**: MCP config file defines Stdio/SSE/HTTP connection for tools like `weather_tool`.
+**配置**：MCP 配置文件需定义 `weather_tool` 等工具的 Stdio/SSE/HTTP 连接方式。
 
 ---
 
-**More**: Dynamic routing, parallel execution, streaming, JSON parsing, event monitoring → [README](../README.md#-core-capabilities) | [MyFirstAIApp](../src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java)
+**更多**：动态路由、并行执行、流式输出、JSON 解析、事件监控 → [README](../../README_CN.md#-核心能力展示) | [MyFirstAIApp](../../src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java)
