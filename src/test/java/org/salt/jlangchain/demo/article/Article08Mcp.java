@@ -350,7 +350,7 @@ public class Article08Mcp {
             .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
             .tools(new OrderTools())
             .maxIterations(10)
-            .onThought(t -> System.out.print("[分析] " + t))
+            .onThought(t -> System.out.println("[分析] " + t))
             .onObservation(obs -> System.out.println("[查询结果] " + obs))
             .build();
 

@@ -179,11 +179,14 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             prompt.withTools(tools);
 
             TranslateHandler<AIMessage, AIMessage> cutAtObservation = new TranslateHandler<>(llmResult -> {
-                if (llmResult == null || StringUtils.isEmpty(llmResult.getContent())
-                        || !llmResult.getContent().contains("Observation:")) {
+                if (llmResult == null || StringUtils.isEmpty(llmResult.getContent())) {
                     return llmResult;
                 }
-                String prefix = llmResult.getContent().substring(0, llmResult.getContent().indexOf("Observation:"));
+                String content = llmResult.getContent();
+                // Cut at the first Observation: (LLM hallucination); if absent, take the full content
+                String prefix = content.contains("Observation:")
+                    ? content.substring(0, content.indexOf("Observation:"))
+                    : content;
                 if (thoughtLogger != null) thoughtLogger.accept(prefix);
                 else log.debug("Thought/Action:\n{}", prefix);
                 llmResult.setContent(prefix);
