@@ -344,8 +344,8 @@ AIMessage response = llm.invoke("What's the weather in Beijing?");
 
 | 文档 | 说明 |
 |------|------|
-| [快速开始](./docs/quickstart.md) | 详细的入门教程 |
-| [API 文档](./docs/api.md) | 完整的 API 参考 |
+| [快速开始](./docs/quickstart_cn.md) | 详细的入门教程 |
+| [API 文档](./docs/api_cn.md) | 完整的 API 参考 |
 | [示例代码](./src/test/java/org/salt/jlangchain/demo/) | 30+ 实际案例 |
 | [最佳实践](./docs/best-practices.md) | 生产环境建议 |
 
@@ -456,6 +456,6 @@ git push origin feature/amazing-feature
 
 Made with ❤️ by J-LangChain Team
 
-[快速开始](#-5-分钟快速上手) • [示例代码](./src/test/java/org/salt/jlangchain/demo/) • [API 文档](#)
+[快速开始](./docs/quickstart_cn.md) • [MyFirstAIApp](./src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java) • [示例代码](./src/test/java/org/salt/jlangchain/demo/) • [API 文档](#)
 
 </div>

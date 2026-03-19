@@ -31,8 +31,6 @@ import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.prompt.string.PromptTemplate;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
 import org.salt.jlangchain.core.event.EventMessageChunk;
-import org.salt.jlangchain.core.tts.aliyun.AliyunTts;
-import org.salt.jlangchain.core.tts.card.TtsCardChunk;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -175,38 +173,6 @@ public class MyFirstAIApp {
         while (events.getIterator().hasNext()) {
             EventMessageChunk event = events.getIterator().next();
             System.out.println(event.toJson());
-        }
-    }
-
-    /**
-     * TTS 语音合成（带智能过滤）
-     * 需配置 ALIYUN_TTS_KEY 及阿里云语音合成 AppKey
-     */
-    @Test
-    public void ttsSpeechSynthesis() throws TimeoutException {
-        BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
-        ChatAliyun llm = ChatAliyun.builder().model("qwen-plus").build();
-        AliyunTts tts = new AliyunTts();
-        tts.setVoice("xiaoyun");
-        tts.setFormat("wav");
-
-        FlowInstance chain = chainActor.builder()
-            .next(prompt)
-            .next(llm)
-            .next(new StrOutputParser())
-            .next(tts)
-            .build();
-
-        TtsCardChunk result = chainActor.stream(chain, Map.of("topic", "bears"));
-        StringBuilder sb = new StringBuilder();
-        while (result.getIterator().hasNext()) {
-            TtsCardChunk chunk = result.getIterator().next();
-            if (!chunk.isAudio()) {
-                sb.append(chunk.getText());
-                System.out.println("answer:" + sb);
-            } else {
-                System.out.println("audio chunk " + chunk.getIndex() + " received, content:" + chunk.getBase64().substring(0, 20) + "...");
-            }
         }
     }
 }
