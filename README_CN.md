@@ -88,8 +88,24 @@ public class Application {
 ### 3️⃣ 设置 API Key
 
 ```bash
-export CHATGPT_KEY=sk-xxx...  # OpenAI API Key
-# 或在 application.yml 中配置
+# LLM 对话模型
+export CHATGPT_KEY=sk-xxx...      # OpenAI (ChatGPT) API Key
+export ALIYUN_KEY=sk-xxx...      # 阿里云千问 API Key
+export MOONSHOT_KEY=sk-xxx...    # Moonshot (Kimi) API Key
+export DOUBAO_KEY=sk-xxx...      # 豆包 API Key
+export COZE_KEY=xxx...           # 扣子 API Key（或使用下方 OAuth 方式）
+export OLLAMA_KEY1=              # Ollama 本地模型通常可留空，网关/代理场景可配置
+
+# 扣子 OAuth 2.0 方式（二选一）
+# export COZE_CLIENT_ID=xxx
+# export COZE_PRIVATE_KEY_PATH=/path/to/private-key.pem
+# export COZE_PUBLIC_KEY_ID=xxx
+
+# TTS 语音合成
+export ALIYUN_TTS_KEY=xxx...     # 阿里云语音合成
+export DOUBAO_TTS_KEY=xxx...     # 豆包语音合成
+
+# 或在 application.yml 中配置 models.xxx.chat-key、tts.xxx.api-key
 ```
 
 ### 4️⃣ 编写第一个 AI 应用
@@ -107,9 +123,9 @@ public class MyFirstAIApp {
             "Tell me a joke about ${topic}"
         );
 
-        // 2. 选择大模型
-        ChatOpenAI llm = ChatOpenAI.builder()
-            .model("gpt-4")
+        // 2. 选择大模型（阿里云千问）
+        ChatAliyun llm = ChatAliyun.builder()
+            .model("qwen-plus")
             .build();
 
         // 3. 构建调用链
@@ -141,18 +157,21 @@ public class MyFirstAIApp {
 ### 🔀 动态路由 - 根据用户输入智能切换模型
 
 ```java
+ChatOllama ollamaModel = ChatOllama.builder().model("qwen2.5:0.5b").build();
+ChatAliyun qwenModel = ChatAliyun.builder().model("qwen-plus").build();
+
 FlowInstance chain = chainActor.builder()
     .next(prompt)
     .next(
         Info.c("vendor == 'ollama'", ollamaModel),
-        Info.c("vendor == 'chatgpt'", chatgptModel),
+        Info.c("vendor == 'aliyun'", qwenModel),
         Info.c(input -> "Unsupported vendor")
     )
     .next(new StrOutputParser())
     .build();
 
-// 动态选择模型
-chainActor.invoke(chain, Map.of("topic", "AI", "vendor", "ollama"));
+// 动态选择模型：ollama=本地，aliyun=阿里云千问
+chainActor.invoke(chain, Map.of("topic", "AI", "vendor", "aliyun"));
 ```
 
 ### ⚡ 并行执行 - 同时生成笑话和诗歌
@@ -256,10 +275,7 @@ PdfboxLoader loader = new PdfboxLoader("path/to/document.pdf");
 List<Document> docs = loader.load();
 
 // 2. 文本分割
-TextSplitter splitter = new StanfordNLPTextSplitter(
-    chunkSize: 500,
-    overlap: 50
-);
+TextSplitter splitter = StanfordNLPTextSplitter.builder().chunkSize(500).chunkOverlap(50).build();
 List<Document> chunks = splitter.splitDocument(docs);
 
 // 3. 向量嵌入
@@ -272,7 +288,7 @@ vectorStore.addDocuments(chunks);
 
 // 5. 检索 + 回答
 String query = "What is the main topic of the document?";
-List<Document> relevantDocs = vectorStore.similaritySearch(query, k: 3);
+List<Document> relevantDocs = vectorStore.similaritySearch(query, 3);
 
 ChatPromptTemplate qaPrompt = ChatPromptTemplate.fromMessages(List.of(
     Pair.of("system", "Answer based on: ${context}"),
