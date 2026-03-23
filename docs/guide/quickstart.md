@@ -10,7 +10,7 @@ Get up and running in 5 minutes. For more examples, see [README Core Capabilitie
 <dependency>
     <groupId>io.github.flower-trees</groupId>
     <artifactId>j-langchain</artifactId>
-    <version>1.0.11</version>
+    <version>1.0.12</version>
 </dependency>
 ```
 
