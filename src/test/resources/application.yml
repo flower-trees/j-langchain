@@ -2,10 +2,10 @@
 rag:
   ocr:
     tesseract:
-      use: true
+      use: false
   vector:
     milvus:
-      use: true
+      use: false
 
 coze:
   client-id: ${COZE_CLIENT_ID}
