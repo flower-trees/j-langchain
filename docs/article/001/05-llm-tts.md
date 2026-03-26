@@ -199,23 +199,44 @@ public SseEmitter voiceChat(@RequestParam String question) {
 
 ### 豆包 TTS 配置
 
+豆包 TTS 鉴权 token 通过 `application.yml` 配置，其余参数（appId、voiceType 等）在构造 `DoubaoTts` 时传入：
+
 ```yaml
-doubao:
-  tts:
-    app-id: ${DOUBAO_APP_ID}
-    access-token: ${DOUBAO_ACCESS_TOKEN}
-    voice-type: zh_female_tianmei_emotion_v2
+tts:
+  doubao:
+    api-key: ${DOUBAO_TTS_KEY}   # 豆包 TTS Access Token
+```
+
+`DoubaoTts` 节点的参数默认值可直接使用，如需自定义：
+
+```java
+DoubaoTts tts = new DoubaoTts();
+tts.setAppId("your_app_id");
+tts.setVoiceType("S_nTxZIAta1");   // 音色 ID
+tts.setCluster("volcano_icl");
 ```
 
 ### 阿里云 TTS 配置
 
+阿里云 TTS 支持两种鉴权方式，均在 `application.yml` 中配置：
+
 ```yaml
-aliyun:
-  tts:
-    access-key-id: ${ALIYUN_ACCESS_KEY_ID}
-    access-key-secret: ${ALIYUN_ACCESS_KEY_SECRET}
-    app-key: ${ALIYUN_TTS_APP_KEY}
-    voice: zhiyan_emo
+tts:
+  aliyun:
+    # 方式一：直接使用 Access Token（推荐测试用）
+    api-key: ${ALIYUN_TTS_KEY}
+
+    # 方式二：用 AK/SK 动态换取 Token（推荐生产用，api-key 为空时自动启用）
+    api-ak-id: ${ALIYUN_AK_ID}
+    api-ak-secret: ${ALIYUN_AK_SECRET}
+```
+
+`AliyunTts` 节点的 appkey、voice 等参数在构造时传入：
+
+```java
+AliyunTts tts = new AliyunTts();
+tts.setAppkey("your_appkey");
+tts.setVoice("zhiyan_emo");   // 发音人
 ```
 
 ---
