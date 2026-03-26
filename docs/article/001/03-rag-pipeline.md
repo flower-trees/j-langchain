@@ -40,6 +40,24 @@ PDF/Word文档
 
 ---
 
+## 前置配置
+
+RAG Pipeline 依赖 Milvus 向量数据库和 Tesseract OCR，需要在 `application.yml` 中显式开启：
+
+```yaml
+rag:
+  ocr:
+    tesseract:
+      use: true   # 启用 Tesseract OCR（PDF 图片文字识别）
+  vector:
+    milvus:
+      use: true   # 启用 Milvus 向量数据库
+```
+
+> **说明**：j-langchain 通过 `@ConditionalOnProperty` 控制这两个组件的初始化，默认不加载。只有配置 `use: true` 后，`TesseractActuator` 和 `MilvusContainer` Bean 才会被注册到 Spring 容器中。未开启时运行 RAG 相关代码会因 Bean 缺失而报错。
+
+---
+
 ## Step 1：加载文档
 
 j-langchain 内置多种文档加载器：
@@ -65,7 +83,7 @@ public void loadPdfDocuments() {
 
 ```java
 ApachePoiDocxLoader loader = ApachePoiDocxLoader.builder()
-    .filePath("./files/docx/sample.docx")
+    .filePath("./files/docx/en/Transformer.docx")
     .build();
 
 List<Document> documents = loader.load();

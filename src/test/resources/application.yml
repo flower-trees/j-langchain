@@ -5,7 +5,7 @@ rag:
       use: true
   vector:
     milvus:
-      use: false
+      use: true
 
 coze:
   client-id: ${COZE_CLIENT_ID}

@@ -90,7 +90,7 @@ public class Article03RagPipeline {
     @Test
     public void loadDocxDocuments() {
         ApachePoiDocxLoader loader = ApachePoiDocxLoader.builder()
-            .filePath("./files/docx/sample.docx")
+            .filePath("./files/docx/en/Transformer.docx")
             .build();
 
         List<Document> documents = loader.load();
