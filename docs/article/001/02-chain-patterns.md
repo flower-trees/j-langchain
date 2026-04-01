@@ -128,11 +128,12 @@ public void parallelChain() {
         .concurrent(jokeChain, poemChain)  // 并行执行两个链
         .next(input -> {
             Map<String, Object> map = (Map<String, Object>) input;
-            // 用 flowId 获取对应子链的结果
-            return Map.of(
-                "joke", map.get(jokeChain.getFlowId()),
-                "poem", map.get(poemChain.getFlowId())
-            );
+            // 用 flowId 获取对应子链的结果，兼容 AIMessage 和其他类型
+            Object jokeResult = map.get(jokeChain.getFlowId());
+            Object poemResult = map.get(poemChain.getFlowId());
+            String joke = jokeResult instanceof AIMessage ? ((AIMessage) jokeResult).getContent() : String.valueOf(jokeResult);
+            String poem = poemResult instanceof AIMessage ? ((AIMessage) poemResult).getContent() : String.valueOf(poemResult);
+            return Map.of("joke", joke, "poem", poem);
         })
         .build();
 
@@ -162,7 +163,7 @@ public void routeChain() {
     FlowInstance fullChain = chainActor.builder()
         .next(new InvokeChain(classifyChain))
         .next(input -> Map.of(
-            "category", input,
+            "category", input.toString(),
             "question", ((Map<?, ?>) ContextBus.get().getFlowParam()).get("question")
         ))
         .next(
@@ -197,8 +198,8 @@ public void dynamicChain() {
 
     FlowInstance fullChain = chainActor.builder()
         .all(
-            Info.c(contextualizeIfNeeded),                          // 并行：改写问题
-            Info.c(input -> fetchContext(...)).cAlias("retriever")  // 并行：检索上下文
+            Info.c(contextualizeIfNeeded),                                              // 并行：改写问题
+            Info.c(input -> "印度尼西亚2024年人口约2.78亿").cAlias("retriever")  // 并行：检索上下文
         )
         .next(input -> Map.of(
             "question", ContextBus.get().getResult(contextualizeIfNeeded.getFlowId()).toString(),

@@ -24,6 +24,7 @@ import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.InvokeChain;
+import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
 import org.salt.jlangchain.core.llm.ollama.ChatOllama;
 import org.salt.jlangchain.core.message.AIMessage;
 import org.salt.jlangchain.core.parser.StrOutputParser;
@@ -115,21 +116,23 @@ public class Article02ChainPatterns {
      */
     @Test
     public void composeChain() {
-        ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
+        ChatOllama qwen = ChatOllama.builder().model("qwen2.5:0.5b").build();
+        ChatOllama llama = ChatOllama.builder().model("llama3:8b").build();
         StrOutputParser parser = new StrOutputParser();
 
         // 第一步：生成笑话
         BaseRunnable<StringPromptValue, ?> jokePrompt = PromptTemplate.fromTemplate("讲一个关于 ${topic} 的笑话");
-        FlowInstance jokeChain = chainActor.builder().next(jokePrompt).next(llm).next(parser).build();
+        FlowInstance jokeChain = chainActor.builder().next(jokePrompt).next(qwen).next(parser).build();
 
         // 第二步：分析笑话是否好笑
-        BaseRunnable<StringPromptValue, ?> analysisPrompt = PromptTemplate.fromTemplate("这个笑话好笑吗？请分析一下：${joke}");
+        BaseRunnable<StringPromptValue, ?> analysisPrompt = PromptTemplate.fromTemplate("这个笑话好笑吗？请分析一下：${joke})");
 
         FlowInstance analysisChain = chainActor.builder()
             .next(new InvokeChain(jokeChain))                          // 内嵌第一个链
             .next(input -> Map.of("joke", ((Generation) input).getText())) // 转换输出格式
+            .next(input -> { System.out.println("=== 笑话内容 ===\n" + ((Map) input).get("joke")); return input;})
             .next(analysisPrompt)
-            .next(llm)
+            .next(llama)
             .next(parser)
             .build();
 
@@ -195,18 +198,21 @@ public class Article02ChainPatterns {
 
         // 技术专家链
         FlowInstance techChain = chainActor.builder()
+            .next(input -> { System.out.println("=== 技术专家开始回答 ==="); return input; })
             .next(PromptTemplate.fromTemplate("你是技术专家，请回答：${question}"))
             .next(ChatOllama.builder().model("qwen2.5:0.5b").build())
             .build();
 
         // 业务专家链
         FlowInstance bizChain = chainActor.builder()
+            .next(input -> { System.out.println("=== 业务专家开始回答 ==="); return input; })
             .next(PromptTemplate.fromTemplate("你是业务专家，请回答：${question}"))
             .next(ChatOllama.builder().model("qwen2.5:0.5b").build())
             .build();
 
         // 通用链
         FlowInstance generalChain = chainActor.builder()
+            .next(input -> { System.out.println("=== 通用回答 ==="); return input; })
             .next(PromptTemplate.fromTemplate("请回答：${question}"))
             .next(ChatOllama.builder().model("qwen2.5:0.5b").build())
             .build();
@@ -214,9 +220,10 @@ public class Article02ChainPatterns {
         FlowInstance fullChain = chainActor.builder()
             .next(new InvokeChain(classifyChain))
             .next(input -> Map.of(
-                "category", input,
+                "category", input.toString(),
                 "question", ((Map<?, ?>) ContextBus.get().getFlowParam()).get("question")
             ))
+            .next(input -> { System.out.println("=== 主题结果 ===\n" + ((Map) input).get("category")); return input; })
             .next(
                 Info.c("category == '技术'", techChain),
                 Info.c("category == '业务'", bizChain),
@@ -236,7 +243,7 @@ public class Article02ChainPatterns {
      */
     @Test
     public void dynamicChain() {
-        ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
+        ChatAliyun llm = ChatAliyun.builder().model("qwen-plus").build();
 
         // 上下文改写链：将"接上文的问题"改写为独立问题
         BaseRunnable<ChatPromptValue, Object> contextualizePrompt = ChatPromptTemplate.fromMessages(
@@ -272,7 +279,7 @@ public class Article02ChainPatterns {
             .next(input -> Map.of(
                 "question", ContextBus.get().getResult(contextualizeIfNeeded.getFlowId()).toString(),
                 "context", ContextBus.get().getResult("retriever")
-            ))
+            )).next(input -> { System.out.println("=== 根据上下文修改内容 ===\n" + JsonUtil.toJson(input)); return input;})
             .next(qaPrompt)
             .next(llm)
             .next(new StrOutputParser())
@@ -290,6 +297,6 @@ public class Article02ChainPatterns {
         );
 
         System.out.println("=== 动态上下文链输出 ===");
-        System.out.println(JsonUtil.toJson(result));
+        System.out.println(JsonUtil.toJson(result.toString()));
     }
 }
