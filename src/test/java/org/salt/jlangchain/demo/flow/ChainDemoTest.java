@@ -24,10 +24,17 @@ import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.event.EventMessageChunk;
 import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
+import org.salt.jlangchain.core.llm.deepseek.ChatDeepseek;
 import org.salt.jlangchain.core.llm.doubao.ChatDoubao;
+import org.salt.jlangchain.core.llm.hunyuan.ChatHunyuan;
+import org.salt.jlangchain.core.llm.lingyi.ChatLingyi;
+import org.salt.jlangchain.core.llm.minimax.ChatMinimax;
 import org.salt.jlangchain.core.llm.moonshot.ChatMoonshot;
 import org.salt.jlangchain.core.llm.ollama.ChatOllama;
 import org.salt.jlangchain.core.llm.openai.ChatOpenAI;
+import org.salt.jlangchain.core.llm.qianfan.ChatQianfan;
+import org.salt.jlangchain.core.llm.stepfun.ChatStepfun;
+import org.salt.jlangchain.core.llm.zhipu.ChatZhipu;
 import org.salt.jlangchain.core.parser.FunctionOutputParser;
 import org.salt.jlangchain.core.parser.JsonOutputParser;
 import org.salt.jlangchain.core.parser.StrOutputParser;
@@ -88,6 +95,13 @@ public class ChainDemoTest {
         ChatAliyun chatAliyun = ChatAliyun.builder().model("qwq-32b-preview").build();
         ChatDoubao chatDoubao = ChatDoubao.builder().model("ep-20240611104225-2d4ww").build();
         ChatMoonshot chatMoonshot = ChatMoonshot.builder().model("moonshot-v1-8k").build();
+        ChatDeepseek chatDeepseek = ChatDeepseek.builder().model("deepseek-chat").build();
+        ChatHunyuan chatHunyuan = ChatHunyuan.builder().model("hunyuan-turbo").build();
+        ChatQianfan chatQianfan = ChatQianfan.builder().model("ernie-4.5-8k").build();
+        ChatZhipu chatZhipu = ChatZhipu.builder().model("glm-4-flash").build();
+        ChatMinimax chatMinimax = ChatMinimax.builder().model("MiniMax-Text-01").build();
+        ChatLingyi chatLingyi = ChatLingyi.builder().model("yi-lightning").build();
+        ChatStepfun chatStepfun = ChatStepfun.builder().model("step-2-16k").build();
 
         StrOutputParser parser = new StrOutputParser();
 
@@ -96,7 +110,14 @@ public class ChainDemoTest {
                 Info.c("vendor == 'chatgpt'", chatOpenAI),
                 Info.c("vendor == 'doubao'", chatDoubao),
                 Info.c("vendor == 'aliyun'", chatAliyun),
-                Info.c("vendor == 'moonshot'", chatMoonshot)
+                Info.c("vendor == 'moonshot'", chatMoonshot),
+                Info.c("vendor == 'deepseek'", chatDeepseek),
+                Info.c("vendor == 'hunyuan'", chatHunyuan),
+                Info.c("vendor == 'qianfan'", chatQianfan),
+                Info.c("vendor == 'zhipu'", chatZhipu),
+                Info.c("vendor == 'minimax'", chatMinimax),
+                Info.c("vendor == 'lingyi'", chatLingyi),
+                Info.c("vendor == 'stepfun'", chatStepfun)
         ).next(parser).build();
 
         ChatGenerationChunk result = chainActor.stream(chain, Map.of("vendor", "ollama"));

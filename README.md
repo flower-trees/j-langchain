@@ -23,11 +23,18 @@ A powerful, flexible, and easy-to-use Java LangChain implementation — building
 Out-of-the-box integrations with mainstream large language models, unified API for all:
 
 - **OpenAI (ChatGPT)** - GPT-4/GPT-3.5 series
-- **Ollama** - Local open-source models (Llama3, Qwen2.5, etc.)
-- **Alibaba Cloud Qwen** - Enterprise cloud service
+- **Ollama** - Local open-source models (Llama3, Qwen2.5, DeepSeek, etc.)
+- **Alibaba Cloud Qwen (DashScope)** - Enterprise cloud service
 - **Moonshot (Kimi)** - Long-context support
-- **Doubao** - ByteDance LLM
+- **Doubao** - ByteDance LLM (Volcengine Ark)
 - **Coze** - OAuth 2.0 + SSE real-time streaming
+- **DeepSeek** - DeepSeek-V3 / DeepSeek-R1 series
+- **Hunyuan** - Tencent Hunyuan LLM
+- **Qianfan (ERNIE)** - Baidu ERNIE series
+- **Zhipu AI (GLM)** - ChatGLM series
+- **MiniMax** - MiniMax-Text series
+- **Lingyi Wanwu (Yi)** - Yi series
+- **Stepfun** - Step series
 
 ### 🔗 Flexible Chain Orchestration
 Built on top of [salt-function-flow](https://github.com/flower-trees/salt-function-flow) powerful workflow orchestration:

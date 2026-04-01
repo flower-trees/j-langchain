@@ -22,11 +22,18 @@
 ### 🎯 多厂商 LLM 支持
 开箱即用的主流大模型集成，一套 API 统一调用：
 - **OpenAI (ChatGPT)** - GPT-4/GPT-3.5 系列
-- **Ollama** - 本地开源模型（Llama3, Qwen2.5 等）
-- **阿里云千问** - 企业级云端服务
+- **Ollama** - 本地开源模型（Llama3, Qwen2.5, DeepSeek 等）
+- **阿里云千问 (DashScope)** - 企业级云端服务
 - **Moonshot (Kimi)** - 长上下文支持
-- **豆包 (Doubao)** - 字节跳动大模型
+- **豆包 (Doubao)** - 字节跳动大模型（火山方舟）
 - **扣子 (Coze)** - OAuth 2.0 + SSE 实时推送
+- **DeepSeek** - DeepSeek-V3 / DeepSeek-R1 系列
+- **腾讯混元 (Hunyuan)** - 腾讯云大模型
+- **百度文心 (Qianfan)** - ERNIE 系列
+- **智谱 AI (GLM)** - ChatGLM 系列
+- **MiniMax** - MiniMax-Text 系列
+- **零一万物 (Yi)** - Yi 系列
+- **阶跃星辰 (Stepfun)** - Step 系列
 
 ### 🔗 灵活的调用链编排
 基于 [salt-function-flow](https://github.com/flower-trees/salt-function-flow) 强大的流程编排能力：
@@ -383,7 +390,7 @@ AIMessage response = llm.invoke("What's the weather in Beijing?");
 
 | 特性 | J-LangChain | LangChain4j | Spring AI |
 |------|-------------|-------------|-----------|
-| **多厂商支持** | ✅ 6+ (含国内) | ✅ 5+ | ⚠️ 主流 |
+| **多厂商支持** | ✅ 13+ (含国内) | ✅ 5+ | ⚠️ 主流 |
 | **流程编排** | ✅ 强大的 salt-flow | ⚠️ 链式调用 | ⚠️ 基础 |
 | **RAG 完整性** | ✅ 端到端 | ✅ 完整 | ⚠️ 部分 |
 | **TTS 支持** | ✅ 智能优化 | ❌ | ❌ |
