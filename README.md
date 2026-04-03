@@ -180,28 +180,28 @@ chainActor.invoke(chain, Map.of("topic", "AI", "vendor", "aliyun"));
 ### ⚡ Parallel Execution - Generate Jokes and Poems at Once
 
 ```java
-FlowInstance jokeChain = chainActor.builder()
-    .next(jokePrompt).next(llm).build();
+ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
+BaseRunnable<StringPromptValue, ?> jokePrompt = PromptTemplate.fromTemplate("tell me a joke about ${topic}");
+BaseRunnable<StringPromptValue, ?> poemPrompt = PromptTemplate.fromTemplate("write a 2-line poem about ${topic}");
 
-FlowInstance poemChain = chainActor.builder()
-    .next(poemPrompt).next(llm).build();
+FlowInstance jokeChain = chainActor.builder().next(jokePrompt).next(llm).build();
+FlowInstance poemChain = chainActor.builder().next(poemPrompt).next(llm).build();
 
 FlowInstance parallelChain = chainActor.builder()
-    .concurrent(
-        (ctx, timeout) -> Map.of(
-            "joke", ctx.getResult(jokeChain.getFlowId()),
-            "poem", ctx.getResult(poemChain.getFlowId())
-        ),
-        jokeChain,
-        poemChain
-    )
+    .concurrent(jokeChain, poemChain)
+    .next(input -> {
+        Map<String, Object> map = (Map<String, Object>) input;
+        Object jokeObj = map.get(jokeChain.getFlowId());
+        Object poemObj = map.get(poemChain.getFlowId());
+        String joke = jokeObj instanceof AIMessage ? ((AIMessage) jokeObj).getContent() : String.valueOf(jokeObj);
+        String poem = poemObj instanceof AIMessage ? ((AIMessage) poemObj).getContent() : String.valueOf(poemObj);
+        return Map.of("joke", joke, "poem", poem);
+    })
     .build();
 
-Map<String, String> result = chainActor.invoke(
-    parallelChain,
-    Map.of("topic", "cats")
-);
-// Returns both joke and poem 🎭
+Map<String, String> result = chainActor.invoke(parallelChain, Map.of("topic", "cats"));
+System.out.println("Joke: " + result.get("joke"));
+System.out.println("Poem: " + result.get("poem"));
 ```
 
 ### 🌊 Streaming Output - ChatGPT-Style Typewriter Effect
