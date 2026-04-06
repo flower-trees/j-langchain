@@ -22,8 +22,10 @@ import org.salt.function.flow.Info;
 import org.salt.function.flow.context.ContextBus;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.agent.AgentExecutor;
 import org.salt.jlangchain.core.handler.ConsumerHandler;
 import org.salt.jlangchain.core.handler.TranslateHandler;
+import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
 import org.salt.jlangchain.core.llm.ollama.ChatOllama;
 import org.salt.jlangchain.core.message.AIMessage;
 import org.salt.jlangchain.core.parser.StrOutputParser;
@@ -254,6 +256,48 @@ public class Article04ReactAgent {
 
         // === 10. 执行 Agent ===
         ChatGeneration result = chainActor.invoke(agentChain, Map.of("input", "上海现在的天气怎么样？"));
+
+        System.out.println("\n=== 最终答案 ===");
+        System.out.println(result.getText());
+    }
+
+    /**
+     * 使用 AgentExecutor 封装类实现同样的 ReAct Agent
+     *
+     * 对比 reactAgent()，这里只需要 3 步：
+     * 1. 定义工具
+     * 2. 构建 AgentExecutor
+     * 3. 执行
+     */
+    @Test
+    public void reactAgentWithExecutor() {
+
+        // 1. 定义工具（与 reactAgent 完全相同）
+        Tool getWeather = Tool.builder()
+            .name("get_weather")
+            .params("location: String")
+            .description("获取城市天气信息，输入城市名称")
+            .func(location -> String.format("%s 天气晴，气温 25°C", location))
+            .build();
+
+        Tool getTime = Tool.builder()
+            .name("get_time")
+            .params("city: String")
+            .description("获取城市当前时间，输入城市名称")
+            .func(city -> String.format("%s 当前时间 14:30", city))
+            .build();
+
+        // 2. 构建 AgentExecutor（ReAct 循环由框架处理）
+        AgentExecutor agent = AgentExecutor.builder(chainActor)
+            .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
+            .tools(getWeather, getTime)
+            .maxIterations(10)
+            .onThought(System.out::print)
+            .onObservation(obs -> System.out.println("Observation: " + obs))
+            .build();
+
+        // 3. 执行
+        ChatGeneration result = agent.invoke("上海现在的天气怎么样？");
 
         System.out.println("\n=== 最终答案 ===");
         System.out.println(result.getText());
