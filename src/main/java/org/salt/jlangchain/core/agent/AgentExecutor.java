@@ -28,6 +28,7 @@ import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.prompt.string.PromptTemplate;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
 import org.salt.jlangchain.rag.tools.Tool;
+import org.salt.jlangchain.rag.tools.annotation.ToolScanner;
 import org.salt.jlangchain.utils.PromptUtil;
 
 import java.util.List;
@@ -125,6 +126,12 @@ public class AgentExecutor {
 
         public Builder tools(List<Tool> tools) {
             this.tools = tools;
+            return this;
+        }
+
+        /** Scan {@code toolsProvider} for {@link org.salt.jlangchain.rag.tools.annotation.AgentTool}-annotated methods. */
+        public Builder tools(Object toolsProvider) {
+            this.tools = ToolScanner.scan(toolsProvider);
             return this;
         }
 

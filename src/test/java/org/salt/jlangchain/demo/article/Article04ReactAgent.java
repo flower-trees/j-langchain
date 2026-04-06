@@ -33,6 +33,8 @@ import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.prompt.string.PromptTemplate;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
 import org.salt.jlangchain.rag.tools.Tool;
+import org.salt.jlangchain.rag.tools.annotation.AgentTool;
+import org.salt.jlangchain.rag.tools.annotation.Param;
 import org.salt.jlangchain.utils.PromptUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
@@ -298,6 +300,160 @@ public class Article04ReactAgent {
 
         // 3. 执行
         ChatGeneration result = agent.invoke("上海现在的天气怎么样？");
+
+        System.out.println("\n=== 最终答案 ===");
+        System.out.println(result.getText());
+    }
+
+    /**
+     * 工具定义类：用 @AgentTool 注解替代 Tool.builder()
+     *
+     * 单参数方法：Action Input 直接传字符串
+     * 多参数方法：Action Input 须为 JSON，框架自动解析并注入各参数
+     */
+    static class CityTools {
+
+        @AgentTool("获取城市天气信息，输入城市名称")
+        public String getWeather(String location) {
+            return String.format("%s 天气晴，气温 25°C", location);
+        }
+
+        @AgentTool("获取城市当前时间，输入城市名称")
+        public String getTime(String city) {
+            return String.format("%s 当前时间 14:30", city);
+        }
+
+        @AgentTool("订机票，需要出发城市、目的城市和日期")
+        public String bookFlight(
+                @Param("出发城市") String fromCity,
+                @Param("目的城市") String toCity,
+                @Param("日期，格式 YYYY-MM-DD") String date) {
+            return String.format("已成功预订 %s → %s，日期 %s 的机票", fromCity, toCity, date);
+        }
+    }
+
+    /**
+     * 使用 @AgentTool 注解 + AgentExecutor：与 LangChain Python @tool 装饰器对齐
+     *
+     * 单参数：Action Input = 字符串，直接传入
+     * 多参数：Action Input = JSON 对象，框架自动解析
+     */
+    @Test
+    public void reactAgentWithToolAnnotation() {
+
+        // 直接传工具类实例，框架自动扫描 @AgentTool 方法
+        AgentExecutor agent = AgentExecutor.builder(chainActor)
+            .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
+            .tools(new CityTools())
+            .maxIterations(10)
+            .onThought(System.out::print)
+            .onObservation(obs -> System.out.println("Observation: " + obs))
+            .build();
+
+        // 单参数工具调用
+        System.out.println("===== 单参数工具调用 =====");
+        ChatGeneration result1 = agent.invoke("上海现在的天气怎么样？");
+        System.out.println("\n=== 最终答案 ===");
+        System.out.println(result1.getText());
+
+        // 多参数工具调用
+        System.out.println("\n===== 多参数工具调用 =====");
+        ChatGeneration result2 = agent.invoke("帮我订一张明天从上海飞北京的机票，日期是2024-03-15");
+        System.out.println("\n=== 最终答案 ===");
+        System.out.println(result2.getText());
+    }
+
+    /**
+     * 机票比价工具类
+     *
+     * 演示多步骤 ReAct 推理：
+     * 1. 查询三家航司的机票价格（多次工具调用）
+     * 2. 比较价格，找到最优选择
+     * 3. 调用订票工具完成预订
+     */
+    static class FlightTools {
+
+        // 模拟东方航空票价数据
+        private static final java.util.Map<String, Integer> MU_PRICES = java.util.Map.of(
+            "上海-北京", 980, "上海-广州", 1200, "上海-成都", 1450
+        );
+        // 模拟国航票价数据
+        private static final java.util.Map<String, Integer> CA_PRICES = java.util.Map.of(
+            "上海-北京", 1150, "上海-广州", 1080, "上海-成都", 1380
+        );
+        // 模拟南航票价数据
+        private static final java.util.Map<String, Integer> CZ_PRICES = java.util.Map.of(
+            "上海-北京", 860, "上海-广州", 1320, "上海-成都", 1560
+        );
+
+        @AgentTool("查询东方航空（MU）的机票价格")
+        public String queryMuFlight(
+                @Param("出发城市") String fromCity,
+                @Param("目的城市") String toCity,
+                @Param("日期，格式 YYYY-MM-DD") String date) {
+            String route = fromCity + "-" + toCity;
+            Integer price = MU_PRICES.get(route);
+            if (price == null) return String.format("东方航空暂无 %s 航线", route);
+            return String.format("东方航空（MU）%s %s → %s，票价 ¥%d", date, fromCity, toCity, price);
+        }
+
+        @AgentTool("查询中国国际航空（CA）的机票价格")
+        public String queryCaFlight(
+                @Param("出发城市") String fromCity,
+                @Param("目的城市") String toCity,
+                @Param("日期，格式 YYYY-MM-DD") String date) {
+            String route = fromCity + "-" + toCity;
+            Integer price = CA_PRICES.get(route);
+            if (price == null) return String.format("国航暂无 %s 航线", route);
+            return String.format("中国国航（CA）%s %s → %s，票价 ¥%d", date, fromCity, toCity, price);
+        }
+
+        @AgentTool("查询南方航空（CZ）的机票价格")
+        public String queryCzFlight(
+                @Param("出发城市") String fromCity,
+                @Param("目的城市") String toCity,
+                @Param("日期，格式 YYYY-MM-DD") String date) {
+            String route = fromCity + "-" + toCity;
+            Integer price = CZ_PRICES.get(route);
+            if (price == null) return String.format("南航暂无 %s 航线", route);
+            return String.format("南方航空（CZ）%s %s → %s，票价 ¥%d", date, fromCity, toCity, price);
+        }
+
+        @AgentTool("确认订购机票，输入航司、出发城市、目的城市和日期")
+        public String bookFlight(
+                @Param("航司名称，如：东方航空、国航、南航") String airline,
+                @Param("出发城市") String fromCity,
+                @Param("目的城市") String toCity,
+                @Param("日期，格式 YYYY-MM-DD") String date) {
+            return String.format("✅ 订票成功！%s %s → %s，日期 %s，订单号 ORD-%d",
+                airline, fromCity, toCity, date, (long)(Math.random() * 900000) + 100000);
+        }
+    }
+
+    /**
+     * 机票查询比价订票完整 Agent 演示
+     *
+     * Agent 自主完成：
+     * Step 1: 调用 query_mu_flight 查询东方航空票价
+     * Step 2: 调用 query_ca_flight 查询国航票价
+     * Step 3: 调用 query_cz_flight 查询南航票价
+     * Step 4: 分析比较，选出最低价
+     * Step 5: 调用 book_flight 完成订票
+     */
+    @Test
+    public void flightCompareAndBook() {
+
+        AgentExecutor agent = AgentExecutor.builder(chainActor)
+            .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
+            .tools(new FlightTools())
+            .maxIterations(10)
+            .onThought(System.out::print)
+            .onObservation(obs -> System.out.println("Observation: " + obs))
+            .build();
+
+        ChatGeneration result = agent.invoke(
+            "我要订2024-03-15从上海飞北京的机票，请帮我查询东方航空、国航、南航三家的价格，选最便宜的那家帮我订票"
+        );
 
         System.out.println("\n=== 最终答案 ===");
         System.out.println(result.getText());
