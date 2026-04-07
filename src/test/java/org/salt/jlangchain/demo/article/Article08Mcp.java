@@ -221,14 +221,15 @@ public class Article08Mcp {
             .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
             .tools(mcpManager, "default")       // HTTP API 工具：get_export_ip
             .tools(mcpClient, "filesystem")     // NPX 工具：文件读写
-            .systemPrompt("你是一个智能助手，可以通过工具获取网络信息和操作文件系统。")
+            .systemPrompt("你是一个智能助手，可以调用工具获取网络信息和操作文件系统。\n" +
+                          "当你完成用户的所有要求后，直接给出最终答案，不要再调用任何工具。")
             .maxIterations(8)
             .onToolCall(tc -> System.out.println(">> Tool: " + tc))
             .onObservation(obs -> System.out.println(">> Result: " + obs))
             .build();
 
         ChatGeneration result = agent.invoke(
-            "帮我查一下公网 IP，然后把 IP 地址写入 /tmp/my_ip.txt 文件，最后读取文件内容确认写入成功，并返回结果");
+            "帮我查一下公网 IP，然后把 IP 地址写入 /tmp/my_ip.txt 文件，读取文件内容确认写入成功");
 
         System.out.println("\n=== 最终答案 ===");
         System.out.println(result.getText());

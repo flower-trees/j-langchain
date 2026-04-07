@@ -328,7 +328,12 @@ public class McpAgentExecutor {
                         )
                         .build()
                 )
-                .next(new StrOutputParser())
+                .next(
+                    Info.c(output -> output instanceof ChatPromptValue, output -> {
+                        throw new RuntimeException("Max iterations (" + maxIter + ") reached without a final answer.");
+                    }),
+                    Info.c(new StrOutputParser())
+                )
                 .build();
 
             return new McpAgentExecutor(chainActor, agentChain);
