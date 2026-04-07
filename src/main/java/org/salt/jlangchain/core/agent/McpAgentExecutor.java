@@ -18,6 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.salt.function.flow.FlowInstance;
 import org.salt.function.flow.Info;
 import org.salt.function.flow.context.ContextBus;
+import org.salt.jlangchain.ai.common.param.AiChatInput;
+import org.salt.jlangchain.ai.common.param.AiChatOutput;
+import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.handler.TranslateHandler;
 import org.salt.jlangchain.core.llm.BaseChatModel;
@@ -34,17 +37,15 @@ import org.salt.jlangchain.rag.tools.annotation.ToolScanner;
 import org.salt.jlangchain.rag.tools.mcp.McpClient;
 import org.salt.jlangchain.rag.tools.mcp.McpManager;
 import org.salt.jlangchain.rag.tools.mcp.tool.ToolDesc;
-import org.salt.jlangchain.ai.common.param.AiChatInput;
-import org.salt.jlangchain.ai.common.param.AiChatOutput;
 import org.salt.jlangchain.utils.JsonUtil;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * MCP Agent executor (Function Calling mode).
@@ -59,13 +60,13 @@ import java.util.function.Function;
  * ChatGeneration result = McpAgentExecutor.builder(chainActor)
  *     .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
  *     .tools(mcpManager, "default")    // load tools from McpManager group
- *     .systemPrompt("你是一个智能助手")
+ *     .systemPrompt("You are an intelligent assistant")
  *     .build()
- *     .invoke("帮我查一下公网 IP");
+ *     .invoke("Can you help me check the public IP address");
  * }</pre>
  */
 @Slf4j
-public class McpAgentExecutor {
+public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
     private final FlowInstance agentChain;
     private final ChainActor chainActor;
@@ -76,10 +77,18 @@ public class McpAgentExecutor {
     }
 
     /**
+     * Execute the agent with the given user question (node-compatible entry point).
+     */
+    @Override
+    public ChatGeneration invoke(Object input) {
+        return chainActor.invoke(agentChain, Map.of("input", input.toString()));
+    }
+
+    /**
      * Execute the agent with the given user question.
      */
     public ChatGeneration invoke(String input) {
-        return chainActor.invoke(agentChain, Map.of("input", input));
+        return invoke((Object) input);
     }
 
     public static Builder builder(ChainActor chainActor) {

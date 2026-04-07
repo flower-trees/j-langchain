@@ -19,6 +19,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.salt.function.flow.FlowInstance;
 import org.salt.function.flow.Info;
 import org.salt.function.flow.context.ContextBus;
+import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.handler.TranslateHandler;
 import org.salt.jlangchain.core.llm.BaseChatModel;
@@ -48,11 +49,11 @@ import java.util.function.Function;
  *     .llm(ChatOllama.builder().model("llama3:8b").temperature(0f).build())
  *     .tools(getWeather, getTime)
  *     .build()
- *     .invoke("上海现在的天气怎么样？");
+ *     .invoke("What's the weather like in Shanghai now?");
  * }</pre>
  */
 @Slf4j
-public class AgentExecutor {
+public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
     private static final String DEFAULT_REACT_TEMPLATE =
         """
@@ -88,13 +89,21 @@ public class AgentExecutor {
     }
 
     /**
+     * Execute the agent with the given user input (node-compatible entry point).
+     */
+    @Override
+    public ChatGeneration invoke(Object input) {
+        return chainActor.invoke(agentChain, Map.of("input", input.toString()));
+    }
+
+    /**
      * Execute the agent with the given user input.
      *
      * @param input the user question
      * @return the final answer
      */
     public ChatGeneration invoke(String input) {
-        return chainActor.invoke(agentChain, Map.of("input", input));
+        return invoke((Object) input);
     }
 
     public static Builder builder(ChainActor chainActor) {

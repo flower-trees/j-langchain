@@ -169,7 +169,7 @@ public class Article08Mcp {
     @Test
     public void mcpManagerAgent() {
         McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
-            .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
+            .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
             .tools(mcpManager, "default")
             .systemPrompt("你是一个智能助手，可以调用工具获取信息后回答用户问题。")
             .maxIterations(5)
@@ -192,7 +192,7 @@ public class Article08Mcp {
     @Test
     public void mcpClientAgent() {
         McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
-            .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
+            .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
             .tools(mcpClient, "filesystem")
             .systemPrompt("你是一个文件管理助手，可以浏览和读取 /tmp 目录中的文件。")
             .maxIterations(5)
