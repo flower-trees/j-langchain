@@ -31,6 +31,7 @@ import org.salt.jlangchain.rag.tools.Tool;
 import org.salt.jlangchain.rag.tools.annotation.ToolScanner;
 import org.salt.jlangchain.utils.PromptUtil;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -104,7 +105,7 @@ public class AgentExecutor {
 
         private final ChainActor chainActor;
         private BaseChatModel llm;
-        private List<Tool> tools;
+        private List<Tool> tools = new ArrayList<>();
         private int maxIterations = 10;
         private String promptTemplate;
         private Consumer<String> thoughtLogger;
@@ -120,18 +121,18 @@ public class AgentExecutor {
         }
 
         public Builder tools(Tool... tools) {
-            this.tools = List.of(tools);
+            this.tools.addAll(List.of(tools));
             return this;
         }
 
         public Builder tools(List<Tool> tools) {
-            this.tools = tools;
+            this.tools.addAll(tools);
             return this;
         }
 
         /** Scan {@code toolsProvider} for {@link org.salt.jlangchain.rag.tools.annotation.AgentTool}-annotated methods. */
         public Builder tools(Object toolsProvider) {
-            this.tools = ToolScanner.scan(toolsProvider);
+            this.tools.addAll(ToolScanner.scan(toolsProvider));
             return this;
         }
 
