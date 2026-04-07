@@ -276,6 +276,9 @@ public class McpAgentExecutor {
                 ToolMessage toolMessage = (ToolMessage) msg;
                 ChatPromptValue chatPromptValue = ContextBus.get().getResult(prompt.getNodeId());
 
+                // Append the assistant's tool-call message so the model can see its own prior requests
+                chatPromptValue.getMessages().add(toolMessage);
+
                 for (AiChatOutput.ToolCall toolCall : toolMessage.getToolCalls()) {
                     String toolName = toolCall.getFunction().getName();
                     String argsJson = toolCall.getFunction().getArguments();

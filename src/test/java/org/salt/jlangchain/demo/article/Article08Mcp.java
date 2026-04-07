@@ -218,7 +218,7 @@ public class Article08Mcp {
     @Test
     public void mcpMixedAgent() {
         McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
-            .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
+            .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
             .tools(mcpManager, "default")       // HTTP API 工具：get_export_ip
             .tools(mcpClient, "filesystem")     // NPX 工具：文件读写
             .systemPrompt("你是一个智能助手，可以通过工具获取网络信息和操作文件系统。")
@@ -228,7 +228,7 @@ public class Article08Mcp {
             .build();
 
         ChatGeneration result = agent.invoke(
-            "帮我查一下公网 IP，然后把 IP 地址写入 /tmp/my_ip.txt 文件，最后读取文件内容确认写入成功");
+            "帮我查一下公网 IP，然后把 IP 地址写入 /tmp/my_ip.txt 文件，最后读取文件内容确认写入成功，并返回结果");
 
         System.out.println("\n=== 最终答案 ===");
         System.out.println(result.getText());
