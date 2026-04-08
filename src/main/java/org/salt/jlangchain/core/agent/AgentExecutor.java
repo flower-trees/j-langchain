@@ -238,10 +238,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 String content = generation.getText();
                 if (content.contains("Final Answer:")) {
                     int start = content.indexOf("Final Answer:") + 13;
-                    int end = content.indexOf("\n", start);
-                    generation.setText(end > 0
-                        ? content.substring(start, end).trim()
-                        : content.substring(start).trim());
+                    generation.setText(content.substring(start).trim());
                 }
                 return generation;
             });

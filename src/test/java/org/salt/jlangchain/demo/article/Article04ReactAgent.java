@@ -458,4 +458,103 @@ public class Article04ReactAgent {
         System.out.println("\n=== 最终答案 ===");
         System.out.println(result.getText());
     }
+
+    /**
+     * 旅行规划助手工具类
+     *
+     * 模拟真实旅游场景所需的工具：
+     * - 查天气：判断城市是否适合出行
+     * - 查机票：获取当前价格决定出行顺序
+     * - 查酒店：获取目的地住宿均价
+     */
+    static class TravelTools {
+
+        @AgentTool("查询城市天气是否适合旅游，输入城市名称")
+        public String getCityWeather(String city) {
+            return switch (city) {
+                case "成都" -> "成都：多云，气温18°C，湿度75%，适合出行";
+                case "西安" -> "西安：晴，气温22°C，湿度40%，非常适合出行";
+                case "桂林" -> "桂林：小雨，气温20°C，湿度90%，携带雨具";
+                case "三亚" -> "三亚：晴，气温30°C，湿度70%，阳光充足";
+                default     -> city + "：天气良好，适合出行";
+            };
+        }
+
+        @AgentTool("查询出发城市到目的城市的机票价格（元）")
+        public String getFlightPrice(
+                @Param("出发城市") String from,
+                @Param("目的城市") String to) {
+            String route = from + "-" + to;
+            return switch (route) {
+                case "上海-成都" -> "上海→成都：最低价 ¥680，推荐航班 MU5137 09:00出发";
+                case "上海-西安" -> "上海→西安：最低价 ¥420，推荐航班 CA8901 07:30出发";
+                case "上海-桂林" -> "上海→桂林：最低价 ¥550，推荐航班 CZ6102 10:15出发";
+                case "上海-三亚" -> "上海→三亚：最低价 ¥890，推荐航班 HU7803 08:00出发";
+                default          -> route + "：暂无直飞，建议中转，参考价 ¥800";
+            };
+        }
+
+        @AgentTool("查询城市酒店均价（元/晚）")
+        public String getHotelPrice(String city) {
+            return switch (city) {
+                case "成都" -> "成都：三星均价 ¥280/晚，四星均价 ¥520/晚，推荐春熙路附近";
+                case "西安" -> "西安：三星均价 ¥220/晚，四星均价 ¥450/晚，推荐钟楼附近";
+                case "桂林" -> "桂林：三星均价 ¥200/晚，四星均价 ¥380/晚，推荐两江四湖景区";
+                case "三亚" -> "三亚：三星均价 ¥480/晚，四星均价 ¥950/晚，推荐亚龙湾";
+                default     -> city + "：均价 ¥300/晚";
+            };
+        }
+    }
+
+    /**
+     * 演示：AgentExecutor 作为 chain 节点嵌套，构建旅行规划助手
+     *
+     * 实际应用场景：用户提出旅行需求，系统通过 chain 完成以下流程：
+     *
+     * Step1 - TranslateHandler：解析用户意图，生成结构化的 Agent 查询指令
+     * Step2 - AgentExecutor  ：调用工具查询天气/机票/酒店，综合分析推荐方案
+     * Step3 - TranslateHandler：将 Agent 输出格式化为用户友好的旅行报告
+     *
+     * 体现 AgentExecutor 作为 BaseRunnable 节点与普通 chain 节点无缝协作的能力。
+     */
+    @Test
+    public void agentExecutorAsNode() {
+
+        // 1. 构建旅行信息收集 Agent（继承 BaseRunnable，可直接作为 chain 节点）
+        AgentExecutor travelAgent = AgentExecutor.builder(chainActor)
+            .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
+            .tools(new TravelTools())
+            .maxIterations(15)
+            .onThought(System.out::print)
+            .onObservation(obs -> System.out.println("\nObservation: " + obs))
+            .build();
+
+        // 2. 组装完整的旅行规划 chain
+        //    TranslateHandler(意图解析) → AgentExecutor(信息收集) → TranslateHandler(报告生成)
+        FlowInstance travelPlanChain = chainActor.builder()
+            // Step1：将用户自然语言需求转成 Agent 能理解的查询指令
+            .next(new TranslateHandler<>(userInput -> {
+                System.out.println("=== Step1: 解析旅行需求 ===");
+                System.out.println("用户需求：" + userInput);
+                return "我从上海出发，计划去以下城市旅游：" + userInput +
+                    "。请帮我：1)查询每个城市的天气；2)查询上海到各城市的机票价格；" +
+                    "3)查询各城市酒店均价；4)综合以上信息，推荐最佳出行顺序和预算估算。";
+            }))
+            // Step2：AgentExecutor 作为节点，自主调用工具收集所有信息
+            .next(travelAgent)
+            // Step3：将 Agent 的分析结果包装成旅行报告
+            .next(new TranslateHandler<>(output -> {
+                System.out.println("\n=== Step3: 生成旅行报告 ===");
+                String agentAnswer = ((ChatGeneration) output).getText();
+                return "\n========== 旅行规划报告 ==========\n" + agentAnswer +
+                    "\n==================================\n" +
+                    "以上建议由 AI 旅行助手自动生成，请结合实际情况参考。";
+            }))
+            .build();
+
+        // 3. 执行：用户只需输入想去的城市列表
+        String report = chainActor.invoke(travelPlanChain, Map.of("input", "成都、西安、桂林"));
+
+        System.out.println(report);
+    }
 }

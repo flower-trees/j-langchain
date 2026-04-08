@@ -62,8 +62,29 @@ public class ToolScanner {
                 String paramName = parameters[0].getName();
                 String paramType = simpleTypeName(parameters[0].getType());
                 params = paramName + ": " + paramType;
-                description = ann.value();
-                func = input -> invokeMethod(toolsProvider, method, new Object[]{coerce(input.toString(), parameters[0].getType())});
+                // If @Param is present, use its description to narrow the Action Input hint,
+                // preventing LLM from wrapping the value in JSON.
+                Param singleParamAnn = parameters[0].getAnnotation(Param.class);
+                if (singleParamAnn != null && !singleParamAnn.value().isBlank()) {
+                    description = ann.value() + "\nAction Input: " + singleParamAnn.value();
+                } else {
+                    description = ann.value();
+                }
+                func = input -> {
+                    String raw = input.toString().trim();
+                    // If LLM still wraps a single value in JSON, extract the first field's value
+                    if (raw.startsWith("{")) {
+                        try {
+                            JsonNode node = JsonUtil.fromJson(raw);
+                            if (node != null && node.isObject() && node.fields().hasNext()) {
+                                JsonNode val = node.get(paramName);
+                                if (val == null) val = node.fields().next().getValue();
+                                raw = val.asText();
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    return invokeMethod(toolsProvider, method, new Object[]{coerce(raw, parameters[0].getType())});
+                };
 
             } else {
                 // ── Multi-parameter: expect JSON object as Action Input ──
