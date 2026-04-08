@@ -14,12 +14,13 @@
 | [Java AI 应用的流式输出：从原理到实战](06-streaming.md) | stream/streamEvent/stop、事件流过滤、SSE推送 | ⭐⭐ | `Article06Streaming` |
 | [Java 接入多家大模型 API 实战对比](07-multi-model.md) | Ollama/阿里云/OpenAI统一接口、动态切换、降级 | ⭐ | `Article07MultiModel` |
 | [在 Java AI 应用中集成 MCP 工具协议](08-mcp.md) | MCP协议、McpManager/McpClient、PostgreSQL/Memory | ⭐⭐⭐ | `Article08Mcp` |
-| [MCP Function-Calling ReAct](10-mcp-react-agent.md) | 模型原生 ToolCall、McpManager.manifestForInput、Loop 控制 | ⭐⭐⭐ | `Article10McpReactAgent` |
 | [AgentExecutor：用一行代码启动 ReAct Agent](09-agent-executor.md) | AgentExecutor封装、@AgentTool、Builder API、框架对比 | ⭐⭐ | `Article09AgentExecutor` |
-| [多步骤 ReAct：航司比价订票实战](10-flight-compare-agent.md) | 多轮工具调用、Article10FlightTools、比价决策 | ⭐⭐ | `Article10FlightTools` / `Article09AgentExecutor` |
-| [McpAgentExecutor + McpManager（HTTP API）](11-mcp-manager-agent.md) | Function Calling、HTTP MCP 工具组 | ⭐⭐⭐ | `Article11McpManagerAgent` |
-| [McpAgentExecutor + McpClient（NPX 服务器）](12-mcp-client-agent.md) | filesystem 等进程型 MCP、自动选工具 | ⭐⭐⭐ | `Article12McpClientAgent` |
-| [McpAgentExecutor 混合：Manager + Client](13-mcp-mixed-agent.md) | 跨 HTTP 与 NPX 的多步任务 | ⭐⭐⭐ | `Article13McpMixedAgent` |
+| [多步骤 ReAct：航司比价订票实战](10-flight-compare-agent.md) | 多轮工具调用、航司比价、自动订票 | ⭐⭐ | `Article10FlightAgent` |
+| [MCP Function-Calling ReAct](11-mcp-react-agent.md) | 模型原生 ToolCall、McpManager.manifestForInput、Loop 控制 | ⭐⭐⭐ | `Article11McpReactAgent` |
+| [McpAgentExecutor + McpManager（HTTP API）](12-mcp-manager-agent.md) | Function Calling、HTTP MCP 工具组 | ⭐⭐⭐ | `Article12McpManagerAgent` |
+| [McpAgentExecutor + McpClient（NPX 服务器）](13-mcp-client-agent.md) | filesystem 等进程型 MCP、自动选工具 | ⭐⭐⭐ | `Article13McpClientAgent` |
+| [McpAgentExecutor 混合：Manager + Client](14-mcp-mixed-agent.md) | 跨 HTTP 与 NPX 的多步任务 | ⭐⭐⭐ | `Article14McpMixedAgent` |
+| [AgentExecutor 嵌套：旅行规划助手](15-travel-agent.md) | AgentExecutor 节点嵌入 chain、结构化报告 | ⭐⭐ | `Article15TravelAgent` |
 
 ## 建议阅读顺序
 
@@ -27,7 +28,7 @@
 入门（01-hello-ai）→ 多模型（07-multi-model）→ 流式（06-streaming）→ 编排（02-chain-patterns）
 → RAG（03-rag-pipeline）→ ReAct（04-react-agent）→ AgentExecutor（09-agent-executor）
 → 航司比价（10-flight-compare-agent）→ TTS（05-llm-tts）→ MCP 基础（08-mcp）
-→ MCP Function-Calling ReAct（10-mcp-react-agent）→ McpAgentExecutor（11-mcp-manager-agent → 12-mcp-client-agent → 13-mcp-mixed-agent）
+→ MCP Function-Calling ReAct（11-mcp-react-agent）→ McpAgentExecutor（12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent）→ AgentExecutor 嵌套（15-travel-agent）
 ```
 
 ## 代码位置
@@ -44,12 +45,14 @@ src/test/java/org/salt/jlangchain/demo/article/
 ├── Article06Streaming.java       ← 06-streaming.md
 ├── Article07MultiModel.java    ← 07-multi-model.md
 ├── Article08Mcp.java             ← 08-mcp.md
-├── Article10McpReactAgent.java   ← 10-mcp-react-agent.md
-├── Article09AgentExecutor.java   ← 09-agent-executor.md；10-flight-compare-agent.md（flightCompareAndBook）
-├── Article10FlightTools.java     ← 10-flight-compare-agent.md（工具类）
-├── Article11McpManagerAgent.java ← 11-mcp-manager-agent.md
-├── Article12McpClientAgent.java  ← 12-mcp-client-agent.md
-└── Article13McpMixedAgent.java   ← 13-mcp-mixed-agent.md
+├── Article09AgentExecutor.java   ← 09-agent-executor.md
+├── Article10FlightAgent.java     ← 10-flight-compare-agent.md
+├── Article11McpReactAgent.java   ← 11-mcp-react-agent.md
+├── Article12McpManagerAgent.java ← 12-mcp-manager-agent.md
+├── Article13McpClientAgent.java  ← 13-mcp-client-agent.md
+├── Article14McpMixedAgent.java   ← 14-mcp-mixed-agent.md
+├── Article15TravelAgent.java     ← 15-travel-agent.md
+└── Article16CustomerService.java ← （客服双 Agent 示例）
 ```
 
 ## 运行环境要求
@@ -62,5 +65,5 @@ src/test/java/org/salt/jlangchain/demo/article/
 | `09-agent-executor.md`、`10-flight-compare-agent.md` | ALIYUN_KEY（qwen-plus） |
 | `05-llm-tts.md` | Ollama + 豆包/阿里云 TTS Key |
 | `08-mcp.md` | Node.js（NPX MCP 相关用例） |
-| `10-mcp-react-agent.md` | Node.js + ALIYUN_KEY（MCP HTTP 工具 + ReAct） |
-| `11-mcp-manager-agent.md`、`12-mcp-client-agent.md`、`13-mcp-mixed-agent.md` | Node.js + ALIYUN_KEY（`McpAgentExecutor` + qwen3.6-plus） |
+| `11-mcp-react-agent.md` | Node.js + ALIYUN_KEY（MCP HTTP 工具 + ReAct） |
+| `12-mcp-manager-agent.md`、`13-mcp-client-agent.md`、`14-mcp-mixed-agent.md` | Node.js + ALIYUN_KEY（`McpAgentExecutor` + qwen3.6-plus） |

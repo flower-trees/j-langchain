@@ -3,7 +3,7 @@
 > **前置文章**：[Java 实现 ReAct Agent：工具调用与推理循环](04-react-agent.md) → [AgentExecutor：用一行代码启动 ReAct Agent](09-agent-executor.md)  
 > **适合人群**：已会用 `AgentExecutor` 与 `@AgentTool`，希望串联多个工具完成业务流程的 Java 开发者  
 > **核心概念**：多轮工具调用、同类工具组合、决策后再调用下游工具  
-> **配套代码**：`Article10FlightTools.java` + `Article09AgentExecutor#flightCompareAndBook()`
+> **配套代码**：`Article10FlightAgent#flightCompareAndBook()`
 
 ---
 
@@ -16,14 +16,14 @@
 
 ---
 
-## 工具类：`Article10FlightTools`
+## 工具类：`FlightTools`（内置于 Article10FlightAgent）
 
-工具定义独立放在 `Article10FlightTools`，与测试类 `Article09AgentExecutor` 解耦，便于阅读和复用。
+工具定义与用例集中在 `Article10FlightAgent` 中，`FlightTools` 作为静态内部类，便于阅读和复用。
 
 每个查询方法对应一条航线表（演示数据为内存 `Map`，生产环境可替换为真实 API）：
 
 ```java
-public class Article10FlightTools {
+static class FlightTools {
 
     @AgentTool("查询东方航空（MU）的机票价格")
     public String queryMuFlight(
@@ -51,18 +51,16 @@ public class Article10FlightTools {
 }
 ```
 
-完整实现见：`src/test/java/org/salt/jlangchain/demo/article/Article10FlightTools.java`。
-
 ---
 
 ## 构建并执行
 
-与文章 9 相同，使用 `AgentExecutor.builder`，将工具实例换成 `Article10FlightTools`：
+与文章 9 相同，使用 `AgentExecutor.builder`，将工具实例换成新的 `FlightTools`：
 
 ```java
 AgentExecutor agent = AgentExecutor.builder(chainActor)
     .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
-    .tools(new Article10FlightTools())
+    .tools(new FlightTools())
     .maxIterations(10)
     .onThought(System.out::print)
     .onObservation(obs -> System.out.println("Observation: " + obs))
@@ -74,7 +72,7 @@ ChatGeneration result = agent.invoke(
 System.out.println(result.getText());
 ```
 
-JUnit 用例：`Article09AgentExecutor#flightCompareAndBook()`。
+JUnit 用例：`Article10FlightAgent#flightCompareAndBook()`。
 
 ---
 
@@ -119,7 +117,7 @@ Final Answer: （模型总结比价结果与订单信息）
 | 工具拆分 | 每个航司一条 `@AgentTool` 方法，Observation 结构清晰，便于模型逐步消费 |
 | 参数形式 | 多参数统一用 JSON `Action Input`，与文章 9 一致 |
 | `maxIterations` | 多轮调用需留足上限（示例为 10） |
-| 代码位置 | 工具：`Article10FlightTools`；用例：`Article09AgentExecutor.flightCompareAndBook()` |
+| 代码位置 | 工具 & 用例：`Article10FlightAgent#flightCompareAndBook()`（内部类 `FlightTools`） |
 
 ---
 

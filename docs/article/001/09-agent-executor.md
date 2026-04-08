@@ -135,7 +135,7 @@ Final Answer: 已为您预订了2024-03-15从上海飞往北京的机票。
 
 ## 延伸阅读：多工具、多轮比价订票
 
-需要**连续查询多个航司、比较结果、再调用订票工具**的完整业务流程，见 [文章 10：多步骤 ReAct——航司比价订票](10-flight-compare-agent.md)（工具类 `Article10FlightTools`，用例 `flightCompareAndBook()`）。
+需要**连续查询多个航司、比较结果、再调用订票工具**的完整业务流程，见 [文章 10：多步骤 ReAct——航司比价订票](10-flight-compare-agent.md)（示例类 `Article10FlightAgent#flightCompareAndBook()`，内部类 `FlightTools` 定义全部航司工具）。
 
 ---
 

@@ -29,7 +29,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 /**
- * 文章 11：McpAgentExecutor + McpManager（HTTP API 工具）
+ * 文章 12：McpAgentExecutor + McpManager（HTTP API 工具）
  *
  * <p>McpManager 从 {@code mcp.config.json} 加载 HTTP API 工具，转成 Tool 列表注入
  * {@link McpAgentExecutor}。模型通过 Function Calling 自主决定调用哪个工具。
@@ -39,7 +39,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = {TestApplication.class, JLangchainConfigTest.class})
 @SpringBootConfiguration
-public class Article11McpManagerAgent {
+public class Article12McpManagerAgent {
 
     @Autowired
     private McpManager mcpManager;

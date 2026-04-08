@@ -29,7 +29,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 /**
- * 文章 12：McpAgentExecutor + McpClient（NPX / 进程 MCP 服务器）
+ * 文章 13：McpAgentExecutor + McpClient（NPX / 进程 MCP 服务器）
  *
  * <p>McpClient 从 {@code mcp.server.config.json} 加载 NPX MCP 服务器；本用例使用
  * {@code filesystem} 服务器，工具可操作配置的目录（如 {@code /tmp}）。
@@ -39,7 +39,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = {TestApplication.class, JLangchainConfigTest.class})
 @SpringBootConfiguration
-public class Article12McpClientAgent {
+public class Article13McpClientAgent {
 
     @Autowired
     private McpClient mcpClient;

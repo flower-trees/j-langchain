@@ -53,13 +53,13 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * 文章 10：MCP Function-Calling ReAct（模型原生 ToolCall）
+ * 文章 11：MCP Function-Calling ReAct（模型原生 ToolCall）
  */
 @Slf4j
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = {TestApplication.class, JLangchainConfigTest.class})
 @SpringBootConfiguration
-public class Article10McpReactAgent {
+public class Article11McpReactAgent {
 
     private static final ObjectMapper MAPPER = JsonUtil.getObjectMapper();
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};

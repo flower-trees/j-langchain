@@ -1,9 +1,9 @@
 # McpAgentExecutor 混合模式：McpManager + McpClient
 
-> **前置阅读**：[McpAgentExecutor + McpManager（HTTP API）](11-mcp-manager-agent.md)、[McpAgentExecutor + McpClient（NPX 服务器）](12-mcp-client-agent.md)  
+> **前置阅读**：[McpAgentExecutor + McpManager（HTTP API）](12-mcp-manager-agent.md)、[McpAgentExecutor + McpClient（NPX 服务器）](13-mcp-client-agent.md)  
 > **适合人群**：单源 Agent 已跑通，需要 **一次用户任务** 内串联 **HTTP 工具** 与 **NPX MCP 工具**  
 > **核心概念**：同一 `McpAgentExecutor` 多次 `.tools(...)`、工具名空间合并、跨来源多步任务  
-> **配套代码**：`Article13McpMixedAgent.java`（`mcpMixedAgent()`）
+> **配套代码**：`Article14McpMixedAgent.java`（`mcpMixedAgent()`）
 
 ---
 
@@ -52,9 +52,9 @@ ChatGeneration result = agent.invoke(
 | 要点 | 说明 |
 |------|------|
 | 配置 | 同时依赖 `mcp.config.json` 与 `mcp.server.config.json` |
-| 环境 | HTTP + NPX + LLM Key，与文章 11、12 叠加 |
+| 环境 | HTTP + NPX + LLM Key，与文章 12、13 叠加 |
 | 调试 | 善用 `onToolCall` / `onObservation` 区分来自哪一类工具 |
 
 ---
 
-> 完整实现：`src/test/java/org/salt/jlangchain/demo/article/Article13McpMixedAgent.java`
+> 完整实现：`src/test/java/org/salt/jlangchain/demo/article/Article14McpMixedAgent.java`

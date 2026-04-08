@@ -30,7 +30,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 /**
- * 文章 13：McpAgentExecutor 混合注入 McpManager + McpClient
+ * 文章 14：McpAgentExecutor 混合注入 McpManager + McpClient
  *
  * <p>同一 Agent 同时挂载 HTTP API 工具（如 {@code get_export_ip}）与 NPX 文件系统工具，
  * 适合「先调网络 API，再读写本地文件」等多来源、多步任务。
@@ -40,7 +40,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = {TestApplication.class, JLangchainConfigTest.class})
 @SpringBootConfiguration
-public class Article13McpMixedAgent {
+public class Article14McpMixedAgent {
 
     @Autowired
     private McpManager mcpManager;
