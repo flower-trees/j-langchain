@@ -1,60 +1,61 @@
-# McpAgentExecutor 混合模式：McpManager + McpClient
+# McpAgentExecutor 混合挂载：HTTP + NPX 同时接入
 
-> **前置阅读**：[McpAgentExecutor + McpManager（HTTP API）](12-mcp-manager-agent.md)、[McpAgentExecutor + McpClient（NPX 服务器）](13-mcp-client-agent.md)  
-> **适合人群**：单源 Agent 已跑通，需要 **一次用户任务** 内串联 **HTTP 工具** 与 **NPX MCP 工具**  
-> **核心概念**：同一 `McpAgentExecutor` 多次 `.tools(...)`、工具名空间合并、跨来源多步任务  
-> **配套代码**：`Article14McpMixedAgent.java`（`mcpMixedAgent()`）
+> **场景**：一个 Agent 既要调用 HTTP API（如 IP/天气），又要操作本地文件或数据库（filesystem、memory、postgres）——希望在一次多轮对话中串联完成。  
+> **配套代码**：`src/test/java/org/salt/jlangchain/demo/article/Article14McpMixedAgent.java`
 
----
-
-## 场景
-
-典型需求：**先调公网 HTTP 拿到数据，再写入本地文件并读回确认**。  
-数据来源不同：前者在 `mcp.config.json`（`McpManager`），后者在 `mcp.server.config.json`（`McpClient` → filesystem）。
+`McpAgentExecutor` 支持链式 `.tools(...)` 调用：先注册 `McpManager` 的 HTTP 工具，再注册 `McpClient` 的 NPX 服务器。最终工具列表会合并交给同一个模型使用。本例模拟“先查公网 IP，再把结果写入文件系统”的客服运维需求。
 
 ---
 
-## 核心代码
+## 组合方式
 
 ```java
 McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
     .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
-    .tools(mcpManager, "default")
-    .tools(mcpClient, "filesystem")
-    .systemPrompt("你是一个智能助手，可以调用工具获取网络信息和操作文件系统。\n" +
-                  "当你完成用户的所有要求后，直接给出最终答案，不要再调用任何工具。")
+    .tools(mcpManager, "default")        // HTTP 工具，例如 get_export_ip / get_ip_location
+    .tools(mcpClient, "filesystem")      // NPX filesystem 工具，用于写入/读取记录
+    .systemPrompt("先使用 HTTP 工具获取信息，再根据需求读写 /tmp 文件，完成即可停止")
     .maxIterations(8)
     .onToolCall(tc -> System.out.println(">> Tool: " + tc))
     .onObservation(obs -> System.out.println(">> Result: " + obs))
     .build();
-
-ChatGeneration result = agent.invoke(
-    "帮我查一下公网 IP，然后把 IP 地址写入 /tmp/my_ip.txt 文件，读取文件内容确认写入成功");
 ```
 
-- **链式 `.tools`**：先注册 HTTP 组，再注册 `filesystem`；最终 Tool 列表合并给同一模型。  
-- **`maxIterations(8)`**：跨多工具、多步时适当加大上限。  
-- **systemPrompt 收尾约束**：减少模型在任务已完成时仍反复调用工具的情况（可按业务再调）。
+- 注册顺序不限；可以多次调用 `.tools(...)`；
+- 如果两个来源中存在同名工具，后注册的会覆盖前一个（建议按业务拆分命名）。
 
 ---
 
-## 与双 Agent 链（`Article08Mcp.dualAgentChain`）的对比
+## 示例流程
 
-| 方式 | 特点 |
+```
+>> Tool: get_export_ip -> {}
+>> Result: 123.117.177.40
+>> Tool: write_file -> {"path":"/tmp/ip.txt","content":"123.117.177.40"}
+>> Result: 写入成功
+>> Tool: read_file -> {"path":"/tmp/ip.txt"}
+>> Result: 123.117.177.40
+
+=== 最终答案 ===
+公网 IP 已记录在 /tmp/ip.txt，内容为 123.117.177.40。
+```
+
+模型可以自由在 HTTP 和 NPX 工具间切换：例如先查 IP，再写文件，再读取确认，最后给出结果。系统提示可约束执行顺序、终止条件等。
+
+---
+
+## 设计建议
+
+| 主题 | 建议 |
 |------|------|
-| **混合 McpAgentExecutor（本篇）** | 一个 FC Agent、一套工具池；适合步骤仍属「同一执行平面」的任务 |
-| **ReAct + McpAgentExecutor 串联** | 分析类与执行类分工、中间用 `TranslateHandler` 拼装 Prompt；见 `Article08Mcp` |
+| 工具分组 | 将 HTTP 工具按域拆分成多个组（default、ops、crm），按需 `.tools(mcpManager, group)`；NPX 服务器也可配置多个别名（filesystem、memory-db...） |
+| 提示词 | 明确“先做网络查询，再执行文件操作，完成后停止”之类的约束，避免模型在工具间来回无意义调用 |
+| 日志 | 通过 `onToolCall`/`onObservation` 打印来源，方便定位是 HTTP 还是 NPX 工具带来的问题 |
 
 ---
 
-## 小结
+## 与其它文章的关系
 
-| 要点 | 说明 |
-|------|------|
-| 配置 | 同时依赖 `mcp.config.json` 与 `mcp.server.config.json` |
-| 环境 | HTTP + NPX + LLM Key，与文章 12、13 叠加 |
-| 调试 | 善用 `onToolCall` / `onObservation` 区分来自哪一类工具 |
-
----
-
-> 完整实现：`src/test/java/org/salt/jlangchain/demo/article/Article14McpMixedAgent.java`
+- HTTP-only 场景：请看 [文章 12](12-mcp-manager-agent.md)。
+- NPX-only 场景：请看 [文章 13](13-mcp-client-agent.md)。
+- 如果要在此基础上嵌套其它 Agent（如客服工单分析 + filesystem 执行），可参考 `Article16CustomerService`，它就是混合 MCP + 双 Agent 的落地案例。

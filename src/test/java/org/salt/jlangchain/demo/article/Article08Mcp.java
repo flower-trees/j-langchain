@@ -14,11 +14,22 @@
 
 package org.salt.jlangchain.demo.article;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.salt.function.flow.FlowInstance;
 import org.salt.jlangchain.TestApplication;
+import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.config.JLangchainConfigTest;
+import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
+import org.salt.jlangchain.core.message.BaseMessage;
+import org.salt.jlangchain.core.message.MessageType;
+import org.salt.jlangchain.core.message.ToolMessage;
+import org.salt.jlangchain.core.prompt.chat.ChatPromptTemplate;
+import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
 import org.salt.jlangchain.rag.tools.mcp.McpClient;
 import org.salt.jlangchain.rag.tools.mcp.McpManager;
 import org.salt.jlangchain.rag.tools.mcp.server.McpServerConnection;
@@ -56,6 +67,9 @@ import java.util.Map;
 @SpringBootTest(classes = {TestApplication.class, JLangchainConfigTest.class})
 @SpringBootConfiguration
 public class Article08Mcp {
+
+    private static final ObjectMapper SIMPLE_MAPPER = JsonUtil.getObjectMapper();
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
     @Autowired
     private McpManager mcpManager;
@@ -181,5 +195,37 @@ public class Article08Mcp {
 
         // 有了 MCP，Agent 可以直接执行 SQL，无需你写任何 JDBC 代码
         // connection.callTool("query", Map.of("sql", "SELECT * FROM users LIMIT 5"));
+    }
+
+    /**
+     * 将 MCP 工具集成到 LLM 中
+     */
+    @Test
+    public void mcpLlmDemo() {
+
+        // 获取工具清单
+        List<AiChatInput.Tool> tools = mcpManager.manifestForInput().get("default");
+
+        BaseRunnable<ChatPromptValue, ?> prompt = ChatPromptTemplate.fromMessages(
+            List.of(
+                BaseMessage.fromMessage(MessageType.SYSTEM.getCode(),
+                    "你是一个AI助手，你可以调用 tools 中的工具，回答用户问题。"), // 系统提示, 可以使用工具清单中的工具
+                BaseMessage.fromMessage(MessageType.HUMAN.getCode(), "用户问题：${input}")
+            )
+        );
+
+        ChatAliyun llm = ChatAliyun.builder()
+            .model("qwen3.6-plus")
+            .temperature(0f)
+            .tools(tools) // 添加工具清单
+            .build();
+
+        FlowInstance chain = chainActor.builder()
+                .next(prompt)
+                .next(llm)
+                .build();
+
+        ToolMessage result = chainActor.invoke(chain, Map.of("input", "告诉我当前的公网IP"));
+        System.out.println("llm 会返回下步需要调用工具: " + result.getToolCalls());
     }
 }
