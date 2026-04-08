@@ -227,7 +227,7 @@ public void mcpPostgresConnect() throws Exception {
 - **仅 NPX 服务器（McpClient）** → [文章 12：McpAgentExecutor + McpClient](12-mcp-client-agent.md)（`Article12McpClientAgent`）
 - **HTTP + NPX 同时挂载** → [文章 13：混合模式](13-mcp-mixed-agent.md)（`Article13McpMixedAgent`）
 
-若需 **ReAct 文本协议** 与 MCP 的组合编排，可继续使用 [文章 4](04-react-agent.md)、[文章 9](09-agent-executor.md) 的手动链或 `AgentExecutor`；`Article08Mcp` 中的 **`dualAgentChain`** 演示了 **AgentExecutor + McpAgentExecutor** 双 Agent 串联。
+若需 **ReAct 文本协议** 与 MCP 的组合编排，可继续使用 [文章 4](04-react-agent.md)、[文章 9](09-agent-executor.md) 的手动链或 `AgentExecutor`；HTTP MCP 工具 + 模型原生 ToolCall 的 ReAct 版参见 [文章 10：MCP Function-Calling ReAct](10-mcp-react-agent.md)。`Article08Mcp` 中的 **`dualAgentChain`** 则演示了 **AgentExecutor + McpAgentExecutor** 双 Agent 串联。
 
 ---
 
@@ -269,4 +269,5 @@ public McpClient mcpClient() {
 ---
 
 > 基础与直连示例：`src/test/java/org/salt/jlangchain/demo/article/Article08Mcp.java`  
+> MCP + ReAct 手写链：`Article10McpReactAgent`  
 > `McpAgentExecutor` 单源/混合：`Article11McpManagerAgent`、`Article12McpClientAgent`、`Article13McpMixedAgent`

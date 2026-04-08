@@ -8,6 +8,40 @@
       "params": {}
     },
     {
+      "name": "get_ip_location",
+      "description": "Look up ISP, region, timezone, and security info for a given IP via ipapi.com",
+      "url": "https://ipapi.com/ip_api.php",
+      "method": "GET",
+      "params": {
+        "ip": {
+          "description": "IP address to inspect, e.g. 123.117.177.40",
+          "type": "string"
+        },
+        "required": ["ip"]
+      }
+    },
+    {
+      "name": "get_weather_open_meteo",
+      "description": "Fetch current weather for specific coordinates using Open-Meteo",
+      "url": "https://api.open-meteo.com/v1/forecast",
+      "method": "GET",
+      "params": {
+        "latitude": {
+          "description": "Latitude, e.g. 31.2304",
+          "type": "number"
+        },
+        "longitude": {
+          "description": "Longitude, e.g. 121.4737",
+          "type": "number"
+        },
+        "current_weather": {
+          "description": "Whether to return the current_weather block (default true)",
+          "type": "string"
+        },
+        "required": ["latitude", "longitude"]
+      }
+    },
+    {
       "name": "post_with_params",
       "description": "Example POST request with parameters",
       "url": "https://example.com/api/data",
