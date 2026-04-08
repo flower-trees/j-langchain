@@ -219,30 +219,15 @@ public void mcpPostgresConnect() throws Exception {
 
 ---
 
-## MCP + Agent 完整集成
+## MCP + Agent：`McpAgentExecutor`（Function Calling）
 
-将 MCP 工具注入 ReAct Agent，让 Agent 能自动选择和调用工具：
+若希望模型以 **结构化 Function Calling** 自动多轮选工具（而非手写 ReAct 文本解析），可使用 **`McpAgentExecutor`**：
 
-```java
-// 1. 从 McpManager 获取工具描述，注入 Agent Prompt
-List<Object> tools = mcpManager.manifest();
-String toolsJson = JsonUtil.toJson(tools);
+- **仅 HTTP 工具（McpManager）** → [文章 11：McpAgentExecutor + McpManager](11-mcp-manager-agent.md)（`Article11McpManagerAgent`）
+- **仅 NPX 服务器（McpClient）** → [文章 12：McpAgentExecutor + McpClient](12-mcp-client-agent.md)（`Article12McpClientAgent`）
+- **HTTP + NPX 同时挂载** → [文章 13：混合模式](13-mcp-mixed-agent.md)（`Article13McpMixedAgent`）
 
-// 2. 构建 Agent Prompt
-PromptTemplate prompt = PromptTemplate.fromTemplate("""
-    你有以下工具可以使用：
-    
-    """ + toolsJson + """
-    
-    Question: ${input}
-    Thought:
-    """);
-
-// 3. Agent 在需要时通过 McpManager 调用工具
-String toolName = parseToolName(llmOutput);
-Map<String, Object> toolArgs = parseToolArgs(llmOutput);
-Object observation = mcpManager.run("default", toolName, toolArgs);
-```
+若需 **ReAct 文本协议** 与 MCP 的组合编排，可继续使用 [文章 4](04-react-agent.md)、[文章 9](09-agent-executor.md) 的手动链或 `AgentExecutor`；`Article08Mcp` 中的 **`dualAgentChain`** 演示了 **AgentExecutor + McpAgentExecutor** 双 Agent 串联。
 
 ---
 
@@ -283,4 +268,5 @@ public McpClient mcpClient() {
 
 ---
 
-> 完整代码见：`src/test/java/org/salt/jlangchain/demo/article/Article08Mcp.java`
+> 基础与直连示例：`src/test/java/org/salt/jlangchain/demo/article/Article08Mcp.java`  
+> `McpAgentExecutor` 单源/混合：`Article11McpManagerAgent`、`Article12McpClientAgent`、`Article13McpMixedAgent`

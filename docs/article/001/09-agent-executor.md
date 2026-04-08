@@ -2,7 +2,8 @@
 
 > **前置文章**：[Java 实现 ReAct Agent：工具调用与推理循环](04-react-agent.md)  
 > **适合人群**：读完上篇、想直接用封装好的 Agent 的 Java 开发者  
-> **核心概念**：AgentExecutor、@AgentTool 注解、多参数工具、多步骤推理
+> **核心概念**：AgentExecutor、@AgentTool 注解、多参数工具、多步骤推理  
+> **配套代码**：`Article09AgentExecutor.java`
 
 ---
 
@@ -48,7 +49,7 @@ ChatGeneration result = AgentExecutor.builder(chainActor)
 
 ---
 
-## 用例一：@AgentTool 注解（单参数 + 多参数）
+## 用例：@AgentTool 注解（单参数 + 多参数）
 
 ### 工具定义
 
@@ -132,100 +133,9 @@ Final Answer: 已为您预订了2024-03-15从上海飞往北京的机票。
 
 ---
 
-## 用例二：多步骤推理——查询比价后订票
+## 延伸阅读：多工具、多轮比价订票
 
-这个用例展示 Agent 自主完成一个完整业务流程：**查询三家航司票价 → 比较 → 选最低价订票**，全程无需人工干预。
-
-### 工具定义
-
-```java
-public class FlightTools {
-
-    @AgentTool("查询东方航空（MU）的机票价格")
-    public String queryMuFlight(
-            @Param("出发城市") String fromCity,
-            @Param("目的城市") String toCity,
-            @Param("日期，格式 YYYY-MM-DD") String date) {
-        // 实际生产中调用航司 API
-        return String.format("东方航空（MU）%s %s → %s，票价 ¥980", date, fromCity, toCity);
-    }
-
-    @AgentTool("查询中国国际航空（CA）的机票价格")
-    public String queryCaFlight(
-            @Param("出发城市") String fromCity,
-            @Param("目的城市") String toCity,
-            @Param("日期，格式 YYYY-MM-DD") String date) {
-        return String.format("中国国航（CA）%s %s → %s，票价 ¥1150", date, fromCity, toCity);
-    }
-
-    @AgentTool("查询南方航空（CZ）的机票价格")
-    public String queryCzFlight(
-            @Param("出发城市") String fromCity,
-            @Param("目的城市") String toCity,
-            @Param("日期，格式 YYYY-MM-DD") String date) {
-        return String.format("南方航空（CZ）%s %s → %s，票价 ¥860", date, fromCity, toCity);
-    }
-
-    @AgentTool("确认订购机票，输入航司、出发城市、目的城市和日期")
-    public String bookFlight(
-            @Param("航司名称，如：东方航空、国航、南航") String airline,
-            @Param("出发城市") String fromCity,
-            @Param("目的城市") String toCity,
-            @Param("日期，格式 YYYY-MM-DD") String date) {
-        return String.format("✅ 订票成功！%s %s → %s，日期 %s，订单号 ORD-123456",
-            airline, fromCity, toCity, date);
-    }
-}
-```
-
-### 构建并执行
-
-```java
-AgentExecutor agent = AgentExecutor.builder(chainActor)
-    .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
-    .tools(new FlightTools())
-    .maxIterations(10)
-    .onThought(System.out::print)
-    .onObservation(obs -> System.out.println("Observation: " + obs))
-    .build();
-
-ChatGeneration result = agent.invoke(
-    "我要订2024-03-15从上海飞北京的机票，请帮我查询东方航空、国航、南航三家的价格，选最便宜的那家帮我订票"
-);
-System.out.println(result.getText());
-```
-
-### 完整推理过程
-
-Agent 自主完成五步推理，无需任何人工干预：
-
-```
-Thought: 需要分别查询三家航司的票价，先查东方航空。
-Action: query_mu_flight
-Action Input: {"fromCity": "上海", "toCity": "北京", "date": "2024-03-15"}
-
-Observation: 东方航空（MU）2024-03-15 上海 → 北京，票价 ¥980
-
-Thought: 再查国航。
-Action: query_ca_flight
-Action Input: {"fromCity": "上海", "toCity": "北京", "date": "2024-03-15"}
-
-Observation: 中国国航（CA）2024-03-15 上海 → 北京，票价 ¥1150
-
-Thought: 再查南航。
-Action: query_cz_flight
-Action Input: {"fromCity": "上海", "toCity": "北京", "date": "2024-03-15"}
-
-Observation: 南方航空（CZ）2024-03-15 上海 → 北京，票价 ¥860
-
-Thought: 三家对比：南航 ¥860 < 东航 ¥980 < 国航 ¥1150，南航最便宜，开始订票。
-Action: book_flight
-Action Input: {"airline": "南航", "fromCity": "上海", "toCity": "北京", "date": "2024-03-15"}
-
-Observation: ✅ 订票成功！南航 上海 → 北京，日期 2024-03-15，订单号 ORD-123456
-
-Final Answer: 已为您完成比价并订票。三家航司中南方航空票价最低（¥860），已成功预订2024-03-15上海→北京，订单号 ORD-123456。
-```
+需要**连续查询多个航司、比较结果、再调用订票工具**的完整业务流程，见 [文章 10：多步骤 ReAct——航司比价订票](10-flight-compare-agent.md)（工具类 `Article10FlightTools`，用例 `flightCompareAndBook()`）。
 
 ---
 
@@ -286,5 +196,5 @@ Final Answer: 已为您完成比价并订票。三家航司中南方航空票价
 
 ---
 
-> 完整代码见：`src/test/java/org/salt/jlangchain/demo/article/Article04ReactAgent.java`  
-> 相关方法：`reactAgentWithToolAnnotation()`、`flightCompareAndBook()`
+> 完整代码见：`src/test/java/org/salt/jlangchain/demo/article/Article09AgentExecutor.java`  
+> 与本篇直接对应的方法：`reactAgentWithExecutor()`、`reactAgentWithToolAnnotation()`、`agentExecutorAsNode()`
