@@ -54,8 +54,11 @@ End-to-end Retrieval-Augmented Generation:
 
 ### 🔧 Tool Calling & MCP Protocol
 - **Tool Calling** - Function calls + parameter schema
+- **AgentExecutor** - ReAct loop wrapper for faster agent setup
+- **McpAgentExecutor** - Model-side Function Calling with MCP tool orchestration
+- **@AgentTool / ToolScanner** - Declarative multi-parameter tools from Java methods
 - **MCP (Model Context Protocol)** - 3 connection modes (Stdio/SSE/HTTP)
-- **Environment Variable Config** - Dynamic gateway routing
+- **Environment Variable Config** - Dynamic gateway routing (or `models.<vendor>.chat-key`)
 
 ### 🎤 Intelligent Speech Synthesis (TTS)
 - **Multi-Vendor Support** - Alibaba Cloud/Doubao
@@ -74,13 +77,13 @@ End-to-end Retrieval-Augmented Generation:
 <dependency>
     <groupId>io.github.flower-trees</groupId>
     <artifactId>j-langchain</artifactId>
-    <version>1.0.12</version>
+    <version>1.0.13</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation 'io.github.flower-trees:j-langchain:1.0.12'
+implementation 'io.github.flower-trees:j-langchain:1.0.13'
 ```
 
 ### 2️⃣ Configure Application Class
@@ -105,6 +108,13 @@ export MOONSHOT_KEY=sk-xxx...    # Moonshot (Kimi) API Key
 export DOUBAO_KEY=sk-xxx...      # Doubao API Key
 export COZE_KEY=xxx...           # Coze API Key (or use OAuth below)
 export OLLAMA_KEY1=              # Ollama: usually empty for local; set for gateway/proxy
+export DEEPSEEK_KEY=sk-xxx...    # DeepSeek
+export HUNYUAN_KEY=sk-xxx...     # Tencent Hunyuan
+export QIANFAN_KEY=xxx...       # Baidu Qianfan (ERNIE)
+export ZHIPU_KEY=xxx...         # Zhipu AI (GLM)
+export MINIMAX_KEY=xxx...       # MiniMax
+export LINGYI_KEY=xxx...        # 01.AI (Yi)
+export STEPFUN_KEY=xxx...       # StepFun
 
 # Coze OAuth 2.0 (alternative)
 # export COZE_CLIENT_ID=xxx
@@ -356,6 +366,7 @@ AIMessage response = llm.invoke("What's the weather in Beijing?");
 |----------|-------------|
 | [Quick Start](./docs/guide/quickstart.md) | Detailed getting started guide |
 | [API Reference](./docs/api/reference.md) | Complete API reference |
+| [Article tutorials](./docs/article/001/README.md) | Series index, reading order, environment matrix (Agent / MCP) |
 | [MyFirstAIApp](./src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java) / [Sample Code](./src/test/java/org/salt/jlangchain/demo/) | Quick start + 30+ real-world examples |
 | [Best Practices](./docs/best-practices.md) | Production recommendations |
 
@@ -378,10 +389,10 @@ AIMessage response = llm.invoke("What's the weather in Beijing?");
 └─────────────────────────────────────────────────────────┘
                            ▼
 ┌───────────────┬──────────────┬─────────────┬───────────┐
-│  LLM Vendors  │     RAG      │     TTS     │    MCP    │
-│ ChatGPT/Ollama│ Loader/Split │ Aliyun/Doubao│ Tools     │
-│ Aliyun/Moonshot│ Embed/Vector│ Smart Filter│ 3 Protocols│
-│ Doubao/Coze   │ Milvus Store │ Streaming   │ OAuth     │
+│  LLM (13+)    │     RAG      │     TTS     │    MCP    │
+│ Multi-vendor  │ Loader/Split │ Aliyun/Doubao│ Tools     │
+│ chat + tools  │ Embed/Vector │ Smart Filter│ Stdio/SSE │
+│ domestic+intl │ Milvus Store │ Streaming   │ HTTP + FC │
 └───────────────┴──────────────┴─────────────┴───────────┘
 ```
 
@@ -393,11 +404,11 @@ AIMessage response = llm.invoke("What's the weather in Beijing?");
 
 | Feature | J-LangChain | LangChain4j | Spring AI |
 |---------|-------------|-------------|-----------|
-| **Multi-Vendor** | ✅ 6+ (incl. domestic) | ✅ 5+ | ⚠️ Mainstream |
+| **Multi-Vendor** | ✅ 13+ (incl. domestic) | ✅ 5+ | ⚠️ Mainstream |
 | **Flow Orchestration** | ✅ Powerful salt-flow | ⚠️ Chained calls | ⚠️ Basic |
 | **RAG Completeness** | ✅ End-to-end | ✅ Complete | ⚠️ Partial |
 | **TTS Support** | ✅ Smart optimization | ❌ | ❌ |
-| **MCP Protocol** | ✅ 3 connection modes | ❌ | ❌ |
+| **MCP Protocol** | ✅ 3 modes + Function Calling / agents | ❌ | ❌ |
 | **Event Monitoring** | ✅ Full lifecycle | ⚠️ Basic | ❌ |
 | **Spring Boot** | ✅ Native support | ✅ | ✅ |
 | **Learning Curve** | 🟢 Easy | 🟡 Medium | 🟢 Easy |
