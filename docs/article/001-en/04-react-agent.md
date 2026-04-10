@@ -1,86 +1,102 @@
-# ReAct Agents in Java: Tool Calls and Reasoning Loops
+# Implementing a ReAct Agent in Java: Tool Calling and Reasoning Loops
 
 > **Audience**: Java developers who want AI to call external tools and complete tasks autonomously  
-> **Core ideas**: ReAct, tool use, reasoning loop
+> **Core concepts**: ReAct, Tool Use, reasoning loop
 
 ---
 
 ## What Is an Agent?
 
-A regular LLM is **passive**: you ask, it answers, and that’s it.
+A regular LLM is **passive**: you ask, it answers, done.
 
-An agent is **proactive**: it can reason, plan, call tools, inspect the results, and continue until the goal is met.
+An Agent is **active**: it can think, form a plan, call tools to gather information, and continue reasoning based on the results — until it reaches its goal.
 
-**Examples**
-- “Check today’s weather in Shanghai and suggest an outfit.”
-- “Search the latest Java 21 features and draft a comparison report.”
-- “Query the sales database and produce this month’s analysis.”
+**Typical scenarios**:
+- "Check the weather in Shanghai and recommend what to wear"
+- "Search for the latest Java 21 features and write a technical comparison report"
+- "Query the sales data in the database and generate a monthly analysis report"
 
 ---
 
-## ReAct
+## The ReAct Pattern
 
-ReAct = **Re**asoning + **Act**ing—alternating thinking and action:
+ReAct = **Re**asoning + **Act**ing — alternating between thinking and acting:
 
 ```
-Question → Thought → Action → Action Input → Observation
-           ↘ (repeat) ↙
-Final Answer
+Question: The user's question
+  ↓
+Thought: The LLM thinks: what information do I need? Which tool should I use?
+  ↓
+Action: Call a tool (get_weather)
+Action Input: Tool parameters ("Shanghai")
+  ↓
+Observation: Tool result ("Shanghai is sunny, 25°C")
+  ↓
+Thought: Based on the result, do I need more information?
+  ↓
+(Repeat Action → Observation as needed)
+  ↓
+Final Answer: The final response
 ```
 
 ---
 
 ## Step 1: Define Tools
 
-Tools are the agent’s “hands and feet”—essentially functions with metadata:
+Tools are the Agent's "hands and feet" — essentially a function with a description:
 
 ```java
+// Weather query tool
 Tool getWeather = Tool.builder()
-    .name("get_weather")
-    .params("location: String")
-    .description("获取城市天气信息，输入城市名称")
-    .func(location -> String.format("%s 天气晴，气温 25°C", location))
+    .name("get_weather")                            // Tool name (used by the LLM when calling)
+    .params("location: String")                     // Parameter description
+    .description("Get weather information for a city. Input: city name.") // Description for the LLM
+    .func(location ->                               // Actual execution logic
+        String.format("%s: sunny, 25°C", location)
+    )
     .build();
 
+// Time query tool
 Tool getTime = Tool.builder()
     .name("get_time")
     .params("city: String")
-    .description("获取城市当前时间，输入城市名称")
-    .func(city -> String.format("%s 当前时间 14:30", city))
+    .description("Get the current time for a city. Input: city name.")
+    .func(city -> String.format("%s current time: 14:30", city))
     .build();
 ```
 
-> In production, `func` can hit real APIs, databases, HTTP services—anything Java can execute.
+> **In production**, the `func` can call real APIs, query databases, make HTTP requests — anything Java can do.
 
 ---
 
-## Step 2: ReAct Prompt
+## Step 2: The ReAct Prompt Template
 
-The prompt is the “brain” that tells the LLM how to think and act:
+This is the Agent's "brain" — it tells the LLM how to think and act:
 
 ```java
 PromptTemplate prompt = PromptTemplate.fromTemplate(
     """
-    尽你所能回答以下问题。你有以下工具可以使用：
+    Answer the following question as best you can. You have access to the following tools:
 
-    ${tools}
+    ${tools}           ← tool list is automatically injected
 
-    请按以下格式回答：
-    Question: 你必须回答的问题
-    Thought: 思考是否已有足够信息回答
-    Action: 要执行的动作，必须是 [${toolNames}] 之一
-    Action Input: 动作的输入
-    Observation: 动作结果
+    Use the following format:
+    Question: the input question you must answer
+    Thought: think about whether you already have enough information
+    Action: the action to take, must be one of [${toolNames}]
+    Action Input: the input to the action
+    Observation: the result of the action
 
-    （可重复 Thought/Action/Observation，最多3次）
+    (You may repeat Thought/Action/Observation up to 3 times)
 
-    Final Answer: 最终回答
+    Final Answer: the final answer
 
     Question: ${input}
     Thought:
     """
 );
 
+// Inject tools into the Prompt
 List<Tool> tools = List.of(getWeather, getTime);
 prompt.withTools(tools);
 ```
@@ -89,58 +105,68 @@ prompt.withTools(tools);
 
 ## Step 3: Build the Reasoning Loop
 
-This is the heart of ReAct—repeat until the agent reaches the final answer:
+This is the core of ReAct — loop until a final answer is reached:
 
 ```java
 FlowInstance agentChain = chainActor.builder()
     .next(prompt)
     .loop(
+        // Loop condition: still needs tool calls && hasn't exceeded the max iterations
         shouldContinue,
-        llm,
+
+        // Loop body
+        llm,                   // LLM reasoning (generates Thought/Action)
         chainActor.builder()
-            .next(cutAtObservation)
-            .next(parseAction)
+            .next(cutAtObservation)  // Truncate the LLM's self-fabricated Observation
+            .next(parseAction)       // Parse Action and Action Input
             .next(
-                Info.c(needsToolCall, executeTool),
-                Info.c(input -> ContextBus.get().getResult(llm.getNodeId()))
+                Info.c(needsToolCall, executeTool),  // Tool call needed
+                Info.c(input -> ContextBus.get().getResult(llm.getNodeId())) // Answer ready, exit loop
             )
             .build()
     )
     .next(new StrOutputParser())
-    .next(extractFinalAnswer)
+    .next(extractFinalAnswer)  // Extract content after "Final Answer:"
     .build();
 ```
 
-**Why cut at Observation?** LLMs sometimes fabricate Observation text without calling your tools. By trimming everything after `Observation:`, you ensure the framework performs the real call.
+**Key details**:
 
-**Loop exit condition**
+**Why truncate Observation?**
 
+LLMs sometimes "fabricate" a tool result (Observation) rather than actually calling the tool. By truncating everything after `Observation:`, we force the framework to execute the real tool call.
+
+**Loop exit condition**:
 ```java
 Function<Integer, Boolean> shouldContinue = i -> {
     Map<String, String> parsed = ContextBus.get().getResult(parseAction.getNodeId());
-    return i < maxIterations &&
-        (parsed == null || (parsed.containsKey("Action") && parsed.containsKey("Action Input")));
+    return i < maxIterations                   // hasn't exceeded max iterations
+        && (parsed == null                     // hasn't started yet
+            || (parsed.containsKey("Action") && parsed.containsKey("Action Input"))); // still needs a tool call
 };
 ```
 
 ---
 
-## Step 4: Execute Tools
+## Step 4: Tool Execution Logic
 
-Whenever the LLM decides to call a tool, the executor will:
-1. Find the tool
-2. Run it
-3. Append the Observation back into the prompt for the next iteration
+On each iteration, if the LLM decides to call a tool, the executor will:
+1. Find the corresponding tool
+2. Execute the tool function
+3. Append the `Observation` to the Prompt to build the context for the next reasoning step
 
 ```java
 TranslateHandler<Object, Map<String, String>> executeTool = new TranslateHandler<>(map -> {
+    // Find the tool the LLM decided to call
     Tool useTool = tools.stream()
         .filter(t -> t.getName().equalsIgnoreCase(map.get("Action")))
         .findFirst().orElse(null);
 
+    // Execute the tool and get the observation
     String observation = (String) useTool.getFunc().apply(map.get("Action Input"));
     System.out.println("Observation: " + observation);
 
+    // Append the observation to the Prompt to form the context for the next reasoning step
     String agentScratchpad = thoughtPart + "\nObservation:" + observation + "\nThought:";
     promptValue.setText(promptValue.getText().trim() + agentScratchpad);
 
@@ -150,35 +176,42 @@ TranslateHandler<Object, Map<String, String>> executeTool = new TranslateHandler
 
 ---
 
-## End-to-End Run
+## Complete Execution Example
 
-Calling `chainActor.invoke(agentChain, Map.of("input", "上海现在的天气怎么样？"))` outputs:
+The full output of `chainActor.invoke(agentChain, Map.of("input", "What is the weather like in Shanghai right now?"))`:
 
 ```
-Thought: 我需要查询上海的天气。
+> Entering AgentExecutor chain...
+
+Thought: I need to check the weather in Shanghai.
 Action: get_weather
-Action Input: 上海
+Action Input: Shanghai
 
-Observation: 上海 天气晴，气温 25°C
+Observation: Shanghai: sunny, 25°C
 
-Thought: 我已经获得了上海的天气信息，可以回答问题了。
-Final Answer: 上海现在天气晴朗，气温25摄氏度。
+Thought: I now have the weather information for Shanghai and can answer the question.
+Final Answer: The weather in Shanghai is currently sunny with a temperature of 25°C.
+
+> Chain execution complete.
+
+=== Final Answer ===
+The weather in Shanghai is currently sunny with a temperature of 25°C.
 ```
 
 ---
 
-## LangChain Python vs. j-langchain
+## Comparison with LangChain Python
 
-| Feature | LangChain Python | j-langchain |
-|---------|------------------|-------------|
+| Feature | LangChain Python | j-langchain Java |
+|---------|------------------|------------------|
 | ReAct Agent | `create_react_agent` | `chainActor.builder().loop(...)` |
 | Tool definition | `@tool` decorator | `Tool.builder()` |
-| Loop control | Built in | Explicit `loop(condition, …)` |
-| Transparency | More black-box | Fully transparent and debuggable |
+| Loop control | Built into the framework | Explicit `loop(condition, ...)` |
+| Transparency | Framework-encapsulated, relatively opaque | Fully transparent, every step is debuggable |
 
-j-langchain deliberately exposes every step of the reasoning loop so you can debug and customize with full control.
+j-langchain chooses to **explicitly** build the reasoning loop. The benefit: every step is in your own code, making it easy to debug and customize.
 
 ---
 
-> Full code: `src/test/java/org/salt/jlangchain/demo/article/Article04ReactAgent.java`  
-> Higher-level wrapper with `@AgentTool`: see [Article 9 – AgentExecutor](09-agent-executor.md)
+> Full source code: `src/test/java/org/salt/jlangchain/demo/article/Article04ReactAgent.java`  
+> Packaged ReAct with `@AgentTool`: [Article 9: AgentExecutor](09-agent-executor.md)

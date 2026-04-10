@@ -1,69 +1,79 @@
-# Integrating MCP Tools in Java Agents: Let AI Drive Real Systems
+# Integrating MCP Tools in Java Agents: Let AI Drive Real Enterprise Systems
 
-> **Tags**: Java, MCP, Agent, j-langchain, LLM, Tool Use, Function Calling  
-> **Audience**: Developers who want to plug enterprise APIs, databases, and filesystems into Java agents
-
----
-
-## 1. The Pain Point
-
-After building a few AI prototypes, every team hits the same limit:
-
-> The model is smart but blind. Fetching inventory? Write a tool. Weather? Another tool. A new system? Rewrite everything. Tools pile up, each agent reinvents the wheel.
-
-The root cause is the lack of a **standard** tool protocol. Anthropic’s **Model Context Protocol (MCP)** (2024) fixes this by:
-
-- Describing tool capabilities via a unified schema
-- Shipping official and community servers you can reuse
-- Declaring tools once so every agent can consume them
-
-This article shows how to integrate MCP in j-langchain using two approaches and how to wire the whole tool-call loop end to end.
+> **Tags**: `Java` `MCP` `Agent` `j-langchain` `LLM` `Tool Use` `Function Calling`  
+> **Audience**: Developers who want to unify enterprise APIs, databases, and filesystems as tools in a Java Agent
 
 ---
 
-## 2. Two Integration Paths
+## I. Where the Problem Starts
 
-| Path | Core class | Use cases |
-|------|------------|-----------|
-| HTTP APIs → MCP tools | `McpManager` | Enterprise REST APIs, third-party HTTP services |
-| NPX MCP servers | `McpClient` | Filesystem, database, GitHub, browser automation, etc. |
+As AI application development matures, nearly every team hits the same bottleneck:
 
-Use both: `McpManager` for your APIs, `McpClient` for community servers.
+> The model itself is smart, but it can't touch anything. Querying inventory requires wrapping a Tool, querying weather requires another Tool, integrating a new system means rewriting everything... the tool count keeps growing, and every Agent reinvents the wheel.
+
+The root cause is **no unified standard at the tool layer**. **MCP (Model Context Protocol)**, introduced by Anthropic in 2024, was designed to solve exactly this:
+
+- Describe tool capabilities with a unified protocol
+- A large and growing official + community ecosystem of plug-and-play servers
+- Declare a tool once; every Agent can reuse it
+
+This article explains how to integrate MCP in j-langchain, covering both integration approaches and the full pipeline from tool registration to automatic LLM invocation.
 
 ---
 
-## 3. McpManager: Turn HTTP APIs into MCP Tools
+## II. Two Integration Approaches Covering the Vast Majority of Use Cases
 
-### Flow
+j-langchain provides two MCP integration methods for different tool sources:
 
-`McpManager` loads `mcp.config.json`, registers each HTTP endpoint as an MCP tool, and exposes:
+| Approach | Core class | Use case |
+|----------|-----------|----------|
+| HTTP API → MCP tool | `McpManager` | Internal REST APIs, third-party HTTP services |
+| NPX MCP server | `McpClient` | Filesystem, database, GitHub, browser automation, etc. |
+
+The two approaches can be mixed: use `McpManager` for your own APIs and `McpClient` for community ecosystem servers.
+
+---
+
+## III. Approach 1: Turn HTTP APIs into MCP Tools with McpManager
+
+### How It Works
+
+`McpManager` reads an `mcp.config.json` configuration file and automatically registers each HTTP endpoint described there as an MCP tool. The model can then call them through the standard Function Calling interface.
+
+The overall flow:
 
 ```
-manifest()          → prompt-friendly descriptions
-manifestForInput()  → JSON Schema for Function Calling models
-run()/runForInput() → real HTTP execution
+mcp.config.json (tool descriptions)
+       ↓
+McpManager (load & manage)
+       ↓
+manifest()          → Tool manifest (inject into Prompt so the model knows what tools are available)
+manifestForInput()  → JSON Schema (give to the model to enable Function Calling)
+run() / runForInput() → Actually execute the HTTP request
 ```
 
-### Config Example
+### Configuration File Example
+
+`mcp.config.json` is a tool menu — each entry describes one HTTP endpoint:
 
 ```json
 {
   "default": [
     {
       "name": "get_export_ip",
-      "description": "获取当前网络的公网出口 IP",
+      "description": "Get the public outbound IP of the current network",
       "url": "http://ipinfo.io/ip",
       "method": "GET",
       "params": {}
     },
     {
       "name": "query_weather",
-      "description": "查询指定城市的实时天气",
+      "description": "Query real-time weather for a specified city",
       "url": "https://api.example.com/weather",
       "method": "POST",
       "params": {
         "city": {
-          "description": "城市名称，如：上海",
+          "description": "City name, e.g.: Shanghai",
           "type": "string"
         },
         "required": ["city"]
@@ -73,50 +83,71 @@ run()/runForInput() → real HTTP execution
 }
 ```
 
-`default` is a group; split by domain if needed.
+> `default` is the group name. You can split tools into multiple groups by business module, and Agents load only the groups they need.
 
-### Usage
+### Code Example
+
+Registering the bean takes only two lines:
 
 ```java
 @Bean
 public McpManager mcpManager() throws Exception {
     return new McpManager("mcp.config.json");
 }
+```
 
+View the tool manifest:
+
+```java
 @Test
 public void mcpManagerManifest() {
+    // Text description (can be injected into a Prompt so the model knows what tools are available)
     System.out.println(JsonUtil.toJson(mcpManager.manifest()));
+
+    // JSON Schema version (pass directly to a model that supports Function Calling)
     System.out.println(JsonUtil.toJson(mcpManager.manifestForInput()));
 }
+```
 
+Call a tool directly to verify the endpoint is working:
+
+```java
 @Test
 public void mcpManagerRun() throws Exception {
+    // Direct call — returns the raw result
     Object result = mcpManager.run("default", "get_export_ip", Map.of());
-    System.out.println(JsonUtil.toJson(result));
+    System.out.println("API response: " + JsonUtil.toJson(result));
 
+    // Returns LLM-formatted input (convenient for injecting into Observation)
     Object inputResult = mcpManager.runForInput("default", "get_export_ip", Map.of());
-    System.out.println(JsonUtil.toJson(inputResult));
+    System.out.println("LLM format: " + JsonUtil.toJson(inputResult));
 }
 ```
 
 ---
 
-## 4. McpClient: Connect to NPX MCP Servers
+## IV. Approach 2: Connect to NPX MCP Servers with McpClient
 
-### Why
+### Why This Approach Is Needed
 
-Not everything is a REST API. File IO, SQL queries, Git operations, browser automation—writing bespoke wrappers is tedious. MCP already provides **official servers** for these capabilities; launch them with a single `npx` command and skip server-side coding.
+Not all capabilities can be wrapped as HTTP APIs. File read/write, SQL queries, Git operations, browser automation — wrapping all of these yourself is a huge amount of work.
 
-| Server | Capability | Use case |
-|--------|------------|----------|
-| `@modelcontextprotocol/server-filesystem` | Read/write directories | Agents read configs, write reports |
-| `.../server-memory` | KV store | Agent memory across turns |
-| `.../server-postgres` | PostgreSQL queries | BI dashboards |
-| `.../server-github` | GitHub automation | Review bots |
-| `.../server-puppeteer` | Browser automation | Screenshots, form filling |
-| `.../server-brave-search` | Web search | Real-time info |
+The MCP ecosystem already provides a set of **official standard servers**, each covering a category of capabilities, launched with a single `npx` command — no server code to write yourself.
 
-### Config Example
+### Common MCP Servers Quick Reference
+
+| Server package | Capability | Typical use |
+|---|---|---|
+| `@modelcontextprotocol/server-filesystem` | Local/mounted directory read-write | Agent reads configs, writes reports |
+| `@modelcontextprotocol/server-memory` | KV key-value storage | Agent cross-turn memory |
+| `@modelcontextprotocol/server-postgres` | PostgreSQL queries | Automated data reports, intelligent BI |
+| `@modelcontextprotocol/server-github` | Issue/PR/repository operations | Code review Agent, auto-archiving |
+| `@modelcontextprotocol/server-puppeteer` | Browser automation | Screenshots, form filling |
+| `@modelcontextprotocol/server-brave-search` | Web search | Real-time information retrieval |
+
+### Configuration File Example
+
+`mcp.server.config.json` describes which servers to start and what arguments to pass:
 
 ```json
 {
@@ -135,19 +166,30 @@ Not everything is a REST API. File IO, SQL queries, Git operations, browser auto
 }
 ```
 
-### Usage
+### Code Example
+
+Register the bean:
 
 ```java
 @Bean
 public McpClient mcpClient() {
     return new McpClient("mcp.server.config.json");
 }
+```
 
+List the tool manifest for all servers at once:
+
+```java
 @Test
 public void mcpClientListTools() {
+    // List all configured servers and their tools
     System.out.println(JsonUtil.toJson(mcpClient.listAllTools()));
 }
+```
 
+For fine-grained control of a specific server, use `McpServerConnection` directly:
+
+```java
 @Test
 public void mcpMemoryServerConnect() throws Exception {
     ServerConfig config = new ServerConfig();
@@ -158,122 +200,162 @@ public void mcpMemoryServerConnect() throws Exception {
     McpServerConnection connection = new McpServerConnection("memory-server", config);
     connection.connect();
 
-    System.out.println(JsonUtil.toJson(connection.listTools()));
+    System.out.println("Connected: " + connection.isConnected());
+    System.out.println("Available tools: " + JsonUtil.toJson(connection.listTools()));
+
+    // Call a specific tool
     Object result = connection.callTool("search_nodes", new HashMap<>());
-    System.out.println(JsonUtil.toJson(result));
+    System.out.println("Query result: " + JsonUtil.toJson(result));
 }
 ```
 
-PostgreSQL is identical—just change the server package and connection string:
+Connecting to PostgreSQL is the same — just change the server package name. **Agents no longer need to write JDBC**:
 
 ```java
-config.args = List.of(
-    "-y",
-    "@modelcontextprotocol/server-postgres",
-    "postgresql://user:password@localhost:5432/mydb"
-);
-```
+@Test
+public void mcpPostgresConnect() throws Exception {
+    ServerConfig config = new ServerConfig();
+    config.command = "npx";
+    config.args = List.of(
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://user:password@localhost:5432/mydb"  // Replace with your actual connection string
+    );
+    config.env = new HashMap<>();
 
-Now an agent can run SQL via MCP without touching JDBC.
+    McpServerConnection connection = new McpServerConnection("postgres-server", config);
+    connection.connect();
+
+    System.out.println("Available tools: " + JsonUtil.toJson(connection.listTools()));
+    // With MCP, the Agent executes SQL directly — no JDBC code needed
+    // connection.callTool("query", Map.of("sql", "SELECT * FROM orders LIMIT 10"));
+}
+```
 
 ---
 
-## 5. Wire Tools into the LLM
+## V. Handing Tools to the Model: From Registration to Automatic Invocation
 
-Once tools are registered, feed them to the LLM so it can decide when/what to call.
+The previous two steps completed **tool registration**. This step gives the tools to the LLM so the model can decide when to call them and which one to call.
 
-### Flow
+### Complete Pipeline
 
 ```
-Question
-  ↓
-manifestForInput() → JSON schema
-  ↓
-LLM (Function Calling) → ToolCall
-  ↓
-mcpManager.run(...)   → real HTTP request
-  ↓
-Observation → final answer
+User question
+   ↓
+mcpManager.manifestForInput()  → Get the tools' JSON Schema
+   ↓
+Inject into ChatAliyun (a model that supports Function Calling)
+   ↓
+Model reasons, returns a ToolCall (tool name + arguments)
+   ↓
+mcpManager.run(...)            → Execute the real HTTP request
+   ↓
+Append result to the conversation; model generates the final answer
 ```
 
-### Code
+### Code Implementation
 
 ```java
 @Test
 public void mcpLlmDemo() {
+
+    // 1. Get the MCP tools' JSON Schema (the model needs this format to call them automatically)
     List<AiChatInput.Tool> tools = mcpManager.manifestForInput().get("default");
 
+    // 2. Build the Prompt template
     BaseRunnable<ChatPromptValue, ?> prompt = ChatPromptTemplate.fromMessages(
         List.of(
-            BaseMessage.fromMessage(MessageType.SYSTEM.getCode(),
-                "你是一个 AI 助手，可以调用 tools 中的工具回答用户问题。"),
-            BaseMessage.fromMessage(MessageType.HUMAN.getCode(),
-                "用户问题：${input}")
+            BaseMessage.fromMessage(
+                MessageType.SYSTEM.getCode(),
+                "You are an AI assistant. Use the tools provided to answer user questions."
+            ),
+            BaseMessage.fromMessage(
+                MessageType.HUMAN.getCode(),
+                "User question: ${input}"
+            )
         )
     );
 
+    // 3. Configure the LLM with the tool manifest
     ChatAliyun llm = ChatAliyun.builder()
         .model("qwen3.6-plus")
         .temperature(0f)
-        .tools(tools)
+        .tools(tools)   // Register MCP tools directly with the model
         .build();
 
+    // 4. Build the chain
     FlowInstance chain = chainActor.builder()
         .next(prompt)
         .next(llm)
         .build();
 
-    ToolMessage result = chainActor.invoke(chain, Map.of("input", "告诉我当前的公网 IP"));
-    System.out.println(result.getToolCalls());
+    // 5. Execute; the model returns a ToolCall (it decides which tool to call and what arguments to pass)
+    ToolMessage result = chainActor.invoke(chain, Map.of("input", "Tell me the current public IP"));
+    System.out.println("Model chose to call: " + result.getToolCalls());
 
-    // iterate toolCalls and mcpManager.run(...)
+    // 6. Intercept the ToolCall and execute it with McpManager
+    // mcpManager.run("default", toolCall.getName(), toolCall.getArguments());
 }
 ```
 
-Sample ToolCall:
+After running, the model returns a ToolCall like this:
 
 ```json
-[{ "name": "get_export_ip", "arguments": {} }]
+[{
+  "name": "get_export_ip",
+  "arguments": {}
+}]
 ```
 
-Call `mcpManager.run(...)` with that payload, inject the observation back into the conversation, and the model produces the final answer. Tools are declared once and reused everywhere.
+Take this ToolCall, call `mcpManager.run(...)` to make the real request, then append the result to the conversation and the model will give the final answer.
+
+> **Key advantage**: Tools are declared once in `mcp.config.json`. No matter how many Agents or chain paths you have, they all reuse this single configuration — no repeated wrapping.
 
 ---
 
-## 6. Project Layout
+## VI. Project Structure Reference
 
 ```
 src/test/resources/
-├── mcp.config.json
-└── mcp.server.config.json
+├── mcp.config.json           # HTTP API tool declarations
+└── mcp.server.config.json    # NPX MCP server declarations
 
 src/test/java/
-└── Article08Mcp.java
+└── Article08Mcp.java         # Complete sample code for this article
 ```
 
-Beans:
+Spring bean registration (can be done in test config or application config):
 
 ```java
 @Bean
-public McpManager mcpManager() throws Exception { ... }
+public McpManager mcpManager() throws Exception {
+    return new McpManager("mcp.config.json");
+}
 
 @Bean
-public McpClient mcpClient() { ... }
+public McpClient mcpClient() {
+    return new McpClient("mcp.server.config.json");
+}
 ```
 
 ---
 
-## 7. Summary
+## VII. Summary
 
-| Scenario | Recommendation | Class |
-|----------|----------------|-------|
-| Expose enterprise REST APIs | HTTP → MCP | `McpManager` |
-| Use filesystem/DB/GitHub/etc. | NPX server | `McpClient` |
-| Let the LLM auto-select tools | Function Calling | `manifestForInput()` + tools-enabled LLM |
-| Fine-grained server control | Direct connection | `McpServerConnection` |
+| Scenario | Recommended approach | Core class |
+|----------|---------------------|-----------|
+| Integrate internal REST APIs | HTTP → MCP | `McpManager` + `mcp.config.json` |
+| Integrate filesystem, database, GitHub, etc. | NPX MCP server | `McpClient` + `mcp.server.config.json` |
+| Let the model auto-decide which tool to call | Function Calling | `manifestForInput()` + tools-capable LLM |
+| Fine-grained control of a single server | Direct server connection | `McpServerConnection` |
 
-**Declare tools once, reuse everywhere, and leverage the MCP ecosystem instead of rebuilding utilities.**
+The core value MCP brings in one sentence: **declare tools once, every Agent reuses them, and the ecosystem's capabilities are plug-and-play — no reinventing the wheel.**
 
 ---
 
-> Resources: GitHub mirror links, MCP spec, and full sample in `Article08Mcp.java`.
+> Related resources
+> - j-langchain GitHub: https://github.com/flower-trees/j-langchain
+> - j-langchain Gitee mirror: https://gitee.com/flower-trees-z/j-langchain
+> - MCP official spec: https://modelcontextprotocol.io
+> - Full sample code: [Article08Mcp.java](../../../src/test/java/org/salt/jlangchain/demo/article/Article08Mcp.java)

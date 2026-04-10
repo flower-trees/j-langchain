@@ -1,75 +1,92 @@
-# Streaming Output in Java AI Applications
+# Streaming Output in Java AI Applications: From Principles to Practice
 
-> **Audience**: Java backend engineers who need real-time, typewriter-style output  
+> **Audience**: Java backend engineers who need to implement typewriter-style, real-time conversational output  
 > **Core APIs**: `stream()`, `streamEvent()`, `stop()`
 
 ---
 
-## Why Streaming Matters
+## Why Is Streaming Output So Important?
 
-**Synchronous**: wait for the LLM to finish before showing text → 5–30 seconds of silence.  
-**Streaming**: push every token the moment it is generated → perceived latency <1 second.
+**Synchronous mode**: wait for the LLM to finish generating all content before showing anything → users wait 5–30 seconds, terrible experience  
+**Streaming mode**: push each token to the user as soon as it is generated → users see a "typewriter" effect, perceived latency drops to under 1 second
 
-Every mainstream chat UI (ChatGPT, Claude, Qwen) streams tokens. It’s the default experience for AI chat.
-
----
-
-## How Streaming Works
-
-```
-LLM emits: [你] [好] [，] [我] [是] [AI] [助] [手]
-Front-end shows: 你 → 你好 → 你好， → ...
-```
-
-At the HTTP layer it’s SSE or WebSocket; j-langchain wraps it as a blocking iterator so you don’t deal with protocols.
+ChatGPT, Claude, and Qwen all use streaming output in their chat interfaces. It is the **standard technology** for AI chat products.
 
 ---
 
-## Mode 1: Stream Directly from the LLM
+## How Streaming Output Works
+
+```
+LLM generates: [H][e][l][l][o][,][ ][I][ ][a][m][ ][A][I]
+                   ↓ push each token as it is generated
+Frontend receives: H → He → Hel → Hell → Hello → Hello, → Hello, I → ...
+```
+
+At the HTTP layer, either **SSE (Server-Sent Events)** or **WebSocket** is used. j-langchain wraps this with a **blocking iterator** at the Java level, so developers do not need to think about the underlying protocol.
+
+---
+
+## Method 1: Direct LLM Streaming
+
+The most basic usage — call `llm.stream()` directly:
 
 ```java
 @Test
 public void basicStream() throws TimeoutException {
     ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
-    AIMessageChunk chunk = llm.stream("天空是什么颜色？");
+
+    // stream() returns immediately without waiting for the LLM to finish
+    AIMessageChunk chunk = llm.stream("What color is the sky?");
+
     while (chunk.getIterator().hasNext()) {
         String token = chunk.getIterator().next().getContent();
-        System.out.print(token);
+        System.out.print(token);  // Print token by token
     }
 }
 ```
 
-`AIMessageChunk.getIterator()` blocks until new tokens arrive or the stream ends.
+`AIMessageChunk.getIterator()` is a **blocking iterator**:
+- `hasNext()` blocks until the next token arrives or generation ends
+- `next()` returns the next token's `AIMessageChunk`
+- After generation ends, `hasNext()` returns `false`
 
 ---
 
-## Mode 2: Stream an Entire Chain
+## Method 2: Chain Streaming
+
+The entire chain (Prompt → LLM → Parser) streams:
 
 ```java
 @Test
 public void chainStream() throws TimeoutException {
     FlowInstance chain = chainActor.builder()
-        .next(PromptTemplate.fromTemplate("讲一个关于 ${topic} 的笑话"))
+        .next(PromptTemplate.fromTemplate("Tell a joke about ${topic}"))
         .next(ChatOllama.builder().model("qwen2.5:0.5b").build())
         .next(new StrOutputParser())
         .build();
 
-    ChatGenerationChunk chunk = chainActor.stream(chain, Map.of("topic", "程序员"));
+    // chainActor.stream() returns a ChatGenerationChunk
+    ChatGenerationChunk chunk = chainActor.stream(chain, Map.of("topic", "programmers"));
+
     while (chunk.getIterator().hasNext()) {
         System.out.print(chunk.getIterator().next().getText());
     }
 }
 ```
 
+**`invoke` vs `stream`**:
+
 | | `invoke()` | `stream()` |
-|---|-----------|-----------|
-| Return timing | After completion | Immediately |
-| Type | `ChatGeneration` | `ChatGenerationChunk` |
-| Scenarios | Batch/offline | Interactive UI |
+|--|-----------|-----------|
+| When it returns | After full generation | Immediately; iterator lazy-loads |
+| Return type | `ChatGeneration` | `ChatGenerationChunk` |
+| Use cases | Background tasks, batch processing | Real-time chat, UI interactions |
 
 ---
 
-## Mode 3: Cancel Mid-Stream
+## Method 3: Cancel Streaming Mid-way
+
+When the user clicks "stop generating", you can interrupt immediately:
 
 ```java
 @Test
@@ -77,49 +94,60 @@ public void streamWithStop() throws TimeoutException {
     FlowInstance chain = chainActor.builder()
         .next(prompt).next(llm).next(new StrOutputParser()).build();
 
-    ChatGenerationChunk chunk = chainActor.stream(chain, Map.of("topic", "太空探索"));
+    ChatGenerationChunk chunk = chainActor.stream(chain, Map.of("topic", "space exploration"));
 
     int tokenCount = 0;
     while (chunk.getIterator().hasNext()) {
         System.out.print(chunk.getIterator().next().getText());
-        if (++tokenCount >= 5) {
-            chainActor.stop(chain);
-            System.out.println("\n[stopped]");
+        tokenCount++;
+
+        if (tokenCount >= 5) {
+            chainActor.stop(chain);  // Stop immediately, release resources
+            System.out.println("\n[Stopped]");
             break;
         }
     }
 }
 ```
 
-`chainActor.stop(chain)` sends a cancel signal, closes the stream, and `hasNext()` becomes `false`.
+`chainActor.stop(chain)` will:
+1. Send a cancellation signal to the LLM
+2. Clean up the streaming connection
+3. Cause subsequent `hasNext()` calls to return `false`
 
 ---
 
-## Mode 4: Stream JSON
+## Method 4: Streaming JSON Output
+
+The LLM generates JSON token by token, and `JsonOutputParser` parses it incrementally, returning the current JSON state at each step:
 
 ```java
 @Test
 public void jsonStream() throws TimeoutException {
     FlowInstance chain = chainActor.builder()
         .next(ChatOllama.builder().model("qwen2.5:0.5b").build())
-        .next(new JsonOutputParser())
+        .next(new JsonOutputParser())  // Streaming JSON parsing
         .build();
 
     ChatGenerationChunk chunk = chainActor.stream(
-        chain, "以 JSON 格式输出3个国家及其人口"
+        chain, "Output 3 countries and their populations in JSON format"
     );
 
     while (chunk.getIterator().hasNext()) {
         System.out.println(chunk.getIterator().next());
+        // Each output is the partially parsed JSON so far
     }
 }
 ```
 
 ---
 
-## Mode 5: Event Streams for Debugging
+## Method 5: Event Stream — Debugging Tool
 
-`streamEvent()` yields execution events (`on_chain_start`, `on_llm_stream`, `on_chain_end`, …):
+`streamEvent()` returns **execution events** for every node in the chain, including:
+- `on_chain_start`: node starts executing
+- `on_llm_stream`: LLM streaming token
+- `on_chain_end`: node finishes executing
 
 ```java
 @Test
@@ -127,46 +155,51 @@ public void eventStream() throws TimeoutException {
     FlowInstance chain = chainActor.builder()
         .next(prompt).next(llm).next(new StrOutputParser()).build();
 
-    EventMessageChunk events = chainActor.streamEvent(chain, Map.of("topic", "狗"));
+    EventMessageChunk events = chainActor.streamEvent(chain, Map.of("topic", "dogs"));
 
     while (events.getIterator().hasNext()) {
         EventMessageChunk event = events.getIterator().next();
         System.out.println(event.toJson());
+        // {"type": "llm", "name": "ChatOllama", "event": "on_llm_stream", "data": {...}}
     }
 }
 ```
 
 ---
 
-## Mode 6: Filter Events
+## Method 6: Filtered Event Stream
 
-Tag nodes and filter by name/type/tag:
+When there are too many events, filter by name, type, or tags to focus on what you care about:
 
 ```java
+// Assign names and tags to nodes
 FlowInstance chain = chainActor.builder()
     .next(llm.withConfig(Map.of("run_name", "my_llm")))
     .next(parser.withConfig(Map.of("run_name", "my_parser", "tags", List.of("my_chain"))))
     .build();
 
+// Filter by node name
 EventMessageChunk byName = chainActor.streamEvent(
     chain, input,
     event -> List.of("my_parser").contains(event.getName())
 );
 
+// Filter by node type
 EventMessageChunk byType = chainActor.streamEvent(
     chain, input,
     event -> List.of("llm").contains(event.getType())
 );
 
+// Filter by tag
 EventMessageChunk byTag = chainActor.streamEvent(
     chain, input,
-    event -> event.getTags() != null && event.getTags().contains("my_chain")
+    event -> Stream.of("my_chain").anyMatch(event.getTags()::contains)
 );
 ```
 
 ---
 
-## Push Streams in Spring Boot
+## Pushing Streaming Output in Spring Boot
 
 ### SSE (Recommended)
 
@@ -179,6 +212,7 @@ public SseEmitter streamChat(@RequestParam String question) {
         try {
             FlowInstance chain = buildChain();
             ChatGenerationChunk chunk = chainActor.stream(chain, question);
+
             while (chunk.getIterator().hasNext()) {
                 String token = chunk.getIterator().next().getText();
                 emitter.send(SseEmitter.event().data(token));
@@ -194,26 +228,27 @@ public SseEmitter streamChat(@RequestParam String question) {
 }
 ```
 
+Frontend:
 ```javascript
-const eventSource = new EventSource('/chat/stream?question=你好');
+const eventSource = new EventSource('/chat/stream?question=Hello');
 eventSource.onmessage = (e) => {
-  document.getElementById('output').textContent += e.data;
+    document.getElementById('output').textContent += e.data;
 };
 eventSource.addEventListener('done', () => eventSource.close());
 ```
 
 ---
 
-## Streaming API Summary
+## Streaming API Overview
 
-| Method | Return | Scenario |
-|--------|--------|----------|
+| Method | Return Type | Use Case |
+|--------|-------------|----------|
 | `llm.stream(input)` | `AIMessageChunk` | Direct LLM streaming |
 | `chainActor.stream(chain, input)` | `ChatGenerationChunk` | Chain streaming |
-| `chainActor.streamEvent(chain, input)` | `EventMessageChunk` | Debug/monitor |
-| `chainActor.streamEvent(..., filter)` | `EventMessageChunk` | Filtered events |
-| `chainActor.stop(chain)` | `void` | Cancel generation |
+| `chainActor.streamEvent(chain, input)` | `EventMessageChunk` | Debugging / monitoring |
+| `chainActor.streamEvent(chain, input, filter)` | `EventMessageChunk` | Filter specific node events |
+| `chainActor.stop(chain)` | `void` | Cancel streaming generation |
 
 ---
 
-> Full code: `src/test/java/org/salt/jlangchain/demo/article/Article06Streaming.java`
+> Full source code: `src/test/java/org/salt/jlangchain/demo/article/Article06Streaming.java`

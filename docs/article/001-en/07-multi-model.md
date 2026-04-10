@@ -1,58 +1,65 @@
-# Integrating Multiple LLM APIs in Java
+# Integrating Multiple LLM APIs in Java: A Practical Comparison
 
-> **Audience**: Java engineers evaluating/connecting different LLM vendors  
-> **Supported models**: Ollama (local), Aliyun Qwen, OpenAI, ByteDance Coze
+> **Audience**: Java developers who need to integrate LLM APIs, or engineers evaluating model options  
+> **Supported models**: Ollama (local), Alibaba Cloud Qwen, OpenAI, ByteDance Coze
 
 ---
 
 ## Why Use Multiple Models?
 
-- **Cost**: run inexpensive models for simple tasks and premium ones for complex jobs.
-- **Availability**: fail over to a backup when the primary model has incidents.
-- **Quality**: pick domestic models for Chinese, specialized code models for programming help.
-- **Compliance**: some data must stay on-premises, so you need a local model.
+- **Cost**: use cheaper models for simple tasks, more capable models for complex ones
+- **Availability**: automatically fall back to a backup model when the primary fails
+- **Performance**: domestic Chinese models for Chinese-language tasks, specialized code models for coding tasks
+- **Compliance**: some enterprise data cannot leave the country — local deployment is required
 
 ---
 
-## Supported Models
+## Supported Model Comparison
 
-| Model | Vendor | Highlights | Scenarios |
-|-------|--------|------------|-----------|
-| `qwen2.5:0.5b` | Ollama | Free, offline, local latency | Dev/testing, private data |
-| `qwen-plus` | Aliyun | Strong Chinese quality, stable, low price | Prod workloads in China |
-| `gpt-4` | OpenAI | Highest capability | Premium tasks |
-| Coze Bot | ByteDance | Custom KB + plugins | Enterprise customization |
+| Model | Vendor | Characteristics | Recommended Use |
+|-------|--------|----------------|-----------------|
+| `qwen2.5:0.5b` | Ollama (local) | Free, no network dependency, zero latency | Development/testing, private data |
+| `qwen-plus` | Alibaba Cloud | Great Chinese performance, stable, affordable | Domestic production |
+| `gpt-4` | OpenAI | Most capable | High-quality tasks |
+| Coze Bot | ByteDance | Customizable knowledge base and plugins | Enterprise customization |
 
 ---
 
-## Option 1: Local Ollama
+## Method 1: Local Ollama (Recommended for Development)
 
-Install [Ollama](https://ollama.ai) and pull a model:
+**Advantages**: completely free, data stays local, no network dependency  
+**Prerequisite**: install [Ollama](https://ollama.ai) and pull a model
 
 ```bash
-ollama pull qwen2.5:0.5b
-ollama pull llama3:8b
+ollama pull qwen2.5:0.5b   # Lightweight, suitable for testing
+ollama pull llama3:8b       # 8B parameters, better quality
 ```
 
 ```java
 ChatOllama llm = ChatOllama.builder()
     .model("qwen2.5:0.5b")
+    // .baseUrl("http://localhost:11434")  // Default address; can be changed to a remote Ollama
     .build();
 
-AIMessageChunk chunk = llm.stream("用一句话介绍 Java");
+// Streaming call
+AIMessageChunk chunk = llm.stream("Introduce Java in one sentence");
 while (chunk.getIterator().hasNext()) {
     System.out.print(chunk.getIterator().next().getContent());
 }
 
-AIMessage result = llm.invoke("用一句话介绍 Java");
+// Synchronous call
+AIMessage result = llm.invoke("Introduce Java in one sentence");
 System.out.println(result.getContent());
 ```
 
 ---
 
-## Option 2: Aliyun Qwen
+## Method 2: Alibaba Cloud Qwen
+
+**Configuration**:
 
 ```yaml
+# application.yml
 spring:
   ai:
     aliyun:
@@ -60,29 +67,31 @@ spring:
 ```
 
 ```bash
-export ALIYUN_KEY=sk-xxx
+export ALIYUN_KEY=sk-xxx  # Obtain from the Alibaba Cloud console
 ```
 
 ```java
 ChatAliyun llm = ChatAliyun.builder()
-    .model("qwen-plus")
+    .model("qwen-plus")    // Options: qwen-turbo (fastest/cheapest) / qwen-plus / qwen-max (most capable)
     .build();
 
-AIMessage result = llm.invoke("什么是 Spring Boot？");
+AIMessage result = llm.invoke("What is Spring Boot?");
 System.out.println(result.getContent());
 ```
 
-| Model | Speed | Capability | Cost |
-|-------|-------|------------|------|
-| `qwen-turbo` | Fastest | Decent | Cheapest |
-| `qwen-plus` | Fast | Strong | Medium |
-| `qwen-max` | Slow | Strongest | Highest |
+**Model selection guide**:
+
+| Model | Speed | Capability | Price |
+|-------|-------|-----------|-------|
+| `qwen-turbo` | Fastest | Average | Cheapest |
+| `qwen-plus` | Fast | Strong | Mid-range |
+| `qwen-max` | Slower | Best | Most expensive |
 
 ---
 
-## Option 3: Runtime Switching
+## Method 3: Dynamic Model Switching
 
-Use a switch chain to pick models per tenant:
+Use a conditional chain to select a model at runtime — ideal for multi-tenant scenarios where different users use different models:
 
 ```java
 @Test
@@ -93,23 +102,25 @@ public void modelSwitcher() {
     FlowInstance chain = chainActor.builder()
         .next(PromptTemplate.fromTemplate("${question}"))
         .next(
-            Info.c("tier == 'free'", freeModel),
-            Info.c("tier == 'paid'", paidModel),
-            Info.c(freeModel)
+            Info.c("tier == 'free'", freeModel),  // Free-tier users
+            Info.c("tier == 'paid'", paidModel),  // Paid users
+            Info.c(freeModel)                      // Default
         )
         .next(new StrOutputParser())
         .build();
 
-    chainActor.invoke(chain, Map.of("question", "什么是泛型？", "tier", "free"));
-    chainActor.invoke(chain, Map.of("question", "什么是泛型？", "tier", "paid"));
+    // Free-tier user
+    chainActor.invoke(chain, Map.of("question", "What are Java generics?", "tier", "free"));
+    // Paid user
+    chainActor.invoke(chain, Map.of("question", "What are Java generics?", "tier", "paid"));
 }
 ```
 
 ---
 
-## Option 4: Fallback
+## Method 4: Model Fallback
 
-Automatically downgrade when the primary model fails:
+Automatically switch to a backup model when the primary model fails, ensuring high availability:
 
 ```java
 @Test
@@ -120,58 +131,67 @@ public void modelFallback() {
     String answer;
     try {
         AIMessage result = primaryModel.invoke(question);
-        answer = "[primary] " + result.getContent();
+        answer = "[Primary] " + result.getContent();
     } catch (Exception e) {
+        System.out.println("Primary model failed, switching to fallback: " + e.getMessage());
         AIMessage result = fallbackModel.invoke(question);
-        answer = "[fallback] " + result.getContent();
+        answer = "[Fallback] " + result.getContent();
     }
 }
 ```
 
 ---
 
-## Option 5: One-Line Swaps
+## Method 5: Same Code, Switch Models with One Line
 
-Every LLM implements the same `BaseLLM` interface, so swapping is one line:
+The core value of j-langchain: all models implement the same interface (`BaseLLM`), so the chain-building code is completely identical:
 
 ```java
+// Just change this one line to switch models:
 ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
 // ChatAliyun llm = ChatAliyun.builder().model("qwen-plus").build();
 // ChatOpenAI llm = ChatOpenAI.builder().model("gpt-4").build();
 
+// The rest of the code is completely unchanged:
 FlowInstance chain = chainActor.builder()
     .next(PromptTemplate.fromTemplate("${question}"))
-    .next(llm)
+    .next(llm)                     // ← only change the model here
     .next(new StrOutputParser())
     .build();
 
-chainActor.invoke(chain, Map.of("question", "什么是 Java？"));
+chainActor.invoke(chain, Map.of("question", "What is Java?"));
 ```
 
 ---
 
-## Config Cheatsheet
+## Quick-Reference Configuration for Each Model
 
-- **Ollama**: no config if running on `http://localhost:11434`
-- **Aliyun Qwen**
-  ```yaml
-  aliyun:
-    api-key: ${ALIYUN_KEY}
-  ```
-- **OpenAI-compatible APIs**
-  ```yaml
-  openai:
-    api-key: ${OPENAI_KEY}
-    base-url: https://api.openai.com/v1
-  ```
-- **Coze**
-  ```yaml
-  coze:
-    client-id: ${COZE_CLIENT_ID}
-    private-key-path: ${COZE_PRIVATE_KEY_PATH}
-    public-key-id: ${COZE_PUBLIC_KEY_ID}
-  ```
+### Ollama (local)
+```yaml
+# No configuration needed; default is http://localhost:11434
+```
+
+### Alibaba Cloud Qwen
+```yaml
+aliyun:
+  api-key: ${ALIYUN_KEY}
+```
+
+### OpenAI / OpenAI-compatible API
+```yaml
+openai:
+  api-key: ${OPENAI_KEY}
+  base-url: https://api.openai.com/v1  # Or a proxy URL
+```
+
+### ByteDance Coze
+```yaml
+coze:
+  client-id: ${COZE_CLIENT_ID}
+  private-key-path: ${COZE_PRIVATE_KEY_PATH}
+  public-key-id: ${COZE_PUBLIC_KEY_ID}
+```
 
 ---
 
-> Full code: `src/test/java/org/salt/jlangchain/demo/article/Article07MultiModel.java`
+> Full source code: `src/test/java/org/salt/jlangchain/demo/article/Article07MultiModel.java`

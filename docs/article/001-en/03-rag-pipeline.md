@@ -1,68 +1,68 @@
 # Implementing RAG in Java: From PDF Loading to Intelligent Q&A
 
-> **Audience**: Java developers building knowledge-base assistants  
-> **Key tech**: RAG, Milvus vector DB, text embeddings
+> **Audience**: Java developers who need to build knowledge-base Q&A systems  
+> **Core technologies**: RAG, Milvus vector database, text Embedding
 
 ---
 
 ## What Is RAG?
 
-**RAG (Retrieval-Augmented Generation)** is today’s mainstream enterprise AI pattern.
+**RAG (Retrieval-Augmented Generation)** is currently the most mainstream enterprise AI application pattern.
 
-Problem statement: LLMs have training cut-off dates and never see your proprietary data (internal docs, manuals, policies). RAG solves this by:
+The problem it solves: large models have a training data cutoff date and do not contain your private data (internal documents, product manuals, company policies, etc.). The RAG approach is:
 
 ```
-User question → retrieve matching passages from your private corpus → send passages + question to the LLM → receive an answer grounded in your data
+User question → Search private knowledge base for relevant content → Send retrieved content + question to LLM → Get an answer grounded in private knowledge
 ```
 
-**Benefits**
-- No fine-tuning required, very low cost
-- Knowledge base can be updated at any time and takes effect immediately
-- Source tracing: responses can cite the originating document
+**Advantages**:
+- No model fine-tuning required — extremely low cost
+- The knowledge base can be updated at any time and takes effect immediately
+- Traceable — can tell the user which document the answer came from
 
 ---
 
 ## Complete RAG Pipeline
 
 ```
-PDF/Word docs
+PDF / Word documents
      ↓
-[Loader] PdfboxLoader / ApachePoiDocxLoader
+[Document Loader] PdfboxLoader / ApachePoiDocxLoader
      ↓
-[Text splitter] StanfordNLPTextSplitter
+[Text Splitter] StanfordNLPTextSplitter
      ↓
-[Embedding model] OllamaEmbeddings
+[Embedding Model] OllamaEmbeddings
      ↓
-[Vector DB] Milvus (storage)
-     ↓ (during query time)
-User question → [Vector retrieval] → relevant chunks → [LLM] → final answer
+[Vector Database] Milvus (storage)
+     ↓ (at query time)
+User question → [Vector Search] → Relevant chunks → [LLM] → Final answer
 ```
 
 ---
 
 ## Prerequisites
 
-The pipeline depends on Milvus and the Tesseract OCR service. Enable them explicitly in `application.yml`:
+The RAG pipeline depends on the Milvus vector database and Tesseract OCR, which must be explicitly enabled in `application.yml`:
 
 ```yaml
 rag:
   ocr:
     tesseract:
-      use: true   # enable Tesseract OCR for PDF images
+      use: true   # Enable Tesseract OCR (for text extraction from PDF images)
   vector:
     milvus:
-      use: true   # enable the Milvus vector database
+      use: true   # Enable Milvus vector database
 ```
 
-> **Note**: j-langchain uses `@ConditionalOnProperty` to guard these beans. They are not loaded unless `use: true` is set, so `TesseractActuator` and `MilvusContainer` only exist then. Calling RAG code without the flags results in missing-bean errors.
+> **Note**: j-langchain uses `@ConditionalOnProperty` to control the initialization of these two components, which are not loaded by default. Only after setting `use: true` will the `TesseractActuator` and `MilvusContainer` beans be registered in the Spring container. Running RAG-related code without enabling them will result in missing-bean errors.
 
 ---
 
 ## Step 1: Load Documents
 
-j-langchain ships several document loaders.
+j-langchain includes several built-in document loaders:
 
-### Load PDF
+### Load a PDF
 
 ```java
 @Test
@@ -70,16 +70,16 @@ public void loadPdfDocuments() {
     PdfboxLoader loader = PdfboxLoader.builder()
         .filePath("./files/pdf/en/Transformer.pdf")
         .build();
-    loader.setExtractImages(false);
+    loader.setExtractImages(false);  // Extract text only, not images
 
     List<Document> documents = loader.load();
 
-    System.out.println("页数：" + documents.size());
-    // Each Document corresponds to one PDF page
+    System.out.println("Total pages: " + documents.size());
+    // Each Document corresponds to one page of the PDF
 }
 ```
 
-### Load Word
+### Load a Word Document
 
 ```java
 ApachePoiDocxLoader loader = ApachePoiDocxLoader.builder()
@@ -89,63 +89,68 @@ ApachePoiDocxLoader loader = ApachePoiDocxLoader.builder()
 List<Document> documents = loader.load();
 ```
 
-Each `Document` contains:
-- `pageContent`: the text
-- `metadata`: source, page number, etc.
+Each `Document` object contains:
+- `pageContent`: the text content of the page
+- `metadata`: source, page number, and other metadata
 
 ---
 
-## Step 2: Split Text
+## Step 2: Split the Text
 
-A single PDF page can contain thousands of characters; embedding long chunks hurts recall and may exceed the LLM context window. Split large docs into smaller ones:
+A single PDF page may contain thousands of characters. Embedding an entire page produces poor results and may exceed the LLM's context window. Split long documents into smaller chunks:
 
 ```java
 @Test
 public void splitDocuments() {
     List<Document> documents = loader.load();
-    System.out.println("Before split: " + documents.size());
+    System.out.println("Before splitting: " + documents.size() + " pages");
 
     StanfordNLPTextSplitter splitter = StanfordNLPTextSplitter.builder()
-        .chunkSize(1000)
-        .chunkOverlap(100)
+        .chunkSize(1000)    // Maximum 1000 characters per chunk
+        .chunkOverlap(100)  // 100-character overlap between adjacent chunks to preserve context
         .build();
 
     List<Document> splits = splitter.splitDocument(documents);
-    System.out.println("After split: " + splits.size());
+    System.out.println("After splitting: " + splits.size() + " chunks");
 }
 ```
 
-**Why overlap?** If a sentence crosses two chunks, the overlapped portion ensures the full sentence exists in at least one chunk, preventing semantic breaks.
+**Why is `chunkOverlap` needed?**
+
+If a sentence spans two chunks, the overlapping region ensures the sentence appears completely in at least one chunk, preventing semantic truncation.
 
 ---
 
 ## Step 3: Embed and Store in Milvus
 
-Convert every chunk to a vector (array of floats) and save it into the vector DB:
+Convert each text chunk into a vector (an array of floats) and store it in the vector database:
 
 ```java
 @Test
 public void embedAndStore() {
+    // ... load and split documents ...
+
     VectorStore vectorStore = Milvus.fromDocuments(
         splits,
         OllamaEmbeddings.builder()
-            .model("nomic-embed-text")
-            .vectorSize(768)
+            .model("nomic-embed-text")  // Local embedding model — free
+            .vectorSize(768)            // Vector dimension
             .build(),
-        "MyKnowledgeBase"
+        "MyKnowledgeBase"               // Milvus collection name
     );
 
-    System.out.println("Embedding done!");
+    System.out.println("Embedding complete!");
 }
 ```
 
-**Why local embeddings?** `nomic-embed-text` is a high-quality open-source model that runs locally via Ollama:
-- Free: no OpenAI calls
-- Private: data never leaves the machine
-- Strong bilingual performance
+**Why use a local embedding model?**
 
-**Start Milvus** (one-line Docker):
+`nomic-embed-text` is a high-quality open-source embedding model that runs locally via Ollama:
+- Zero cost: no OpenAI API calls needed
+- Privacy-safe: data never leaves your machine
+- High quality: excellent performance on both Chinese and English embedding tasks
 
+**Start Milvus** (one-command Docker launch):
 ```bash
 docker run -d --name milvus \
   -p 19530:19530 \
@@ -154,25 +159,27 @@ docker run -d --name milvus \
 
 ---
 
-## Step 4: Full RAG QA Chain
+## Step 4: The Complete RAG Q&A Chain
 
-Retrieve relevant chunks for the user question, stitch them into the prompt, and ask the LLM:
+This is the core step: retrieve relevant document chunks using the user's question, assemble the context, and let the LLM answer based on that context:
 
 ```java
 @Test
 public void retrieveAndAsk() {
+    // Assumes documents have already been stored in Milvus...
     BaseRetriever retriever = vectorStore.asRetriever();
 
     BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate(
         """
-        请根据以下文档内容回答问题。如果文档中没有相关信息，请说"文档中未找到相关信息"。
+        Answer the question based on the following document content.
+        If the document does not contain relevant information, say "No relevant information found in the document."
         
-        文档内容：
+        Document content:
         ${context}
         
-        问题：${question}
+        Question: ${question}
         
-        回答：
+        Answer:
         """
     );
 
@@ -186,11 +193,11 @@ public void retrieveAndAsk() {
     };
 
     FlowInstance ragChain = chainActor.builder()
-        .next(retriever)
-        .next(formatDocs)
+        .next(retriever)   // Vector search: takes the question, returns relevant document chunks
+        .next(formatDocs)  // Concatenate the document list into a single string
         .next(input -> Map.of(
             "context",  input,
-            "question", ContextBus.get().getFlowParam()
+            "question", ContextBus.get().getFlowParam()  // Retrieve the original question
         ))
         .next(prompt)
         .next(llm)
@@ -199,41 +206,45 @@ public void retrieveAndAsk() {
 
     ChatGeneration result = chainActor.invoke(
         ragChain,
-        "Transformer 模型中的注意力机制是如何工作的？"
+        "How does the attention mechanism work in the Transformer model?"
     );
 
     System.out.println(result.getText());
 }
 ```
 
-**Flow explanation**
+**Chain diagram**:
 ```
-Question → retriever (return top-N chunks)
-         → formatDocs (merge chunks)
-         → prompt (context + question)
-         → LLM → StrOutputParser
-         → Final answer
+"How does the attention mechanism work..."
+    → retriever (similarity search, returns the 5 most relevant chunks)
+    → formatDocs (concatenate chunks into a string)
+    → prompt (assemble Prompt: context + question)
+    → LLM (generate answer based on context)
+    → StrOutputParser (extract text)
+    → "The attention mechanism works by computing Query, Key, Value..."
 ```
 
 ---
 
-## Step 5: Document Summary (Lightweight)
+## Step 5: Document Summarization (Lightweight)
 
-Need only a summary? Let the LLM read a truncated document:
+For simple scenarios that don't require a vector database — just have the LLM summarize the document directly:
 
 ```java
 @Test
 public void documentSummary() {
+    // Load the PDF
     List<Document> documents = loader.load();
     String content = documents.stream()
         .map(Document::getPageContent)
         .collect(Collectors.joining("\n"));
 
+    // Truncate long documents to beginning and end
     String textToSummarize = content.length() < 2000 ? content
         : content.substring(0, 1000) + "\n...\n" + content.substring(content.length() - 1000);
 
     FlowInstance chain = chainActor.builder()
-        .next(PromptTemplate.fromTemplate("请对以下内容摘要（100字以内）：\n\n${text}"))
+        .next(PromptTemplate.fromTemplate("Summarize the following content in under 100 words:\n\n${text}"))
         .next(ChatOllama.builder().model("qwen2.5:0.5b").build())
         .next(new StrOutputParser())
         .build();
@@ -245,28 +256,28 @@ public void documentSummary() {
 
 ---
 
-## RAG vs. Direct LLM Queries
+## RAG vs. Asking the LLM Directly
 
-| Item | Direct LLM | RAG |
-|------|------------|-----|
-| Private knowledge | Missing | Present (from your docs) |
-| Freshness | Fixed at training cutoff | Real-time updates |
-| Traceability | None | Yes (return sources) |
-| Cost | Low | Slightly higher (embeddings + vector DB) |
-| Hallucinations | High risk | Much lower |
+| Dimension | Direct LLM | RAG |
+|-----------|-----------|-----|
+| Private knowledge | Unknown | Known (from your documents) |
+| Knowledge freshness | Training cutoff | Real-time updates |
+| Traceable answers | No | Yes (returns source document) |
+| Cost | Low | Slightly higher (Embedding + vector DB) |
+| Hallucination risk | High | Low (grounded in real documents) |
 
 ---
 
-## Architecture
+## Complete Architecture
 
 ```
-Offline build:
+Offline phase (building the index):
 Documents → Load → Split → Embed → Milvus
 
-Online query:
+Online phase (Q&A):
 Question → Embed → Milvus search → Assemble context → LLM → Answer
 ```
 
 ---
 
-> Full code: `src/test/java/org/salt/jlangchain/demo/article/Article03RagPipeline.java`
+> Full source code: `src/test/java/org/salt/jlangchain/demo/article/Article03RagPipeline.java`

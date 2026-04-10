@@ -1,124 +1,135 @@
 # Java AI + TTS: Let the LLM Speak
 
-> **Audience**: Java developers who need speech synthesis (assistants, broadcast systems)  
-> **Vendors**: Doubao (ByteDance) and Aliyun
+> **Audience**: Java developers who need speech synthesis (voice assistants, broadcast systems)  
+> **Supported vendors**: Doubao (ByteDance), Alibaba Cloud
 
 ---
 
-## Why Combine LLM + TTS?
+## Why LLM + TTS?
 
-LLMs output text only, yet many scenarios require speech:
+Large models only output text, but many scenarios require speech:
 
-- Voice assistants that reply vocally
-- News or alert broadcasting
-- Accessibility interfaces for visually impaired users
-- In-car experiences where screens are inconvenient
+- **Intelligent voice assistants**: users ask by voice, AI answers by voice
+- **Content broadcasting**: voice broadcast of news, announcements, and real-time data
+- **Accessibility**: voice interface for visually impaired users
+- **In-vehicle systems**: not convenient to look at a screen while driving
 
-j-langchain unifies the workflow into `Prompt → LLM → TTS`, turning text into speech in one chain.
+j-langchain unifies LLM and TTS in a single chain. Three steps — `Prompt → LLM → TTS` — complete the full text-to-speech pipeline.
 
 ---
 
 ## Core Data Structures
 
-### `TtsCard` (synchronous)
+### TtsCard (synchronous result)
 
 ```java
 TtsCard {
-    String text;
-    byte[] audio;
+    String text;    // Complete text content
+    byte[] audio;   // PCM/MP3 audio data
 }
 ```
 
-### `TtsCardChunk` (streaming)
+### TtsCardChunk (streaming result)
 
-Each chunk is either text or audio:
+In streaming mode, each `chunk` is either text or audio:
 
 ```java
 TtsCardChunk {
-    boolean audio; // false=text token, true=audio
-    String text;
-    byte[] audio;
-    int index;     // audio packet ordering
+    boolean audio;  // false = text token, true = audio data
+    String text;    // Text content (has a value when audio=false)
+    byte[] audio;   // Audio data (has a value when audio=true)
+    int index;      // Audio packet sequence number (for in-order playback)
 }
 ```
 
-This enables **subtitle/audio synchronization**: display tokens and play audio simultaneously.
+This design enables **synchronized subtitles and audio**: text tokens are used to display real-time subtitles, while audio data is used for real-time playback.
 
 ---
 
-## Mode 1: Synchronous
+## Method 1: Synchronous Call
 
-The LLM finishes the text before converting it to speech—suitable for short responses:
+The LLM generates the full text first, then converts it to speech all at once. Suitable for short text or latency-insensitive scenarios:
 
 ```java
 @Test
 public void ttsInvoke() {
     FlowInstance chain = chainActor.builder()
-        .next(PromptTemplate.fromTemplate("用一段话介绍一下 ${topic}"))
+        .next(PromptTemplate.fromTemplate("Write a brief introduction of ${topic}"))
         .next(ChatOllama.builder().model("qwen2.5:0.5b").build())
-        .next(new StrOutputParser())
-        .next(new DoubaoTts())
+        .next(new StrOutputParser())  // Extract text
+        .next(new DoubaoTts())        // Text → Speech
         .build();
 
-    TtsCard result = chainActor.invoke(chain, Map.of("topic", "人工智能"));
+    TtsCard result = chainActor.invoke(chain, Map.of("topic", "artificial intelligence"));
 
-    System.out.println("文字：" + result.getText());
+    System.out.println("Text: " + result.getText());
+    // result.getAudio() → byte[], which is the audio data; write to file or send to frontend
 }
 ```
 
 ---
 
-## Mode 2: Streaming (Recommended)
+## Method 2: Streaming Output (Recommended)
 
-The LLM and TTS run concurrently so text and audio stream out together:
+The LLM generates text while TTS synthesizes speech simultaneously — text and audio **stream out together**. Lowest latency, best user experience:
 
 ```java
 @Test
 public void ttsDoubaoStream() throws TimeoutException {
     FlowInstance chain = chainActor.builder()
-        .next(PromptTemplate.fromTemplate("用三句话介绍 ${topic}"))
+        .next(PromptTemplate.fromTemplate("Introduce ${topic} in three sentences"))
         .next(ChatOllama.builder().model("qwen2.5:0.5b").build())
         .next(new StrOutputParser())
         .next(new DoubaoTts())
         .build();
 
-    TtsCardChunk result = chainActor.stream(chain, Map.of("topic", "Java编程"));
+    TtsCardChunk result = chainActor.stream(chain, Map.of("topic", "Java programming"));
 
     StringBuilder textSb = new StringBuilder();
     while (result.getIterator().hasNext()) {
         TtsCardChunk chunk = result.getIterator().next();
+
         if (!chunk.isAudio()) {
+            // Text token: display real-time subtitles
             textSb.append(chunk.getText());
             System.out.print(chunk.getText());
         } else {
-            System.out.println("[音频包 #" + chunk.getIndex() + "]");
+            // Audio data: play in real time
+            // playAudio(chunk.getAudio());  // Send to frontend or play locally
+            System.out.println("[Audio packet #" + chunk.getIndex() + "]");
         }
     }
 }
 ```
 
-Timeline:
+Streaming output timeline:
 
 ```
-LLM tokens: [Java] [是一种] [面向对象] ...
-TTS audio:      [pkt1]     [pkt2]    [pkt3]
-Subtitles: Java 是一种 面向对象 ...
+Timeline ──────────────────────────────────────────────►
+
+LLM:      [Java] [is a] [object-oriented] [programming] [language...]
+TTS:             [audio1]     [audio2]       [audio3]
+Subtitles: Java  is a   object-oriented  programming  language...
+Playback:        ♪♪♪♪         ♪♪♪♪          ♪♪♪♪
 ```
 
 ---
 
-## Switch TTS Providers
+## Switching TTS Vendors
 
-Swap the final node only:
+Just replace the TTS node in the chain — everything else stays the same:
 
 ```java
-.next(new DoubaoTts())   // Doubao
-.next(new AliyunTts())   // Aliyun
+// Doubao TTS (ByteDance)
+.next(new DoubaoTts())
+
+// Alibaba Cloud TTS
+.next(new AliyunTts())
 ```
 
 ---
 
-## Voice Assistant Example
+## Complete Voice Assistant Example
 
 ```java
 @Test
@@ -126,9 +137,10 @@ public void voiceAssistant() throws TimeoutException {
     FlowInstance assistantChain = chainActor.builder()
         .next(PromptTemplate.fromTemplate(
             """
-            你是一个专业、友好的语音助手。请用简洁的语言（不超过3句话）回答以下问题。
-            问题：${question}
-            回答：
+            You are a professional, friendly voice assistant. Answer the following question
+            concisely in no more than 3 sentences.
+            Question: ${question}
+            Answer:
             """
         ))
         .next(ChatOllama.builder().model("qwen2.5:0.5b").build())
@@ -138,15 +150,15 @@ public void voiceAssistant() throws TimeoutException {
 
     TtsCardChunk result = chainActor.stream(
         assistantChain,
-        Map.of("question", "今天适合运动吗？")
+        Map.of("question", "Is today a good day for exercise?")
     );
 
     while (result.getIterator().hasNext()) {
         TtsCardChunk chunk = result.getIterator().next();
         if (!chunk.isAudio()) {
-            System.out.print(chunk.getText());
+            System.out.print(chunk.getText()); // Subtitles
         } else {
-            // send chunk.getAudio() to the frontend
+            // chunk.getAudio() — send to frontend for playback
         }
     }
 }
@@ -154,9 +166,9 @@ public void voiceAssistant() throws TimeoutException {
 
 ---
 
-## Web API Integration
+## Integrating with a Web API
 
-Use SSE to push text/audio to browsers:
+In Spring Boot, you can push both text and audio to the frontend via SSE (Server-Sent Events):
 
 ```java
 @GetMapping(value = "/chat/voice", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -170,6 +182,7 @@ public SseEmitter voiceChat(@RequestParam String question) {
             if (!chunk.isAudio()) {
                 emitter.send(SseEmitter.event().name("text").data(chunk.getText()));
             } else {
+                // Base64-encode the audio before pushing
                 String audioBase64 = Base64.getEncoder().encodeToString(chunk.getAudio());
                 emitter.send(SseEmitter.event().name("audio").data(audioBase64));
             }
@@ -185,39 +198,48 @@ public SseEmitter voiceChat(@RequestParam String question) {
 
 ## Configuration
 
-### Doubao
+### Doubao TTS Configuration
+
+The Doubao TTS authentication token is configured in `application.yml`; other parameters (appId, voiceType, etc.) are passed when constructing `DoubaoTts`:
 
 ```yaml
 tts:
   doubao:
-    api-key: ${DOUBAO_TTS_KEY}
+    api-key: ${DOUBAO_TTS_KEY}   # Doubao TTS Access Token
 ```
 
-Customize parameters if needed:
+The default parameter values of the `DoubaoTts` node can be used directly. For customization:
 
 ```java
 DoubaoTts tts = new DoubaoTts();
 tts.setAppId("your_app_id");
-tts.setVoiceType("S_nTxZIAta1");
+tts.setVoiceType("S_nTxZIAta1");   // Voice ID
 tts.setCluster("volcano_icl");
 ```
 
-### Aliyun
+### Alibaba Cloud TTS Configuration
+
+Alibaba Cloud TTS supports two authentication methods, both configured in `application.yml`:
 
 ```yaml
 tts:
   aliyun:
+    # Method 1: Use an Access Token directly (recommended for testing)
     api-key: ${ALIYUN_TTS_KEY}
+
+    # Method 2: Exchange AK/SK for a Token dynamically (recommended for production; auto-enabled when api-key is empty)
     api-ak-id: ${ALIYUN_AK_ID}
     api-ak-secret: ${ALIYUN_AK_SECRET}
 ```
 
+Parameters such as appkey and voice for `AliyunTts` are passed at construction:
+
 ```java
 AliyunTts tts = new AliyunTts();
 tts.setAppkey("your_appkey");
-tts.setVoice("zhiyan_emo");
+tts.setVoice("zhiyan_emo");   // Voice name
 ```
 
 ---
 
-> Full code: `src/test/java/org/salt/jlangchain/demo/article/Article05LlmTts.java`
+> Full source code: `src/test/java/org/salt/jlangchain/demo/article/Article05LlmTts.java`

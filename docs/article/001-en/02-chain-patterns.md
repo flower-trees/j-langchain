@@ -1,44 +1,44 @@
-# Five Chain Orchestration Patterns for Java AI Apps
+# 5 Chain Orchestration Patterns for Java AI Apps
 
-> **Audience**: Java developers who already know j-langchain basics  
-> **Prerequisite**: [Article 1 – Build your first AI app in 5 minutes](01-hello-ai.md)
+> **Audience**: Java developers familiar with j-langchain basics  
+> **Prerequisite**: [Article 1: Build Your First AI App in 5 Minutes](01-hello-ai.md)
 
 ---
 
 ## What Is Chain Orchestration?
 
-Calling an LLM once rarely solves real-world problems. Typical workflows include:
+A single LLM call is rarely enough in real-world AI applications. Practical scenarios require:
 
-- Classify a query first, then route it to a specialized chain
-- Generate content and run quality checks afterward
-- Execute several subtasks in parallel and merge the answers
-- Rewrite follow-up questions with chat history
+- Classifying a question first, then routing it to a specialized chain
+- Generating content, then running a quality check on it
+- Executing multiple sub-tasks in parallel and aggregating results
+- Rewriting a question dynamically based on conversation history
 
-j-langchain ships with six orchestration patterns that cover about 90% of AI application scenarios.
+j-langchain provides 6 ready-to-use chain orchestration patterns that cover 90% of AI application scenarios.
 
 ---
 
 ## Pattern Overview
 
 ```
-Sequential: A → B → C → D
-Conditional: A → [if cond1 → B | cond2 → C | default → D]
-Compose: [A→B→C] → [output → D → E]
-Parallel: [A→B] and [A→C] run at the same time → merge
-Router: Classify with an LLM → send to the expert chain
-Dynamic: Run branches in parallel → merge context → final answer
+Sequential:  A → B → C → D
+Conditional: A → [condition1→B | condition2→C | default→D]
+Compose:     [A→B→C] → [output of previous chain → D→E]
+Parallel:    [A→B] and [A→C] run in parallel → merge results
+Route:       LLM classifies first → routes to the matching specialized chain
+Dynamic:     Multiple branches run in parallel → aggregate context → final reply
 ```
 
 ---
 
-## Pattern 1: Sequential Chain
+## Pattern 1: Sequential Chain (Simple Chain)
 
-A straight pipeline where each node runs after the previous one.
+The most basic linear pipeline — nodes execute one after another in order.
 
 ```java
 @Test
 public void simpleChain() {
-    BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("讲一个关于 ${topic} 的笑话");
+    BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate("Tell a joke about ${topic}");
     ChatOllama llm = ChatOllama.builder().model("qwen2.5:0.5b").build();
 
     FlowInstance chain = chainActor.builder()
@@ -47,18 +47,18 @@ public void simpleChain() {
         .next(new StrOutputParser())
         .build();
 
-    ChatGeneration result = chainActor.invoke(chain, Map.of("topic", "程序员"));
+    ChatGeneration result = chainActor.invoke(chain, Map.of("topic", "programmers"));
     System.out.println(result.getText());
 }
 ```
 
-**Use cases**: one-off Q&A, translation, summarization.
+**Use cases**: Q&A, translation, summarization, and other single-turn tasks.
 
 ---
 
-## Pattern 2: Conditional (Switch) Chain
+## Pattern 2: Conditional Chain (Switch Chain)
 
-Select a branch at runtime based on an input condition.
+Dynamically selects a different processing branch based on a condition in the input parameters.
 
 ```java
 @Test
@@ -68,52 +68,55 @@ public void switchChain() {
     FlowInstance chain = chainActor.builder()
         .next(prompt)
         .next(
-            Info.c("vendor == 'ollama'", ollamaModel),  // condition + branch
-            Info.c(input -> "暂不支持该模型供应商")           // default branch
+            Info.c("vendor == 'ollama'", ollamaModel),  // condition expression + branch node
+            Info.c(input -> "This model vendor is not supported yet") // default branch
         )
         .next(new StrOutputParser())
         .build();
 
+    // Pass the vendor parameter to control which branch is taken
     chainActor.invoke(chain, Map.of("topic", "Java", "vendor", "ollama"));
 }
 ```
 
-**Key API**: `Info.c(condition, node)` supports SpEL expressions or lambdas.
+**Key API**: `Info.c(condition, node)` — condition expressions support SpEL as well as Lambdas.
 
-**Use cases**: multi-model switching, A/B tests, permission-based routing.
+**Use cases**: Multi-model switching, A/B testing, permission-based routing.
 
 ---
 
 ## Pattern 3: Compose Chain
 
-Use the output of one chain as the input to another to enable multi-step reasoning.
+Uses the output of one chain as the input of another, enabling multi-step reasoning.
 
 ```java
 @Test
 public void composeChain() {
+    // First chain: generate a joke
     FlowInstance jokeChain = chainActor.builder()
         .next(jokePrompt).next(llm).next(parser).build();
 
+    // Second chain: analyze the joke
     FlowInstance analysisChain = chainActor.builder()
-        .next(new InvokeChain(jokeChain))
-        .next(input -> Map.of("joke", ((Generation) input).getText()))
+        .next(new InvokeChain(jokeChain))                          // embed the first chain
+        .next(input -> Map.of("joke", ((Generation) input).getText())) // transform output
         .next(analysisPrompt)
         .next(llm).next(parser)
         .build();
 
-    chainActor.invoke(analysisChain, Map.of("topic", "程序员"));
+    chainActor.invoke(analysisChain, Map.of("topic", "programmers"));
 }
 ```
 
-**Key API**: `new InvokeChain(subChain)` embeds a subchain as a node.
+**Key API**: `new InvokeChain(subChain)` — embeds a sub-chain as a single node.
 
-**Use cases**: generate + review, multi-step reasoning, chain-of-thought prompts.
+**Use cases**: Generate then review, multi-step reasoning, chain-of-thought (CoT).
 
 ---
 
 ## Pattern 4: Parallel Chain
 
-Run multiple subchains **at the same time** and merge their outputs to reduce latency.
+Multiple sub-chains execute **simultaneously** and their results are merged when all complete. This dramatically reduces latency compared to sequential execution.
 
 ```java
 @Test
@@ -122,9 +125,10 @@ public void parallelChain() {
     FlowInstance poemChain = chainActor.builder().next(poemPrompt).next(llm).build();
 
     FlowInstance parallelChain = chainActor.builder()
-        .concurrent(jokeChain, poemChain)
+        .concurrent(jokeChain, poemChain)  // run both chains in parallel
         .next(input -> {
             Map<String, Object> map = (Map<String, Object>) input;
+            // Use flowId to retrieve each sub-chain's result
             Object jokeResult = map.get(jokeChain.getFlowId());
             Object poemResult = map.get(poemChain.getFlowId());
             String joke = jokeResult instanceof AIMessage ? ((AIMessage) jokeResult).getContent() : String.valueOf(jokeResult);
@@ -133,25 +137,26 @@ public void parallelChain() {
         })
         .build();
 
-    Map<String, String> result = chainActor.invoke(parallelChain, Map.of("topic", "猫"));
-    System.out.println("笑话：" + result.get("joke"));
-    System.out.println("诗歌：" + result.get("poem"));
+    Map<String, String> result = chainActor.invoke(parallelChain, Map.of("topic", "cats"));
+    System.out.println("Joke: " + result.get("joke"));
+    System.out.println("Poem: " + result.get("poem"));
 }
 ```
 
-**Key API**: `chainActor.builder().concurrent(chain1, chain2, …)` runs subchains in parallel; use the subchain `flowId` to read outputs.
+**Key API**: `chainActor.builder().concurrent(chain1, chain2, ...)` — runs chains in parallel; use each sub-chain's `flowId` to access its result.
 
-**Use cases**: generate several pieces of content, query multiple sources, multi-model voting.
+**Use cases**: Generating multiple types of content simultaneously, searching multiple data sources concurrently, multi-model voting.
 
 ---
 
-## Pattern 5: Router Chain
+## Pattern 5: Route Chain
 
-Classify the input with an LLM first, then route it to the specialized chain.
+Uses an LLM to automatically classify the input, then routes it to the appropriate specialized chain based on the classification.
 
 ```java
 @Test
 public void routeChain() {
+    // Classification chain: determines the question type
     FlowInstance classifyChain = chainActor.builder()
         .next(classifyPrompt).next(llm).next(new StrOutputParser()).build();
 
@@ -162,29 +167,30 @@ public void routeChain() {
             "question", ((Map<?, ?>) ContextBus.get().getFlowParam()).get("question")
         ))
         .next(
-            Info.c("category == '技术'", techChain),
-            Info.c("category == '业务'", bizChain),
-            Info.c(generalChain)
+            Info.c("category == 'technical'", techChain),  // route to the tech expert
+            Info.c("category == 'business'", bizChain),   // route to the business expert
+            Info.c(generalChain)                           // default: general answer
         )
         .build();
 
-    chainActor.invoke(fullChain, Map.of("question", "如何优化 Java 内存？"));
+    chainActor.invoke(fullChain, Map.of("question", "How do I optimize Java memory usage?"));
 }
 ```
 
-**Tip**: `ContextBus.get().getFlowParam()` retrieves the original chain input from anywhere.
+**Key point**: `ContextBus.get().getFlowParam()` retrieves the chain's original input from any node.
 
-**Use cases**: smart customer service, multi-domain Q&A, expert routing.
+**Use cases**: Intelligent customer service, multi-domain Q&A, expert routing systems.
 
 ---
 
 ## Pattern 6: Dynamic Context Chain
 
-Rewrite follow-up questions with chat history, fetch context, then answer—this powers multi-turn RAG dialogs.
+Combines conversation history to rewrite a follow-up question into a standalone question, then performs retrieval and answers. This is the core pattern for multi-turn conversational RAG.
 
 ```java
 @Test
 public void dynamicChain() {
+    // Contextualize: rewrite if there is history, otherwise pass through directly
     FlowInstance contextualizeIfNeeded = chainActor.builder().next(
         Info.c("chatHistory != null", new InvokeChain(contextualizeChain)),
         Info.c(input -> Map.of("question", ((Map<String, String>) input).get("question")))
@@ -192,44 +198,45 @@ public void dynamicChain() {
 
     FlowInstance fullChain = chainActor.builder()
         .all(
-            Info.c(contextualizeIfNeeded),
-            Info.c(input -> "印度尼西亚2024年人口约2.78亿").cAlias("retriever")
+            Info.c(contextualizeIfNeeded),                                               // parallel: rewrite question
+            Info.c(input -> "Indonesia's 2024 population is approximately 278 million").cAlias("retriever") // parallel: retrieve context
         )
         .next(input -> Map.of(
             "question", ContextBus.get().getResult(contextualizeIfNeeded.getFlowId()).toString(),
-            "context", ContextBus.get().getResult("retriever")
+            "context",  ContextBus.get().getResult("retriever")
         ))
         .next(qaPrompt).next(llm).next(new StrOutputParser())
         .build();
 
+    // Second turn: the question depends on the context from the first turn
     chainActor.invoke(fullChain, Map.of(
-        "question", "那印度呢",
+        "question",    "What about India?",
         "chatHistory", List.of(
-            Pair.of("human", "印度尼西亚有多少人口"),
-            Pair.of("ai", "约2.78亿")
+            Pair.of("human", "What is Indonesia's population?"),
+            Pair.of("ai",    "About 278 million")
         )
     ));
 }
 ```
 
 **Key APIs**:
-- `chainActor.builder().all(...)` runs all branches concurrently; `cAlias` assigns readable names.
-- `ContextBus.get().getResult(id)` fetches any intermediate result by node ID or alias.
+- `chainActor.builder().all(...)` — all branches run in parallel; use `cAlias` to name branches
+- `ContextBus.get().getResult(id)` — retrieve an intermediate result by node ID or alias
 
-**Use cases**: multi-turn assistants with memory, context-aware QA.
+**Use cases**: Multi-turn conversation, AI assistants with memory, context-aware Q&A.
 
 ---
 
 ## Pattern Comparison
 
-| Pattern | Key API | Highlights | Typical Scenarios |
-|---------|---------|------------|-------------------|
-| Sequential | `.next()` | Linear pipeline | QA, translation |
-| Conditional | `Info.c(condition, node)` | Runtime branch selection | Model switch, permissions |
-| Compose | `new InvokeChain(chain)` | Chain nesting & multi-step reasoning | Generate + review |
-| Parallel | `.concurrent(chain1, chain2)` | Run chains simultaneously | Concurrent generation, multi-source retrieval |
-| Router | LLM classification + `Info.c(...)` | Intelligent routing | Customer support, expert systems |
-| Dynamic | `.all()` + `ContextBus` | Parallel context gathering + merge | Multi-turn RAG |
+| Pattern | Key API | Core Characteristic | Typical Use Case |
+|---------|---------|---------------------|-----------------|
+| Sequential | `.next()` | Linear pipeline | Q&A, translation |
+| Conditional | `Info.c(condition, node)` | Runtime branch selection | Model switching, access control |
+| Compose | `new InvokeChain(chain)` | Nested chains, multi-step reasoning | Generate + review |
+| Parallel | `.concurrent(chain1, chain2)` | Multiple chains execute simultaneously | Concurrent generation, multi-source retrieval |
+| Route | LLM classification + `Info.c(condition, chain)` | Intelligent routing | Customer service, expert systems |
+| Dynamic | `.all()` + `ContextBus` | Parallel + context aggregation | Multi-turn conversational RAG |
 
 ---
 
