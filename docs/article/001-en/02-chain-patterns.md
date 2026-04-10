@@ -233,4 +233,4 @@ public void dynamicChain() {
 
 ---
 
-> Full code: `src/test/java/org/salt/jlangchain/demo/article/Article02ChainPatterns.java`
+> Full code: [`src/test/java/org/salt/jlangchain/demo/article/Article02ChainPatterns.java`](/src/test/java/org/salt/jlangchain/demo/article/Article02ChainPatterns.java)
