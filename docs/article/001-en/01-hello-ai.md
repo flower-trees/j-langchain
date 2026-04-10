@@ -222,7 +222,7 @@ Replace `ChatAliyun` with `ChatOllama` and everything else stays the same—that
 
 ---
 
-> Full code: `src/test/java/org/salt/jlangchain/demo/article/Article01HelloAI.java`
+> Full code: [`src/test/java/org/salt/jlangchain/demo/article/Article01HelloAI.java`](/src/test/java/org/salt/jlangchain/demo/article/Article01HelloAI.java)
 
 ---
 
