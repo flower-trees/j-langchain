@@ -22,11 +22,12 @@
 | [McpAgentExecutor 混合：Manager + Client](14-mcp-mixed-agent.md)      | 跨 HTTP 与 NPX 的多步任务 | ⭐⭐⭐ | `Article14McpMixedAgent` |
 | [AgentExecutor 嵌套：旅行规划助手](15-travel-agent.md)                      | AgentExecutor 节点嵌入 chain、结构化报告 | ⭐⭐ | `Article15TravelAgent` |
 | [客服双 Agent：投诉分析 + filesystem 执行](16-multi-agent-executor.md)       | ReAct + MCP 双 Agent 串联、文件写入确认 | ⭐⭐⭐ | `Article16CustomerService`（示例） |
+| [国内主流厂商顺序链实例](17-domestic-vendors-chain.md)                       | 与文章2顺序链相同形态、逐个对接国内 `Chat*` | ⭐ | `Article17DomesticVendorsChain` |
 
 ## 建议阅读顺序
 
 ```
-入门（01-hello-ai）→ 多模型（07-multi-model）→ 流式（06-streaming）→ 编排（02-chain-patterns）
+入门（01-hello-ai）→ 多模型（07-multi-model）→ 流式（06-streaming）→ 编排（02-chain-patterns）→ 国内厂商顺序链（17-domestic-vendors-chain，可选）
 → RAG（03-rag-pipeline）→ ReAct（04-react-agent）→ AgentExecutor（09-agent-executor）
 → 航司比价（10-flight-compare-agent）→ TTS（05-llm-tts）→ MCP 基础（08-mcp）
 → MCP Function-Calling ReAct（11-mcp-react-agent）→ McpAgentExecutor（12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent）→ AgentExecutor 嵌套（15-travel-agent）→ 双 Agent 串联（Article16CustomerService）
@@ -53,7 +54,8 @@ src/test/java/org/salt/jlangchain/demo/article/
 ├── Article13McpClientAgent.java  ← 13-mcp-client-agent.md
 ├── Article14McpMixedAgent.java   ← 14-mcp-mixed-agent.md
 ├── Article15TravelAgent.java     ← 15-travel-agent.md
-└── Article16CustomerService.java ← （客服双 Agent 示例）
+├── Article16CustomerService.java ← （客服双 Agent 示例）
+└── Article17DomesticVendorsChain.java ← 17-domestic-vendors-chain.md
 ```
 
 ## 运行环境要求
@@ -69,3 +71,4 @@ src/test/java/org/salt/jlangchain/demo/article/
 | `11-mcp-react-agent.md` | Node.js + ALIYUN_KEY（MCP HTTP 工具 + ReAct） |
 | `12-mcp-manager-agent.md`、`13-mcp-client-agent.md`、`14-mcp-mixed-agent.md` | Node.js + ALIYUN_KEY（`McpAgentExecutor` + qwen3.6-plus） |
 | `Article16CustomerService`（示例） | Node.js + ALIYUN_KEY（ReAct + filesystem MCP） |
+| `17-domestic-vendors-chain.md` / `Article17DomesticVendorsChain` | 按需配置对应厂商 API Key（见文内表格）；Coze 另需有效 `COZE_BOT_ID` |
