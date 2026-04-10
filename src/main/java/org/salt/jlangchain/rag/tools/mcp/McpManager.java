@@ -198,7 +198,7 @@ public class McpManager {
 
     /**
      * Convert tools from the given group into j-langchain {@link Tool} objects,
-     * suitable for use with {@link org.salt.jlangchain.core.agent.FunctionCallingExecutor}.
+     * suitable for use with {@link org.salt.jlangchain.core.agent.McpAgentExecutor}.
      *
      * <p>The returned Tool's {@code func} accepts a {@code Map<String,Object>} (parsed from
      * the model's JSON arguments) and delegates to {@link #run(String, String, Map)}.

@@ -17,7 +17,7 @@ package org.salt.jlangchain.rag.tools.annotation;
 import java.lang.annotation.*;
 
 /**
- * Describes a parameter of a {@link Tool}-annotated method.
+ * Describes a parameter of an {@link AgentTool}-annotated method.
  *
  * <p>Used to generate the parameter schema injected into the ReAct Prompt,
  * so the LLM knows what JSON keys to supply for multi-parameter tools.
