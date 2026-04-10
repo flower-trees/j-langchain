@@ -14,8 +14,6 @@
 
 package org.salt.jlangchain.demo.article;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.function.flow.FlowInstance;
@@ -67,9 +65,6 @@ import java.util.Map;
 @SpringBootTest(classes = {TestApplication.class, JLangchainConfigTest.class})
 @SpringBootConfiguration
 public class Article08Mcp {
-
-    private static final ObjectMapper SIMPLE_MAPPER = JsonUtil.getObjectMapper();
-    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
     @Autowired
     private McpManager mcpManager;
