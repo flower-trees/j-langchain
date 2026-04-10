@@ -25,6 +25,13 @@ public enum VendorType {
     ALIYUN("aliyun"),
     MOONSHOT("moonshot"),
     OLLAMA("ollama"),
+    DEEPSEEK("deepseek"),
+    HUNYUAN("hunyuan"),
+    QIANFAN("qianfan"),
+    ZHIPU("zhipu"),
+    MINIMAX("minimax"),
+    LINGYI("lingyi"),
+    STEPFUN("stepfun"),
     ;
 
     private final String code;

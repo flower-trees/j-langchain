@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
+import org.salt.jlangchain.rag.tools.Tool;
 import org.salt.jlangchain.rag.tools.mcp.tool.TextContent;
 import org.salt.jlangchain.rag.tools.mcp.tool.ToolDesc;
 import org.salt.jlangchain.rag.tools.mcp.tool.ToolResult;
@@ -193,6 +194,71 @@ public class McpManager {
             result.put(key, tools);
         });
         return result;
+    }
+
+    /**
+     * Convert tools from the given group into j-langchain {@link Tool} objects,
+     * suitable for use with {@link org.salt.jlangchain.core.agent.FunctionCallingExecutor}.
+     *
+     * <p>The returned Tool's {@code func} accepts a {@code Map<String,Object>} (parsed from
+     * the model's JSON arguments) and delegates to {@link #run(String, String, Map)}.
+     *
+     * @param group the tool group name (key in mcp.config.json)
+     * @return list of Tool wrappers for every tool in the group
+     */
+    public List<Tool> toTools(String group) {
+        return toTools(group, null);
+    }
+
+    /**
+     * Convert tools from the given group into j-langchain {@link Tool} objects,
+     * with a per-call authorization token supplier.
+     *
+     * @param group         the tool group name
+     * @param authorization static authorization header value (nullable)
+     */
+    public List<Tool> toTools(String group, String authorization) {
+        Map<String, ToolConfig> serverTools = tools.get(group);
+        if (serverTools == null) {
+            log.warn("McpManager: no tool group '{}' found", group);
+            return List.of();
+        }
+        List<Tool> result = new ArrayList<>();
+        for (ToolConfig cfg : serverTools.values()) {
+            String toolName = cfg.name;
+            String params = buildParamsString(cfg.params);
+            result.add(Tool.builder()
+                .name(toolName)
+                .params(params)
+                .description(cfg.description != null ? cfg.description : toolName)
+                .func(input -> {
+                    try {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> argsMap = (input instanceof Map) ? (Map<String, Object>) input : Map.of();
+                        return runForInput(group, toolName, argsMap, authorization);
+                    } catch (Exception e) {
+                        log.error("MCP tool '{}' execution error: {}", toolName, e.getMessage(), e);
+                        return "Tool execution error: " + e.getMessage();
+                    }
+                })
+                .build());
+        }
+        return result;
+    }
+
+    /** Build a params description string from the tool config params map. */
+    private String buildParamsString(Map<String, Object> params) {
+        if (params == null || params.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        params.forEach((k, v) -> {
+            if (sb.length() > 0) sb.append(", ");
+            String type = "String";
+            if (v instanceof Map<?, ?> m && m.containsKey("type")) {
+                type = String.valueOf(m.get("type"));
+            }
+            sb.append(k).append(": ").append(type);
+        });
+        return sb.toString();
     }
 
     public Object runForInput(String serverName, String toolName, Map<String, Object> input) throws Exception {

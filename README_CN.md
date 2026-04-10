@@ -22,11 +22,18 @@
 ### 🎯 多厂商 LLM 支持
 开箱即用的主流大模型集成，一套 API 统一调用：
 - **OpenAI (ChatGPT)** - GPT-4/GPT-3.5 系列
-- **Ollama** - 本地开源模型（Llama3, Qwen2.5 等）
-- **阿里云千问** - 企业级云端服务
+- **Ollama** - 本地开源模型（Llama3, Qwen2.5, DeepSeek 等）
+- **阿里云千问 (DashScope)** - 企业级云端服务
 - **Moonshot (Kimi)** - 长上下文支持
-- **豆包 (Doubao)** - 字节跳动大模型
+- **豆包 (Doubao)** - 字节跳动大模型（火山方舟）
 - **扣子 (Coze)** - OAuth 2.0 + SSE 实时推送
+- **DeepSeek** - DeepSeek-V3 / DeepSeek-R1 系列
+- **腾讯混元 (Hunyuan)** - 腾讯云大模型
+- **百度文心 (Qianfan)** - ERNIE 系列
+- **智谱 AI (GLM)** - ChatGLM 系列
+- **MiniMax** - MiniMax-Text 系列
+- **零一万物 (Yi)** - Yi 系列
+- **阶跃星辰 (Stepfun)** - Step 系列
 
 ### 🔗 灵活的调用链编排
 基于 [salt-function-flow](https://github.com/flower-trees/salt-function-flow) 强大的流程编排能力：
@@ -44,8 +51,11 @@
 
 ### 🔧 工具调用 & MCP 协议
 - **Tool Calling** - 函数调用 + 参数 Schema
+- **AgentExecutor** - 封装 ReAct 循环，快速搭建 Agent
+- **McpAgentExecutor** - 模型侧 Function Calling + MCP 工具编排
+- **@AgentTool / ToolScanner** - 用注解从 Java 方法声明多参数工具
 - **MCP (Model Context Protocol)** - 3 种连接方式（Stdio/SSE/HTTP）
-- **环境变量配置** - 动态网关路由
+- **环境变量配置** - 动态网关路由（或使用 `models.<vendor>.chat-key`）
 
 ### 🎤 智能语音合成 (TTS)
 - **多厂商支持** - 阿里云/豆包
@@ -64,13 +74,13 @@
 <dependency>
     <groupId>io.github.flower-trees</groupId>
     <artifactId>j-langchain</artifactId>
-    <version>1.0.12</version>
+    <version>1.0.13</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation 'io.github.flower-trees:j-langchain:1.0.12'
+implementation 'io.github.flower-trees:j-langchain:1.0.13'
 ```
 
 ### 2️⃣ 配置启动类
@@ -95,6 +105,13 @@ export MOONSHOT_KEY=sk-xxx...    # Moonshot (Kimi) API Key
 export DOUBAO_KEY=sk-xxx...      # 豆包 API Key
 export COZE_KEY=xxx...           # 扣子 API Key（或使用下方 OAuth 方式）
 export OLLAMA_KEY1=              # Ollama 本地模型通常可留空，网关/代理场景可配置
+export DEEPSEEK_KEY=sk-xxx...    # DeepSeek
+export HUNYUAN_KEY=sk-xxx...     # 腾讯混元
+export QIANFAN_KEY=xxx...       # 百度千帆（文心）
+export ZHIPU_KEY=xxx...         # 智谱 AI（GLM）
+export MINIMAX_KEY=xxx...       # MiniMax
+export LINGYI_KEY=xxx...        # 零一万物（Yi）
+export STEPFUN_KEY=xxx...       # 阶跃星辰（Step）
 
 # 扣子 OAuth 2.0 方式（二选一）
 # export COZE_CLIENT_ID=xxx
@@ -346,7 +363,8 @@ AIMessage response = llm.invoke("What's the weather in Beijing?");
 |------|------|
 | [快速开始](./docs/guide/quickstart_cn.md) | 详细的入门教程 |
 | [API 文档](./docs/api/reference_cn.md) | 完整的 API 参考 |
-| [示例代码](./src/test/java/org/salt/jlangchain/demo/) | 30+ 实际案例 |
+| [文章教程目录](./docs/article/001/README.md) | 系列教程、阅读顺序、运行环境（Agent / MCP） |
+| [MyFirstAIApp](./src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java) / [示例代码](./src/test/java/org/salt/jlangchain/demo) | 入门示例 + 30+ 实际案例 |
 | [最佳实践](./docs/best-practices.md) | 生产环境建议 |
 
 ---
@@ -368,10 +386,10 @@ AIMessage response = llm.invoke("What's the weather in Beijing?");
 └─────────────────────────────────────────────────────────┘
                            ▼
 ┌───────────────┬──────────────┬─────────────┬───────────┐
-│  LLM Vendors  │     RAG      │     TTS     │    MCP    │
-│ ChatGPT/Ollama│ Loader/Split │ Aliyun/豆包  │ Tools     │
-│ Aliyun/Moonshot│ Embed/Vector│ 智能过滤     │ 3 Protocols│
-│ Doubao/Coze   │ Milvus Store │ 流式合成     │ OAuth     │
+│  LLM (13+)    │     RAG      │     TTS     │    MCP    │
+│ Multi-vendor  │ Loader/Split │ Aliyun/Doubao│ Tools     │
+│ chat + tools  │ Embed/Vector │ Smart Filter│ Stdio/SSE │
+│ domestic+intl │ Milvus Store │ Streaming   │ HTTP + FC │
 └───────────────┴──────────────┴─────────────┴───────────┘
 ```
 
@@ -383,11 +401,11 @@ AIMessage response = llm.invoke("What's the weather in Beijing?");
 
 | 特性 | J-LangChain | LangChain4j | Spring AI |
 |------|-------------|-------------|-----------|
-| **多厂商支持** | ✅ 6+ (含国内) | ✅ 5+ | ⚠️ 主流 |
+| **多厂商支持** | ✅ 13+ (含国内) | ✅ 5+ | ⚠️ 主流 |
 | **流程编排** | ✅ 强大的 salt-flow | ⚠️ 链式调用 | ⚠️ 基础 |
 | **RAG 完整性** | ✅ 端到端 | ✅ 完整 | ⚠️ 部分 |
 | **TTS 支持** | ✅ 智能优化 | ❌ | ❌ |
-| **MCP 协议** | ✅ 3 种连接 | ❌ | ❌ |
+| **MCP 协议** | ✅ 3 种连接 + Function Calling / Agent | ❌ | ❌ |
 | **事件监控** | ✅ 完整生命周期 | ⚠️ 基础 | ❌ |
 | **Spring Boot** | ✅ 原生支持 | ✅ | ✅ |
 | **学习曲线** | 🟢 简单 | 🟡 中等 | 🟢 简单 |

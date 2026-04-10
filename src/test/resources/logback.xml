@@ -12,7 +12,7 @@
     </encoder>
   </appender>
 
-  <logger name="org.salt.jlangchain.core" level="INFO" additivity="false">
+  <logger name="org.salt.jlangchain" level="INFO" additivity="false">
     <appender-ref ref="CONSOLE"/>
   </logger>
 

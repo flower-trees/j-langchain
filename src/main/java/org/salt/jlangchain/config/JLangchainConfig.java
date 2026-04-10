@@ -25,12 +25,19 @@ import org.salt.jlangchain.ai.tts.aliyun.TtsAliyunClient;
 import org.salt.jlangchain.ai.tts.doubao.TtsDoubaoClient;
 import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 import org.salt.jlangchain.ai.vendor.chatgpt.ChatGPTActuator;
+import org.salt.jlangchain.ai.vendor.deepseek.DeepseekActuator;
 import org.salt.jlangchain.ai.vendor.doubao.DoubaoActuator;
 import org.salt.jlangchain.ai.vendor.doubao.coze.CozeActuator;
 import org.salt.jlangchain.ai.vendor.doubao.coze.auth.CozeOAuthHelper;
 import org.salt.jlangchain.ai.vendor.doubao.coze.auth.CozeProperties;
+import org.salt.jlangchain.ai.vendor.hunyuan.HunyuanActuator;
+import org.salt.jlangchain.ai.vendor.lingyi.LingyiActuator;
+import org.salt.jlangchain.ai.vendor.minimax.MinimaxActuator;
 import org.salt.jlangchain.ai.vendor.moonshot.MoonshotActuator;
 import org.salt.jlangchain.ai.vendor.ollama.OllamaActuator;
+import org.salt.jlangchain.ai.vendor.qianfan.QianfanActuator;
+import org.salt.jlangchain.ai.vendor.stepfun.StepfunActuator;
+import org.salt.jlangchain.ai.vendor.zhipu.ZhipuActuator;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.rag.loader.ocr.TesseractActuator;
 import org.salt.jlangchain.rag.vector.MilvusContainer;
@@ -117,6 +124,41 @@ public class JLangchainConfig {
     @Bean
     public MoonshotActuator moonshotActuator(HttpStreamClient commonHttpClient) {
         return new MoonshotActuator(commonHttpClient);
+    }
+
+    @Bean
+    public DeepseekActuator deepseekActuator(HttpStreamClient commonHttpClient) {
+        return new DeepseekActuator(commonHttpClient);
+    }
+
+    @Bean
+    public HunyuanActuator hunyuanActuator(HttpStreamClient commonHttpClient) {
+        return new HunyuanActuator(commonHttpClient);
+    }
+
+    @Bean
+    public QianfanActuator qianfanActuator(HttpStreamClient commonHttpClient) {
+        return new QianfanActuator(commonHttpClient);
+    }
+
+    @Bean
+    public ZhipuActuator zhipuActuator(HttpStreamClient commonHttpClient) {
+        return new ZhipuActuator(commonHttpClient);
+    }
+
+    @Bean
+    public MinimaxActuator minimaxActuator(HttpStreamClient commonHttpClient) {
+        return new MinimaxActuator(commonHttpClient);
+    }
+
+    @Bean
+    public LingyiActuator lingyiActuator(HttpStreamClient commonHttpClient) {
+        return new LingyiActuator(commonHttpClient);
+    }
+
+    @Bean
+    public StepfunActuator stepfunActuator(HttpStreamClient commonHttpClient) {
+        return new StepfunActuator(commonHttpClient);
     }
 
     @Bean

@@ -14,10 +14,22 @@
 
 package org.salt.jlangchain.demo.article;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.salt.function.flow.FlowInstance;
 import org.salt.jlangchain.TestApplication;
+import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.config.JLangchainConfigTest;
+import org.salt.jlangchain.core.BaseRunnable;
+import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
+import org.salt.jlangchain.core.message.BaseMessage;
+import org.salt.jlangchain.core.message.MessageType;
+import org.salt.jlangchain.core.message.ToolMessage;
+import org.salt.jlangchain.core.prompt.chat.ChatPromptTemplate;
+import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
 import org.salt.jlangchain.rag.tools.mcp.McpClient;
 import org.salt.jlangchain.rag.tools.mcp.McpManager;
 import org.salt.jlangchain.rag.tools.mcp.server.McpServerConnection;
@@ -38,11 +50,14 @@ import java.util.Map;
  * MCP（Model Context Protocol）是 Anthropic 主导的 AI 工具标准协议（2024年发布）。
  *
  * 演示内容：
- * 1. mcpManagerManifest  - 列出所有已注册的 MCP 工具
- * 2. mcpManagerRun       - 通过 McpManager 调用工具
- * 3. mcpClientListTools  - 通过 McpClient 列出 NPX MCP 服务器的工具
- * 4. mcpServerConnect    - 连接 MCP 服务器并调用工具（Memory Server）
- * 5. mcpPostgresConnect  - 连接 PostgreSQL MCP 服务器
+ * 1. mcpManagerManifest     - 列出所有已注册的 MCP 工具
+ * 2. mcpManagerRun          - 通过 McpManager 调用工具
+ * 3. mcpClientListTools     - 通过 McpClient 列出 NPX MCP 服务器的工具
+ * 4. mcpMemoryServerConnect - 连接 MCP 服务器并调用工具（Memory Server）
+ * 5. mcpPostgresConnect     - 连接 PostgreSQL MCP 服务器
+ *
+ * <p>McpAgentExecutor 单源/混合示例已拆至文章 12～14：
+ * {@link Article12McpManagerAgent}、{@link Article13McpClientAgent}、{@link Article14McpMixedAgent}。
  *
  * 配置文件：
  * - mcp.config.json          : HTTP API 工具配置
@@ -53,11 +68,17 @@ import java.util.Map;
 @SpringBootConfiguration
 public class Article08Mcp {
 
+    private static final ObjectMapper SIMPLE_MAPPER = JsonUtil.getObjectMapper();
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
+
     @Autowired
     private McpManager mcpManager;
 
     @Autowired
     private McpClient mcpClient;
+
+    @Autowired
+    private ChainActor chainActor;
 
     /**
      * 查看所有已注册的 MCP 工具清单
@@ -174,5 +195,37 @@ public class Article08Mcp {
 
         // 有了 MCP，Agent 可以直接执行 SQL，无需你写任何 JDBC 代码
         // connection.callTool("query", Map.of("sql", "SELECT * FROM users LIMIT 5"));
+    }
+
+    /**
+     * 将 MCP 工具集成到 LLM 中
+     */
+    @Test
+    public void mcpLlmDemo() {
+
+        // 获取工具清单
+        List<AiChatInput.Tool> tools = mcpManager.manifestForInput().get("default");
+
+        BaseRunnable<ChatPromptValue, ?> prompt = ChatPromptTemplate.fromMessages(
+            List.of(
+                BaseMessage.fromMessage(MessageType.SYSTEM.getCode(),
+                    "你是一个AI助手，你可以调用 tools 中的工具，回答用户问题。"), // 系统提示, 可以使用工具清单中的工具
+                BaseMessage.fromMessage(MessageType.HUMAN.getCode(), "用户问题：${input}")
+            )
+        );
+
+        ChatAliyun llm = ChatAliyun.builder()
+            .model("qwen3.6-plus")
+            .temperature(0f)
+            .tools(tools) // 添加工具清单
+            .build();
+
+        FlowInstance chain = chainActor.builder()
+                .next(prompt)
+                .next(llm)
+                .build();
+
+        ToolMessage result = chainActor.invoke(chain, Map.of("input", "告诉我当前的公网IP"));
+        System.out.println("llm 会返回下步需要调用工具: " + result.getToolCalls());
     }
 }
