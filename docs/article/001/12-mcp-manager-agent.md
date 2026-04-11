@@ -153,8 +153,8 @@ public void mcpManagerAgent() {
 ---
 
 > 📎 相关资源
-> - 完整示例：[Article12McpManagerAgent.java](../../../src/test/java/org/salt/jlangchain/demo/article/Article12McpManagerAgent.java)，对应方法 `mcpManagerAgent()`
-> - 工具配置：[mcp.config.json](../../../src/test/resources/mcp.config.json)
-> - j-langchain GitHub：https://github.com/flower-trees/j-langchain
-> - j-langchain Gitee 镜像：https://gitee.com/flower-trees-z/j-langchain
+> - 完整示例：[Article12McpManagerAgent.java](/src/test/java/org/salt/jlangchain/demo/article/Article12McpManagerAgent.java)，对应方法 `mcpManagerAgent()`
+> - 工具配置：[mcp.config.json](/src/test/resources/mcp.config.json)
+> - j-langchain GitHub：[https://github.com/flower-trees/j-langchain](https://github.com/flower-trees/j-langchain)
+> - j-langchain Gitee 镜像：[https://gitee.com/flower-trees-z/j-langchain](https://gitee.com/flower-trees-z/j-langchain)
 > - 运行环境：需配置阿里云 API Key，示例模型 `qwen3.6-plus`
