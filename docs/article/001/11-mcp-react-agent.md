@@ -252,8 +252,8 @@ try {
 ---
 
 > 📎 相关资源
-> - 完整示例：[Article11McpReactAgent.java](../../../src/test/java/org/salt/jlangchain/demo/article/Article11McpReactAgent.java)，对应方法 `mcpFunctionCallingLoop()`
-> - MCP 工具配置：`src/test/resources/mcp.config.json`
+> - 完整示例：[Article11McpReactAgent.java](/src/test/java/org/salt/jlangchain/demo/article/Article11McpReactAgent.java)，对应方法 `mcpFunctionCallingLoop()`
+> - MCP 工具配置：[`src/test/resources/mcp.config.json`](/src/test/resources/mcp.config.json)
 > - j-langchain GitHub：https://github.com/flower-trees/j-langchain
 > - j-langchain Gitee 镜像：https://gitee.com/flower-trees-z/j-langchain
 > - 运行环境：需配置阿里云 API Key，示例模型 `qwen3.6-plus`
