@@ -22,7 +22,7 @@ import java.lang.annotation.*;
  * <p>Used to generate the parameter schema injected into the ReAct Prompt,
  * so the LLM knows what JSON keys to supply for multi-parameter tools.
  */
-@Target(ElementType.PARAMETER)
+@Target({ElementType.PARAMETER, ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface Param {
