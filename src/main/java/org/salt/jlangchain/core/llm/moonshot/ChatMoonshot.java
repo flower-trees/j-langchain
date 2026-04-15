@@ -15,6 +15,7 @@
 package org.salt.jlangchain.core.llm.moonshot;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 @Slf4j
+@EqualsAndHashCode(callSuper = true)
 @Data
 public class ChatMoonshot extends BaseChatModel {
 

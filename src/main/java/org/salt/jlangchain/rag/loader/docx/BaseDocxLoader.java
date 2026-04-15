@@ -15,12 +15,14 @@
 package org.salt.jlangchain.rag.loader.docx;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.salt.jlangchain.rag.loader.BaseLoader;
 import org.salt.jlangchain.rag.loader.ocr.OcrActuator;
 import org.salt.jlangchain.rag.loader.ocr.TesseractActuator;
 
 import java.io.InputStream;
 
+@EqualsAndHashCode(callSuper = false)
 @Data
 public abstract class BaseDocxLoader extends BaseLoader {
 

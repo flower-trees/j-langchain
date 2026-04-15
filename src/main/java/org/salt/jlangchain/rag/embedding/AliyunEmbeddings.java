@@ -15,9 +15,11 @@
 package org.salt.jlangchain.rag.embedding;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 public class AliyunEmbeddings extends Embeddings {
 

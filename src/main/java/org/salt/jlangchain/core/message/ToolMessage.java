@@ -15,10 +15,12 @@
 package org.salt.jlangchain.core.message;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
 
 import java.util.List;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 public class ToolMessage extends AIMessage {
 

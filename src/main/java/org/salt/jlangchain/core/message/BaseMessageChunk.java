@@ -16,11 +16,13 @@ package org.salt.jlangchain.core.message;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.salt.jlangchain.core.common.Iterator;
 import org.salt.jlangchain.core.common.IteratorAction;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 public abstract class BaseMessageChunk<T extends BaseMessage> extends BaseMessage implements IteratorAction<T> {
 

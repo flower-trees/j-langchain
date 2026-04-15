@@ -15,10 +15,12 @@
 package org.salt.jlangchain.core.prompt.value;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.salt.jlangchain.core.message.BaseMessage;
 
 import java.util.List;
 
+@EqualsAndHashCode(callSuper = false)
 @Data
 public class ChatPromptValue extends PromptValue {
 

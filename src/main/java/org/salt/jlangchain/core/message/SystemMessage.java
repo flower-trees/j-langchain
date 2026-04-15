@@ -15,7 +15,9 @@
 package org.salt.jlangchain.core.message;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 public class SystemMessage extends BaseMessage {
 

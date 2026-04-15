@@ -20,7 +20,7 @@ import org.salt.jlangchain.core.Serializable;
 
 import java.util.Map;
 
-@EqualsAndHashCode(callSuper = true)
+@EqualsAndHashCode(callSuper = false)
 @Data
 public class BaseMessage extends Serializable {
     protected String id;

@@ -15,6 +15,7 @@
 package org.salt.jlangchain.core.llm.doubao;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
@@ -24,6 +25,7 @@ import org.salt.jlangchain.core.llm.BaseChatModel;
 import java.util.Map;
 
 @Slf4j
+@EqualsAndHashCode(callSuper = true)
 @Data
 public class ChatCoze extends BaseChatModel {
 
