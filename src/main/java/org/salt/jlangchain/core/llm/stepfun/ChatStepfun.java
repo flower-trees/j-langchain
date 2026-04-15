@@ -30,18 +30,15 @@ import java.util.Map;
 @Data
 public class ChatStepfun extends BaseChatModel {
 
-    protected String vendor = "stepfun";
-    protected String modelType = "llm";
-    protected String model = "step-2-16k";
-    protected Float temperature = 0.7f;
-    protected Map<String, Object> modelKwargs;
-    protected List<AiChatInput.Tool> tools;
-
     public ChatStepfun() {
+        this.vendor = "stepfun";
+        this.model = "step-2-16k";
     }
 
     protected ChatStepfun(ChatStepfunBuilder<?, ?> builder) {
         super();
+        this.vendor = "stepfun";
+        this.model = "step-2-16k";
         this.vendor = builder.vendorSet ? builder.vendor : this.vendor;
         this.modelType = builder.modelTypeSet ? builder.modelType : this.modelType;
         this.model = builder.modelSet ? builder.model : this.model;

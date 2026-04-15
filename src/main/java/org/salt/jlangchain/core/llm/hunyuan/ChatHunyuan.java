@@ -30,18 +30,15 @@ import java.util.Map;
 @Data
 public class ChatHunyuan extends BaseChatModel {
 
-    protected String vendor = "hunyuan";
-    protected String modelType = "llm";
-    protected String model = "hunyuan-turbo";
-    protected Float temperature = 0.7f;
-    protected Map<String, Object> modelKwargs;
-    protected List<AiChatInput.Tool> tools;
-
     public ChatHunyuan() {
+        this.vendor = "hunyuan";
+        this.model = "hunyuan-turbo";
     }
 
     protected ChatHunyuan(ChatHunyuanBuilder<?, ?> builder) {
         super();
+        this.vendor = "hunyuan";
+        this.model = "hunyuan-turbo";
         this.vendor = builder.vendorSet ? builder.vendor : this.vendor;
         this.modelType = builder.modelTypeSet ? builder.modelType : this.modelType;
         this.model = builder.modelSet ? builder.model : this.model;

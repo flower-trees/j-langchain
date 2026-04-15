@@ -15,6 +15,7 @@
 package org.salt.jlangchain.core.llm.qianfan;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
@@ -24,22 +25,20 @@ import org.salt.jlangchain.core.llm.BaseChatModel;
 import java.util.List;
 import java.util.Map;
 
+@EqualsAndHashCode(callSuper = true)
 @Slf4j
 @Data
 public class ChatQianfan extends BaseChatModel {
 
-    protected String vendor = "qianfan";
-    protected String modelType = "llm";
-    protected String model = "ernie-4.5-8k";
-    protected Float temperature = 0.7f;
-    protected Map<String, Object> modelKwargs;
-    protected List<AiChatInput.Tool> tools;
-
     public ChatQianfan() {
+        this.vendor = "qianfan";
+        this.model = "ernie-4.5-8k";
     }
 
     protected ChatQianfan(ChatQianfanBuilder<?, ?> builder) {
         super();
+        this.vendor = "qianfan";
+        this.model = "ernie-4.5-8k";
         this.vendor = builder.vendorSet ? builder.vendor : this.vendor;
         this.modelType = builder.modelTypeSet ? builder.modelType : this.modelType;
         this.model = builder.modelSet ? builder.model : this.model;

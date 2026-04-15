@@ -30,18 +30,15 @@ import java.util.Map;
 @Data
 public class ChatDoubao extends BaseChatModel {
 
-    protected String vendor = "doubao";
-    protected String modelType = "llm";
-    protected String model = "ep-20240611104225-2d4ww";
-    protected Float temperature = 0.7f;
-    protected Map<String, Object> modelKwargs;
-    protected List<AiChatInput.Tool> tools;
-
     public ChatDoubao() {
+        this.vendor = "doubao";
+        this.model = "ep-20240611104225-2d4ww";
     }
 
     protected ChatDoubao(ChatDoubaoBuilder<?, ?> builder) {
         super();
+        this.vendor = "doubao";
+        this.model = "ep-20240611104225-2d4ww";
         this.vendor = builder.vendorSet ? builder.vendor : this.vendor;
         this.modelType = builder.modelTypeSet ? builder.modelType : this.modelType;
         this.model = builder.modelSet ? builder.model : this.model;

@@ -23,15 +23,16 @@ import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 @Data
 public class AliyunEmbeddings extends Embeddings {
 
-    protected String model = "text-embedding-v3";
-    protected int vectorSize = 768;
-
     public AliyunEmbeddings() {
         super();
+        this.model = "text-embedding-v3";
+        this.vectorSize = 768;
     }
 
     protected AliyunEmbeddings(AliyunEmbeddingsBuilder<?, ?> builder) {
-        super(builder);
+        super();
+        this.model = "text-embedding-v3";
+        this.vectorSize = 768;
         if (builder.modelSet) {
             this.model = builder.modelValue;
         }

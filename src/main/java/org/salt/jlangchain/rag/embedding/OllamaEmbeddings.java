@@ -23,15 +23,16 @@ import org.salt.jlangchain.ai.vendor.ollama.OllamaActuator;
 @Data
 public class OllamaEmbeddings extends Embeddings {
 
-    protected String model = "nomic-embed-text";
-    protected int vectorSize = 768;
-
     public OllamaEmbeddings() {
         super();
+        this.model = "nomic-embed-text";
+        this.vectorSize = 768;
     }
 
     protected OllamaEmbeddings(OllamaEmbeddingsBuilder<?, ?> builder) {
-        super(builder);
+        super();
+        this.model = "nomic-embed-text";
+        this.vectorSize = 768;
         if (builder.modelSet) {
             this.model = builder.modelValue;
         }

@@ -30,18 +30,15 @@ import java.util.Map;
 @Data
 public class ChatOllama extends BaseChatModel {
 
-    protected String vendor = "ollama";
-    protected String modelType = "llm";
-    protected String model = "qwen2.5:0.5b";
-    protected Float temperature = 0.7f;
-    protected Map<String, Object> modelKwargs;
-    protected List<AiChatInput.Tool> tools;
-
     public ChatOllama() {
+        this.vendor = "ollama";
+        this.model = "qwen2.5:0.5b";
     }
 
     protected ChatOllama(ChatOllamaBuilder<?, ?> builder) {
         super();
+        this.vendor = "ollama";
+        this.model = "qwen2.5:0.5b";
         this.vendor = builder.vendorSet ? builder.vendor : this.vendor;
         this.modelType = builder.modelTypeSet ? builder.modelType : this.modelType;
         this.model = builder.modelSet ? builder.model : this.model;

@@ -23,15 +23,16 @@ import org.salt.jlangchain.ai.vendor.chatgpt.ChatGPTActuator;
 @Data
 public class OpenAIEmbeddings extends Embeddings {
 
-    protected String model = "text-embedding-ada-002";
-    protected int vectorSize = 1536;
-
     public OpenAIEmbeddings() {
         super();
+        this.model = "text-embedding-ada-002";
+        this.vectorSize = 1536;
     }
 
     protected OpenAIEmbeddings(OpenAIEmbeddingsBuilder<?, ?> builder) {
-        super(builder);
+        super();
+        this.model = "text-embedding-ada-002";
+        this.vectorSize = 1536;
         if (builder.modelSet) {
             this.model = builder.modelValue;
         }

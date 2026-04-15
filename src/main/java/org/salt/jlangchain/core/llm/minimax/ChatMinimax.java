@@ -30,18 +30,15 @@ import java.util.Map;
 @Data
 public class ChatMinimax extends BaseChatModel {
 
-    protected String vendor = "minimax";
-    protected String modelType = "llm";
-    protected String model = "MiniMax-Text-01";
-    protected Float temperature = 0.7f;
-    protected Map<String, Object> modelKwargs;
-    protected List<AiChatInput.Tool> tools;
-
     public ChatMinimax() {
+        this.vendor = "minimax";
+        this.model = "MiniMax-Text-01";
     }
 
     protected ChatMinimax(ChatMinimaxBuilder<?, ?> builder) {
         super();
+        this.vendor = "minimax";
+        this.model = "MiniMax-Text-01";
         this.vendor = builder.vendorSet ? builder.vendor : this.vendor;
         this.modelType = builder.modelTypeSet ? builder.modelType : this.modelType;
         this.model = builder.modelSet ? builder.model : this.model;

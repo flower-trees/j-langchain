@@ -28,18 +28,17 @@ import java.util.Map;
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class ChatCoze extends BaseChatModel {
-
-    protected String vendor = "doubao";
     protected String botId = "751971414224112XXXX";
-    protected Map<String, Object> modelKwargs;
     protected String userId = "123";
     protected String key;
 
     public ChatCoze() {
+        this.vendor = "doubao";
     }
 
     protected ChatCoze(ChatCozeBuilder<?, ?> builder) {
         super();
+        this.vendor = "doubao";
         this.vendor = builder.vendorSet ? builder.vendor : this.vendor;
         this.botId = builder.botIdSet ? builder.botId : this.botId;
         this.modelKwargs = builder.modelKwargs;

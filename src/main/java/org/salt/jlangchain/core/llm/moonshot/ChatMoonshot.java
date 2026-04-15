@@ -30,18 +30,15 @@ import java.util.Map;
 @Data
 public class ChatMoonshot extends BaseChatModel {
 
-    protected String vendor = "moonshot";
-    protected String modelType = "llm";
-    protected String model = "moonshot-v1-8k";
-    protected Float temperature = 0.7f;
-    protected Map<String, Object> modelKwargs;
-    protected List<AiChatInput.Tool> tools;
-
     public ChatMoonshot() {
+        this.vendor = "moonshot";
+        this.model = "moonshot-v1-8k";
     }
 
     protected ChatMoonshot(ChatMoonshotBuilder<?, ?> builder) {
         super();
+        this.vendor = "moonshot";
+        this.model = "moonshot-v1-8k";
         this.vendor = builder.vendorSet ? builder.vendor : this.vendor;
         this.modelType = builder.modelTypeSet ? builder.modelType : this.modelType;
         this.model = builder.modelSet ? builder.model : this.model;

@@ -30,18 +30,15 @@ import java.util.Map;
 @Data
 public class ChatDeepseek extends BaseChatModel {
 
-    protected String vendor = "deepseek";
-    protected String modelType = "llm";
-    protected String model = "deepseek-chat";
-    protected Float temperature = 0.7f;
-    protected Map<String, Object> modelKwargs;
-    protected List<AiChatInput.Tool> tools;
-
     public ChatDeepseek() {
+        this.vendor = "deepseek";
+        this.model = "deepseek-chat";
     }
 
     protected ChatDeepseek(ChatDeepseekBuilder<?, ?> builder) {
         super();
+        this.vendor = "deepseek";
+        this.model = "deepseek-chat";
         this.vendor = builder.vendorSet ? builder.vendor : this.vendor;
         this.modelType = builder.modelTypeSet ? builder.modelType : this.modelType;
         this.model = builder.modelSet ? builder.model : this.model;

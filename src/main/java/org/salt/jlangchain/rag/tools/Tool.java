@@ -15,9 +15,11 @@
 package org.salt.jlangchain.rag.tools;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.util.function.Function;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 public class Tool extends BaseTool<Object, Object>{
 

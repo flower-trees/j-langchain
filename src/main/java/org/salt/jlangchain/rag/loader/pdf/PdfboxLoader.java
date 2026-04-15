@@ -14,6 +14,7 @@
 
 package org.salt.jlangchain.rag.loader.pdf;
 
+import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 @Slf4j
 public class PdfboxLoader extends BasePDFLoader {

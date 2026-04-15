@@ -18,11 +18,13 @@ import edu.stanford.nlp.pipeline.CoreDocument;
 import edu.stanford.nlp.pipeline.CoreSentence;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 import java.util.Properties;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 public class StanfordNLPTextSplitter extends TextSplitter {
 

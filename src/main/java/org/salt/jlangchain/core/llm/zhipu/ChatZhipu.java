@@ -30,18 +30,15 @@ import java.util.Map;
 @Data
 public class ChatZhipu extends BaseChatModel {
 
-    protected String vendor = "zhipu";
-    protected String modelType = "llm";
-    protected String model = "glm-4-flash";
-    protected Float temperature = 0.7f;
-    protected Map<String, Object> modelKwargs;
-    protected List<AiChatInput.Tool> tools;
-
     public ChatZhipu() {
+        this.vendor = "zhipu";
+        this.model = "glm-4-flash";
     }
 
     protected ChatZhipu(ChatZhipuBuilder<?, ?> builder) {
         super();
+        this.vendor = "zhipu";
+        this.model = "glm-4-flash";
         this.vendor = builder.vendorSet ? builder.vendor : this.vendor;
         this.modelType = builder.modelTypeSet ? builder.modelType : this.modelType;
         this.model = builder.modelSet ? builder.model : this.model;
