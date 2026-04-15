@@ -17,22 +17,62 @@ package org.salt.jlangchain.rag.splitter;
 import edu.stanford.nlp.pipeline.CoreDocument;
 import edu.stanford.nlp.pipeline.CoreSentence;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
-import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
 import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 import java.util.Properties;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
-@SuperBuilder
 public class StanfordNLPTextSplitter extends TextSplitter {
 
-    @Builder.Default
     String separator = "\n\n";
+
+    public StanfordNLPTextSplitter() {
+        super();
+    }
+
+    protected StanfordNLPTextSplitter(StanfordNLPTextSplitterBuilder<?, ?> builder) {
+        super(builder);
+        if (builder.separatorSet) {
+            this.separator = builder.separatorValue;
+        }
+    }
+
+    public static StanfordNLPTextSplitterBuilder<?, ?> builder() {
+        return new StanfordNLPTextSplitterBuilderImpl();
+    }
+
+    public static abstract class StanfordNLPTextSplitterBuilder<C extends StanfordNLPTextSplitter, B extends StanfordNLPTextSplitterBuilder<C, B>> extends TextSplitterBuilder<C, B> {
+        private String separatorValue;
+        private boolean separatorSet;
+
+        public B separator(String separator) {
+            this.separatorValue = separator;
+            this.separatorSet = true;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "StanfordNLPTextSplitter.StanfordNLPTextSplitterBuilder(super=" + super.toString() + ", separatorValue=" + this.separatorValue + ")";
+        }
+    }
+
+    private static final class StanfordNLPTextSplitterBuilderImpl extends StanfordNLPTextSplitterBuilder<StanfordNLPTextSplitter, StanfordNLPTextSplitterBuilderImpl> {
+        private StanfordNLPTextSplitterBuilderImpl() {
+        }
+
+        @Override
+        protected StanfordNLPTextSplitterBuilderImpl self() {
+            return this;
+        }
+
+        @Override
+        public StanfordNLPTextSplitter build() {
+            return new StanfordNLPTextSplitter(this);
+        }
+    }
 
     @Override
     public List<String> splitText(String text) {

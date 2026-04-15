@@ -14,7 +14,6 @@
 
 package org.salt.jlangchain.core.history.memory;
 
-import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
@@ -26,14 +25,10 @@ import java.util.List;
 @Slf4j
 @EqualsAndHashCode(callSuper = true)
 @Data
-@Builder
 public class MemoryHistoryReader extends HistoryReaderBase {
 
-    @Builder.Default
     protected Long userId = 0L;
-    @Builder.Default
     protected Long sessionId = 0L;
-    @Builder.Default
     protected Integer limit = 10;
 
     public List<HistoryInfos> readHistory() {
@@ -46,5 +41,52 @@ public class MemoryHistoryReader extends HistoryReaderBase {
             return historyInfosList.subList(historyInfosList.size() - limit, historyInfosList.size());
         }
         return historyInfosList;
+    }
+
+    public static MemoryHistoryReaderBuilder builder() {
+        return new MemoryHistoryReaderBuilder();
+    }
+
+    public static final class MemoryHistoryReaderBuilder {
+        private Long userId;
+        private boolean userIdSet;
+        private Long sessionId;
+        private boolean sessionIdSet;
+        private Integer limit;
+        private boolean limitSet;
+
+        private MemoryHistoryReaderBuilder() {
+        }
+
+        public MemoryHistoryReaderBuilder userId(Long userId) {
+            this.userId = userId;
+            this.userIdSet = true;
+            return this;
+        }
+
+        public MemoryHistoryReaderBuilder sessionId(Long sessionId) {
+            this.sessionId = sessionId;
+            this.sessionIdSet = true;
+            return this;
+        }
+
+        public MemoryHistoryReaderBuilder limit(Integer limit) {
+            this.limit = limit;
+            this.limitSet = true;
+            return this;
+        }
+
+        public MemoryHistoryReader build() {
+            MemoryHistoryReader reader = new MemoryHistoryReader();
+            reader.setUserId(this.userIdSet ? this.userId : 0L);
+            reader.setSessionId(this.sessionIdSet ? this.sessionId : 0L);
+            reader.setLimit(this.limitSet ? this.limit : 10);
+            return reader;
+        }
+
+        @Override
+        public String toString() {
+            return "MemoryHistoryReader.MemoryHistoryReaderBuilder(userId=" + (this.userIdSet ? this.userId : 0L) + ", sessionId=" + (this.sessionIdSet ? this.sessionId : 0L) + ", limit=" + (this.limitSet ? this.limit : 10) + ")";
+        }
     }
 }

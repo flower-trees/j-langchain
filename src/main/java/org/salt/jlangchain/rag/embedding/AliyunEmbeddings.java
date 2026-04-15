@@ -14,22 +14,72 @@
 
 package org.salt.jlangchain.rag.embedding;
 
-import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
 import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
-@SuperBuilder
 public class AliyunEmbeddings extends Embeddings {
 
-    @Builder.Default
     protected String model = "text-embedding-v3";
-    @Builder.Default
     protected int vectorSize = 768;
+
+    public AliyunEmbeddings() {
+        super();
+    }
+
+    protected AliyunEmbeddings(AliyunEmbeddingsBuilder<?, ?> builder) {
+        super(builder);
+        if (builder.modelSet) {
+            this.model = builder.modelValue;
+        }
+        if (builder.vectorSizeSet) {
+            this.vectorSize = builder.vectorSizeValue;
+        }
+    }
+
+    public static AliyunEmbeddingsBuilder<?, ?> builder() {
+        return new AliyunEmbeddingsBuilderImpl();
+    }
+
+    public static abstract class AliyunEmbeddingsBuilder<C extends AliyunEmbeddings, B extends AliyunEmbeddingsBuilder<C, B>> extends EmbeddingsBuilder<C, B> {
+        private boolean modelSet;
+        private String modelValue;
+        private boolean vectorSizeSet;
+        private Integer vectorSizeValue;
+
+        public B model(String model) {
+            this.modelValue = model;
+            this.modelSet = true;
+            return self();
+        }
+
+        public B vectorSize(int vectorSize) {
+            this.vectorSizeValue = vectorSize;
+            this.vectorSizeSet = true;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "AliyunEmbeddings.AliyunEmbeddingsBuilder(super=" + super.toString() + ", modelValue=" + this.modelValue + ", vectorSizeValue=" + this.vectorSizeValue + ")";
+        }
+    }
+
+    private static final class AliyunEmbeddingsBuilderImpl extends AliyunEmbeddingsBuilder<AliyunEmbeddings, AliyunEmbeddingsBuilderImpl> {
+        private AliyunEmbeddingsBuilderImpl() {
+        }
+
+        @Override
+        protected AliyunEmbeddingsBuilderImpl self() {
+            return this;
+        }
+
+        @Override
+        public AliyunEmbeddings build() {
+            return new AliyunEmbeddings(this);
+        }
+    }
 
     @Override
     public Class<? extends AiChatActuator> getActuator() {

@@ -15,16 +15,54 @@
 package org.salt.jlangchain.core.prompt.value;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
 import org.salt.jlangchain.core.message.BaseMessage;
 
 import java.util.List;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
-@SuperBuilder
 public class ChatPromptValue extends PromptValue {
 
     private List<BaseMessage> messages;
+
+    public ChatPromptValue() {
+        super();
+    }
+
+    protected ChatPromptValue(ChatPromptValueBuilder<?, ?> builder) {
+        super(builder);
+        this.messages = builder.messages;
+    }
+
+    public static ChatPromptValueBuilder<?, ?> builder() {
+        return new ChatPromptValueBuilderImpl();
+    }
+
+    public static abstract class ChatPromptValueBuilder<C extends ChatPromptValue, B extends ChatPromptValueBuilder<C, B>> extends PromptValueBuilder<C, B> {
+        private List<BaseMessage> messages;
+
+        public B messages(List<BaseMessage> messages) {
+            this.messages = messages;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "ChatPromptValue.ChatPromptValueBuilder(super=" + super.toString() + ", messages=" + this.messages + ")";
+        }
+    }
+
+    private static final class ChatPromptValueBuilderImpl extends ChatPromptValueBuilder<ChatPromptValue, ChatPromptValueBuilderImpl> {
+        private ChatPromptValueBuilderImpl() {
+        }
+
+        @Override
+        protected ChatPromptValueBuilderImpl self() {
+            return this;
+        }
+
+        @Override
+        public ChatPromptValue build() {
+            return new ChatPromptValue(this);
+        }
+    }
 }

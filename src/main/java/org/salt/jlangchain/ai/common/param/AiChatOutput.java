@@ -29,7 +29,6 @@
 package org.salt.jlangchain.ai.common.param;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -37,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 
 @Data
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class AiChatOutput {
@@ -113,6 +111,61 @@ public class AiChatOutput {
             private Object result; // Tool execution result
             private String error; // Error message if failed
             private Long executionTime;
+        }
+    }
+
+    public static AiChatOutputBuilder builder() {
+        return new AiChatOutputBuilder();
+    }
+
+    public static final class AiChatOutputBuilder {
+        private String id;
+        private List<Message> messages;
+        private String code;
+        private String message;
+        private List<DataObject> data;
+        private McpResponse mcpResponse;
+
+        private AiChatOutputBuilder() {
+        }
+
+        public AiChatOutputBuilder id(String id) {
+            this.id = id;
+            return this;
+        }
+
+        public AiChatOutputBuilder messages(List<Message> messages) {
+            this.messages = messages;
+            return this;
+        }
+
+        public AiChatOutputBuilder code(String code) {
+            this.code = code;
+            return this;
+        }
+
+        public AiChatOutputBuilder message(String message) {
+            this.message = message;
+            return this;
+        }
+
+        public AiChatOutputBuilder data(List<DataObject> data) {
+            this.data = data;
+            return this;
+        }
+
+        public AiChatOutputBuilder mcpResponse(McpResponse mcpResponse) {
+            this.mcpResponse = mcpResponse;
+            return this;
+        }
+
+        public AiChatOutput build() {
+            return new AiChatOutput(this.id, this.messages, this.code, this.message, this.data, this.mcpResponse);
+        }
+
+        @Override
+        public String toString() {
+            return "AiChatOutput.AiChatOutputBuilder(id=" + this.id + ", messages=" + this.messages + ", code=" + this.code + ", message=" + this.message + ", data=" + this.data + ", mcpResponse=" + this.mcpResponse + ")";
         }
     }
 }

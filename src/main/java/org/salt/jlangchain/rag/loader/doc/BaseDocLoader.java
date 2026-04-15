@@ -14,26 +14,72 @@
 
 package org.salt.jlangchain.rag.loader.doc;
 
-import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
 import org.salt.jlangchain.rag.loader.BaseLoader;
 import org.salt.jlangchain.rag.loader.ocr.OcrActuator;
 import org.salt.jlangchain.rag.loader.ocr.TesseractActuator;
 
 import java.io.InputStream;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
-@SuperBuilder
 public abstract class BaseDocLoader extends BaseLoader {
 
     protected String filePath;
     protected String webPath;
     protected InputStream inputStream;
-    @Builder.Default
     protected boolean extractImages = false;
-    @Builder.Default
     protected Class<? extends OcrActuator> ocrClazz = TesseractActuator.class;
+
+    protected BaseDocLoader(BaseDocLoaderBuilder<?, ?> builder) {
+        super(builder);
+        this.filePath = builder.filePath;
+        this.webPath = builder.webPath;
+        this.inputStream = builder.inputStream;
+        this.extractImages = builder.extractImagesSet ? builder.extractImagesValue : false;
+        this.ocrClazz = builder.ocrClazz != null ? builder.ocrClazz : TesseractActuator.class;
+    }
+
+    protected BaseDocLoader() {
+        super();
+    }
+
+    public static abstract class BaseDocLoaderBuilder<C extends BaseDocLoader, B extends BaseDocLoaderBuilder<C, B>> extends BaseLoaderBuilder<C, B> {
+        private String filePath;
+        private String webPath;
+        private InputStream inputStream;
+        private boolean extractImagesValue;
+        private boolean extractImagesSet;
+        private Class<? extends OcrActuator> ocrClazz;
+
+        public B filePath(String filePath) {
+            this.filePath = filePath;
+            return self();
+        }
+
+        public B webPath(String webPath) {
+            this.webPath = webPath;
+            return self();
+        }
+
+        public B inputStream(InputStream inputStream) {
+            this.inputStream = inputStream;
+            return self();
+        }
+
+        public B extractImages(boolean extractImages) {
+            this.extractImagesValue = extractImages;
+            this.extractImagesSet = true;
+            return self();
+        }
+
+        public B ocrClazz(Class<? extends OcrActuator> ocrClazz) {
+            this.ocrClazz = ocrClazz;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "BaseDocLoader.BaseDocLoaderBuilder(super=" + super.toString() + ", filePath=" + this.filePath + ", webPath=" + this.webPath + ", inputStream=" + this.inputStream + ", extractImagesValue=" + this.extractImagesValue + ", ocrClazz=" + this.ocrClazz + ")";
+        }
+    }
 }

@@ -14,7 +14,6 @@
 
 package org.salt.jlangchain.core.prompt.chat;
 
-import lombok.Builder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.text.StringSubstitutor;
@@ -31,7 +30,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-@Builder
 public class ChatPromptTemplate extends BaseChatPromptTemplate {
 
     List<BaseMessage> messages;
@@ -115,5 +113,34 @@ public class ChatPromptTemplate extends BaseChatPromptTemplate {
         }
 
         return ChatPromptTemplate.builder().messages(messageList).build();
+    }
+
+    private ChatPromptTemplate(List<BaseMessage> messages) {
+        this.messages = messages;
+    }
+
+    public static ChatPromptTemplateBuilder builder() {
+        return new ChatPromptTemplateBuilder();
+    }
+
+    public static final class ChatPromptTemplateBuilder {
+        private List<BaseMessage> messages;
+
+        private ChatPromptTemplateBuilder() {
+        }
+
+        public ChatPromptTemplateBuilder messages(List<BaseMessage> messages) {
+            this.messages = messages;
+            return this;
+        }
+
+        public ChatPromptTemplate build() {
+            return new ChatPromptTemplate(this.messages);
+        }
+
+        @Override
+        public String toString() {
+            return "ChatPromptTemplate.ChatPromptTemplateBuilder(messages=" + this.messages + ")";
+        }
     }
 }

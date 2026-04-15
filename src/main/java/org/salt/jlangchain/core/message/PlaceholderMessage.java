@@ -15,11 +15,37 @@
 package org.salt.jlangchain.core.message;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
-@SuperBuilder
 public class PlaceholderMessage extends BaseMessage {
+
+    protected PlaceholderMessage(PlaceholderMessageBuilder<?, ?> builder) {
+        super(builder);
+    }
+
+    public static PlaceholderMessageBuilder<?, ?> builder() {
+        return new PlaceholderMessageBuilderImpl();
+    }
+
+    public static abstract class PlaceholderMessageBuilder<C extends PlaceholderMessage, B extends PlaceholderMessageBuilder<C, B>> extends BaseMessageBuilder<C, B> {
+        @Override
+        public String toString() {
+            return "PlaceholderMessage.PlaceholderMessageBuilder(super=" + super.toString() + ")";
+        }
+    }
+
+    private static final class PlaceholderMessageBuilderImpl extends PlaceholderMessageBuilder<PlaceholderMessage, PlaceholderMessageBuilderImpl> {
+        private PlaceholderMessageBuilderImpl() {
+        }
+
+        @Override
+        protected PlaceholderMessageBuilderImpl self() {
+            return this;
+        }
+
+        @Override
+        public PlaceholderMessage build() {
+            return new PlaceholderMessage(this);
+        }
+    }
 }

@@ -14,16 +14,58 @@
 
 package org.salt.jlangchain.core.message;
 
-import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
-@SuperBuilder
 public class AIMessage extends BaseMessage {
 
-    @Builder.Default
     private String role = MessageType.AI.getCode();
+
+    private static String defaultRole() {
+        return MessageType.AI.getCode();
+    }
+
+    protected AIMessage(AIMessageBuilder<?, ?> builder) {
+        super(builder);
+        if (builder.roleSet) {
+            this.role = builder.roleValue;
+        } else {
+            this.role = defaultRole();
+        }
+    }
+
+    public static AIMessageBuilder<?, ?> builder() {
+        return new AIMessageBuilderImpl();
+    }
+
+    public static abstract class AIMessageBuilder<C extends AIMessage, B extends AIMessageBuilder<C, B>> extends BaseMessageBuilder<C, B> {
+        private boolean roleSet;
+        private String roleValue;
+
+        public B role(final String role) {
+            this.roleValue = role;
+            this.roleSet = true;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "AIMessage.AIMessageBuilder(super=" + super.toString() + ", roleValue=" + this.roleValue + ")";
+        }
+    }
+
+    private static final class AIMessageBuilderImpl extends AIMessageBuilder<AIMessage, AIMessageBuilderImpl> {
+        private AIMessageBuilderImpl() {
+        }
+
+        @Override
+        protected AIMessageBuilderImpl self() {
+            return this;
+        }
+
+        @Override
+        public AIMessage build() {
+            return new AIMessage(this);
+        }
+    }
 }

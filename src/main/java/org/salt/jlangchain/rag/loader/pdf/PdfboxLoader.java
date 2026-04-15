@@ -14,11 +14,8 @@
 
 package org.salt.jlangchain.rag.loader.pdf;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
+import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -39,14 +36,53 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
-@SuperBuilder
 @Slf4j
 public class PdfboxLoader extends BasePDFLoader {
 
-    @Builder.Default
     protected Iterator<Document> iterator = new Iterator<>(PdfboxLoader::isLast);
+
+    public PdfboxLoader() {
+        super();
+    }
+
+    protected PdfboxLoader(PdfboxLoaderBuilder<?, ?> builder) {
+        super(builder);
+        this.iterator = builder.iterator != null ? builder.iterator : new Iterator<>(PdfboxLoader::isLast);
+    }
+
+    public static PdfboxLoaderBuilder<?, ?> builder() {
+        return new PdfboxLoaderBuilderImpl();
+    }
+
+    public static abstract class PdfboxLoaderBuilder<C extends PdfboxLoader, B extends PdfboxLoaderBuilder<C, B>> extends BasePDFLoaderBuilder<C, B> {
+        private Iterator<Document> iterator;
+
+        public B iterator(Iterator<Document> iterator) {
+            this.iterator = iterator;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "PdfboxLoader.PdfboxLoaderBuilder(super=" + super.toString() + ", iterator=" + this.iterator + ")";
+        }
+    }
+
+    private static final class PdfboxLoaderBuilderImpl extends PdfboxLoaderBuilder<PdfboxLoader, PdfboxLoaderBuilderImpl> {
+        private PdfboxLoaderBuilderImpl() {
+        }
+
+        @Override
+        protected PdfboxLoaderBuilderImpl self() {
+            return this;
+        }
+
+        @Override
+        public PdfboxLoader build() {
+            return new PdfboxLoader(this);
+        }
+    }
 
     @Override
     public List<Document> load() {

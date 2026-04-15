@@ -14,22 +14,72 @@
 
 package org.salt.jlangchain.rag.embedding;
 
-import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
 import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.vendor.chatgpt.ChatGPTActuator;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
-@SuperBuilder
 public class OpenAIEmbeddings extends Embeddings {
 
-    @Builder.Default
     protected String model = "text-embedding-ada-002";
-    @Builder.Default
     protected int vectorSize = 1536;
+
+    public OpenAIEmbeddings() {
+        super();
+    }
+
+    protected OpenAIEmbeddings(OpenAIEmbeddingsBuilder<?, ?> builder) {
+        super(builder);
+        if (builder.modelSet) {
+            this.model = builder.modelValue;
+        }
+        if (builder.vectorSizeSet) {
+            this.vectorSize = builder.vectorSizeValue;
+        }
+    }
+
+    public static OpenAIEmbeddingsBuilder<?, ?> builder() {
+        return new OpenAIEmbeddingsBuilderImpl();
+    }
+
+    public static abstract class OpenAIEmbeddingsBuilder<C extends OpenAIEmbeddings, B extends OpenAIEmbeddingsBuilder<C, B>> extends EmbeddingsBuilder<C, B> {
+        private boolean modelSet;
+        private String modelValue;
+        private boolean vectorSizeSet;
+        private Integer vectorSizeValue;
+
+        public B model(String model) {
+            this.modelValue = model;
+            this.modelSet = true;
+            return self();
+        }
+
+        public B vectorSize(int vectorSize) {
+            this.vectorSizeValue = vectorSize;
+            this.vectorSizeSet = true;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "OpenAIEmbeddings.OpenAIEmbeddingsBuilder(super=" + super.toString() + ", modelValue=" + this.modelValue + ", vectorSizeValue=" + this.vectorSizeValue + ")";
+        }
+    }
+
+    private static final class OpenAIEmbeddingsBuilderImpl extends OpenAIEmbeddingsBuilder<OpenAIEmbeddings, OpenAIEmbeddingsBuilderImpl> {
+        private OpenAIEmbeddingsBuilderImpl() {
+        }
+
+        @Override
+        protected OpenAIEmbeddingsBuilderImpl self() {
+            return this;
+        }
+
+        @Override
+        public OpenAIEmbeddings build() {
+            return new OpenAIEmbeddings(this);
+        }
+    }
 
     @Override
     public Class<? extends AiChatActuator> getActuator() {

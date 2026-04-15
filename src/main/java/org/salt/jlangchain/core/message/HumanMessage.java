@@ -14,16 +14,60 @@
 
 package org.salt.jlangchain.core.message;
 
-import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
-@SuperBuilder
 public class HumanMessage extends BaseMessage {
 
-    @Builder.Default
     private String role = MessageType.HUMAN.getCode();
+
+    private static String defaultRole() {
+        return MessageType.HUMAN.getCode();
+    }
+
+    protected HumanMessage(HumanMessageBuilder<?, ?> builder) {
+        super(builder);
+        if (builder.roleSet) {
+            this.role = builder.roleValue;
+        } else {
+            this.role = defaultRole();
+        }
+    }
+
+    public static HumanMessageBuilder<?, ?> builder() {
+        return new HumanMessageBuilderImpl();
+    }
+
+    public static abstract class HumanMessageBuilder<C extends HumanMessage, B extends HumanMessageBuilder<C, B>> extends BaseMessageBuilder<C, B> {
+        private boolean roleSet;
+        private String roleValue;
+
+        public B role(final String role) {
+            this.roleValue = role;
+            this.roleSet = true;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "HumanMessage.HumanMessageBuilder(super=" + super.toString() + ", roleValue=" + this.roleValue + ")";
+        }
+    }
+
+    private static final class HumanMessageBuilderImpl extends HumanMessageBuilder<HumanMessage, HumanMessageBuilderImpl> {
+        private HumanMessageBuilderImpl() {
+        }
+
+        @Override
+        protected HumanMessageBuilderImpl self() {
+            return this;
+        }
+
+        @Override
+        public HumanMessage build() {
+            return new HumanMessage(this);
+        }
+    }
 }

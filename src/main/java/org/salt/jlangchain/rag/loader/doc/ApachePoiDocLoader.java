@@ -14,10 +14,6 @@
 
 package org.salt.jlangchain.rag.loader.doc;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hwpf.HWPFDocument;
@@ -38,14 +34,55 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
-@EqualsAndHashCode(callSuper = true)
+import lombok.Data;
+
 @Data
-@SuperBuilder
 @Slf4j
 public class ApachePoiDocLoader extends BaseDocLoader {
 
-    @Builder.Default
     protected Iterator<Document> iterator = new Iterator<>(ApachePoiDocLoader::isLast);
+
+    public ApachePoiDocLoader() {
+        super();
+    }
+
+    protected ApachePoiDocLoader(ApachePoiDocLoaderBuilder<?, ?> builder) {
+        super(builder);
+        this.iterator = builder.iterator != null ? builder.iterator : new Iterator<>(ApachePoiDocLoader::isLast);
+    }
+
+    public static ApachePoiDocLoaderBuilder<?, ?> builder() {
+        return new ApachePoiDocLoaderBuilderImpl();
+    }
+
+    public static abstract class ApachePoiDocLoaderBuilder<C extends ApachePoiDocLoader, B extends ApachePoiDocLoaderBuilder<C, B>> extends BaseDocLoaderBuilder<C, B> {
+        private Iterator<Document> iterator;
+
+        public B iterator(Iterator<Document> iterator) {
+            this.iterator = iterator;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "ApachePoiDocLoader.ApachePoiDocLoaderBuilder(super=" + super.toString() + ", iterator=" + this.iterator + ")";
+        }
+    }
+
+    private static final class ApachePoiDocLoaderBuilderImpl extends ApachePoiDocLoaderBuilder<ApachePoiDocLoader, ApachePoiDocLoaderBuilderImpl> {
+        private ApachePoiDocLoaderBuilderImpl() {
+        }
+
+        @Override
+        protected ApachePoiDocLoaderBuilderImpl self() {
+            return this;
+        }
+
+        @Override
+        public ApachePoiDocLoader build() {
+            return new ApachePoiDocLoader(this);
+        }
+    }
 
     @Override
     public List<Document> load() {

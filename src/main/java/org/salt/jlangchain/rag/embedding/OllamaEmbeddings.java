@@ -14,22 +14,72 @@
 
 package org.salt.jlangchain.rag.embedding;
 
-import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
 import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.vendor.ollama.OllamaActuator;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
-@SuperBuilder
 public class OllamaEmbeddings extends Embeddings {
 
-    @Builder.Default
     protected String model = "nomic-embed-text";
-    @Builder.Default
     protected int vectorSize = 768;
+
+    public OllamaEmbeddings() {
+        super();
+    }
+
+    protected OllamaEmbeddings(OllamaEmbeddingsBuilder<?, ?> builder) {
+        super(builder);
+        if (builder.modelSet) {
+            this.model = builder.modelValue;
+        }
+        if (builder.vectorSizeSet) {
+            this.vectorSize = builder.vectorSizeValue;
+        }
+    }
+
+    public static OllamaEmbeddingsBuilder<?, ?> builder() {
+        return new OllamaEmbeddingsBuilderImpl();
+    }
+
+    public static abstract class OllamaEmbeddingsBuilder<C extends OllamaEmbeddings, B extends OllamaEmbeddingsBuilder<C, B>> extends EmbeddingsBuilder<C, B> {
+        private boolean modelSet;
+        private String modelValue;
+        private boolean vectorSizeSet;
+        private Integer vectorSizeValue;
+
+        public B model(String model) {
+            this.modelValue = model;
+            this.modelSet = true;
+            return self();
+        }
+
+        public B vectorSize(int vectorSize) {
+            this.vectorSizeValue = vectorSize;
+            this.vectorSizeSet = true;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "OllamaEmbeddings.OllamaEmbeddingsBuilder(super=" + super.toString() + ", modelValue=" + this.modelValue + ", vectorSizeValue=" + this.vectorSizeValue + ")";
+        }
+    }
+
+    private static final class OllamaEmbeddingsBuilderImpl extends OllamaEmbeddingsBuilder<OllamaEmbeddings, OllamaEmbeddingsBuilderImpl> {
+        private OllamaEmbeddingsBuilderImpl() {
+        }
+
+        @Override
+        protected OllamaEmbeddingsBuilderImpl self() {
+            return this;
+        }
+
+        @Override
+        public OllamaEmbeddings build() {
+            return new OllamaEmbeddings(this);
+        }
+    }
 
     @Override
     public Class<? extends AiChatActuator> getActuator() {

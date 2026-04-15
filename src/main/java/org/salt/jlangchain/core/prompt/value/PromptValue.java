@@ -15,10 +15,22 @@
 package org.salt.jlangchain.core.prompt.value;
 
 import lombok.Getter;
-import lombok.experimental.SuperBuilder;
 import org.salt.jlangchain.core.Serializable;
 
 @Getter
-@SuperBuilder
 public abstract class PromptValue extends Serializable {
+
+    protected PromptValue() {
+    }
+
+    protected PromptValue(PromptValueBuilder<?, ?> builder) {
+        super(builder);
+    }
+
+    public static abstract class PromptValueBuilder<C extends PromptValue, B extends PromptValueBuilder<C, B>> extends SerializableBuilder<C, B> {
+        @Override
+        public String toString() {
+            return "PromptValue.PromptValueBuilder(super=" + super.toString() + ")";
+        }
+    }
 }

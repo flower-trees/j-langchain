@@ -14,8 +14,7 @@
 
 package org.salt.jlangchain.rag.splitter;
 
-import lombok.*;
-import lombok.experimental.SuperBuilder;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.rag.media.Document;
 
@@ -25,16 +24,49 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Data
-@SuperBuilder
 @Slf4j
 public abstract class TextSplitter {
 
-    @Builder.Default
     protected int chunkSize = 4000;
-    @Builder.Default
     protected int chunkOverlap = 200;
 
+    protected TextSplitter() {
+    }
+
+    protected TextSplitter(TextSplitterBuilder<?, ?> builder) {
+        if (builder.chunkSize != null) {
+            this.chunkSize = builder.chunkSize;
+        }
+        if (builder.chunkOverlap != null) {
+            this.chunkOverlap = builder.chunkOverlap;
+        }
+    }
+
     public abstract List<String> splitText(String text);
+
+    public static abstract class TextSplitterBuilder<C extends TextSplitter, B extends TextSplitterBuilder<C, B>> {
+        private Integer chunkSize;
+        private Integer chunkOverlap;
+
+        protected abstract B self();
+
+        public abstract C build();
+
+        public B chunkSize(int chunkSize) {
+            this.chunkSize = chunkSize;
+            return self();
+        }
+
+        public B chunkOverlap(int chunkOverlap) {
+            this.chunkOverlap = chunkOverlap;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "TextSplitter.TextSplitterBuilder(chunkSize=" + this.chunkSize + ", chunkOverlap=" + this.chunkOverlap + ")";
+        }
+    }
 
     public List<Document> splitDocument(List<Document> documents) {
         List<Document> result = new ArrayList<>();

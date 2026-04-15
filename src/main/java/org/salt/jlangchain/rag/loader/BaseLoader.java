@@ -15,7 +15,6 @@
 package org.salt.jlangchain.rag.loader;
 
 import lombok.Data;
-import lombok.experimental.SuperBuilder;
 import org.salt.jlangchain.core.common.Iterator;
 import org.salt.jlangchain.rag.media.Document;
 
@@ -23,9 +22,25 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 @Data
-@SuperBuilder
 public abstract class BaseLoader {
+
+    protected BaseLoader() {
+    }
+
+    protected BaseLoader(BaseLoaderBuilder<?, ?> builder) {
+    }
 
     public abstract List<Document> load();
     public abstract Iterator<Document> lazyLoad() throws TimeoutException;
+
+    public static abstract class BaseLoaderBuilder<C extends BaseLoader, B extends BaseLoaderBuilder<C, B>> {
+        protected abstract B self();
+
+        public abstract C build();
+
+        @Override
+        public String toString() {
+            return "BaseLoader.BaseLoaderBuilder()";
+        }
+    }
 }
