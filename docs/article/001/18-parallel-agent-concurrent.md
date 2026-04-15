@@ -1,4 +1,4 @@
-# 三 Agent 并行调研：用 concurrent 节点构建扇出-汇聚式旅游规划助手
+# 三个 Agent 并行调研：用 concurrent 节点构建扇出-汇聚式旅游规划助手
 
 > **标签**：`Java` `Agent` `ReAct` `j-langchain` `多Agent` `并行` `concurrent` `旅游规划` `AgentExecutor`  
 > **前置阅读**：[双 Agent 串联：用分析 Agent + 执行 Agent 构建客服工单处理流水线](16-multi-agent-executor.md)  

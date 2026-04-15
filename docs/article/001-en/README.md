@@ -23,6 +23,7 @@
 | [Nested AgentExecutor: Travel Planner](15-agent-executor-embed.md)  | Embed AgentExecutor nodes into a chain, structured report | ⭐⭐ | `Article15TravelAgent` |
 | [Dual Agents for Customer Support](16-multi-agent-executor.md)      | ReAct + MCP agents in tandem, filesystem write confirmation | ⭐⭐⭐ | `Article16CustomerService` (sample) |
 | [Sequential Chains for Domestic Vendors](17-domestic-vendors-chain.md) | Same as Article 2 sequential chain, connect each domestic `Chat*` API | ⭐ | `Article17DomesticVendorsChain` |
+| [Parallel Agent Research: Fan-out / Fan-in with `concurrent`](18-parallel-agent-concurrent.md) | Concurrent AgentExecutor nodes, `cAlias`, merge lambda, fan-out / fan-in | ⭐⭐⭐ | `Article18ParallelTravelResearch` |
 
 ## Suggested Reading Order
 
@@ -30,7 +31,7 @@
 Getting started (01-hello-ai) → Multi-model (07-multi-model) → Streaming (06-streaming) → Orchestration (02-chain-patterns) → Domestic vendors sequential chain (17-domestic-vendors-chain, optional)
 → RAG (03-rag-pipeline) → ReAct (04-react-agent) → AgentExecutor (09-agent-executor)
 → Airline comparison (10-flight-compare-agent) → TTS (05-llm-tts) → MCP basics (08-mcp)
-→ MCP Function-Calling ReAct (11-mcp-react-agent) → McpAgentExecutor (12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent) → Nested AgentExecutor (15-travel-agent) → Dual agents (Article16CustomerService)
+→ MCP Function-Calling ReAct (11-mcp-react-agent) → McpAgentExecutor (12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent) → Nested AgentExecutor (15-travel-agent) → Dual agents (16-multi-agent-executor) → Parallel agents (18-parallel-agent-concurrent)
 ```
 
 ## Code Location
@@ -55,7 +56,8 @@ src/test/java/org/salt/jlangchain/demo/article/
 ├── Article14McpMixedAgent.java   ← 14-mcp-mixed-agent.md
 ├── Article15TravelAgent.java     ← 15-travel-agent.md
 ├── Article16CustomerService.java ← (customer-support dual agent sample)
-└── Article17DomesticVendorsChain.java ← 17-domestic-vendors-chain.md
+├── Article17DomesticVendorsChain.java ← 17-domestic-vendors-chain.md
+└── Article18ParallelTravelResearch.java ← 18-parallel-agent-concurrent.md
 ```
 
 ## Runtime Requirements
@@ -72,3 +74,4 @@ src/test/java/org/salt/jlangchain/demo/article/
 | `12-mcp-manager-agent.md`, `13-mcp-client-agent.md`, `14-mcp-mixed-agent.md` | Node.js + `ALIYUN_KEY` (`McpAgentExecutor` + `qwen3.6-plus`) |
 | `Article16CustomerService` (sample) | Node.js + `ALIYUN_KEY` (ReAct + filesystem MCP) |
 | `17-domestic-vendors-chain.md` / `Article17DomesticVendorsChain` | Configure the required vendor API keys as needed (see table in the article); Coze also requires a valid `COZE_BOT_ID` |
+| `18-parallel-agent-concurrent.md` / `Article18ParallelTravelResearch` | `ALIYUN_KEY` (`qwen-plus`) |
