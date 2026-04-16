@@ -22,11 +22,13 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.rag.tools.Tool;
 import org.salt.jlangchain.utils.JsonUtil;
+import org.springframework.aop.support.AopUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -59,7 +61,8 @@ public class ToolScanner {
      */
     public static List<Tool> scan(Object toolsProvider) {
         List<Tool> result = new ArrayList<>();
-        Class<?> clazz = toolsProvider.getClass();
+        // Penetrate Spring CGLIB / JDK proxy to reach the real class and its annotations
+        Class<?> clazz = AopUtils.getTargetClass(toolsProvider);
 
         for (Method method : clazz.getMethods()) {
             AgentTool ann = method.getAnnotation(AgentTool.class);
@@ -104,10 +107,11 @@ public class ToolScanner {
 
             } else if (parameters.length == 1 && isComplexType(parameters[0].getType())) {
                 // ── Single complex-type parameter: deserialize JSON into the object ──
+                // Schema priority: @AgentTool.params > @Param on VO fields
                 Class<?> paramType = parameters[0].getType();
                 Param paramAnn = parameters[0].getAnnotation(Param.class);
                 String paramDesc = paramAnn != null ? paramAnn.value() : "";
-                ObjectSchema schema = buildObjectSchema(paramType);
+                ObjectSchema schema = buildObjectSchema(paramType, ann.params());
                 params = paramType.getSimpleName();
                 StringBuilder schemaSb = new StringBuilder();
                 if (!paramDesc.isBlank()) {
@@ -127,14 +131,17 @@ public class ToolScanner {
 
             } else {
                 // ── Multi-parameter: expect JSON object as Action Input ──
+                // Param description priority: @AgentTool.params > @Param on method parameter
+                Map<String, String> inlineDescMap = buildInlineDescMap(ann.params());
                 StringBuilder paramsSb = new StringBuilder();
                 StringBuilder schemaSb = new StringBuilder();
                 schemaSb.append("  Input JSON keys:\n");
                 for (int i = 0; i < parameters.length; i++) {
                     Parameter p = parameters[i];
-                    Param paramAnn = p.getAnnotation(Param.class);
-                    String paramDesc = paramAnn != null ? paramAnn.value() : "";
                     String pName = p.getName();
+                    String paramDesc = inlineDescMap.containsKey(pName)
+                            ? inlineDescMap.get(pName)
+                            : (p.getAnnotation(Param.class) != null ? p.getAnnotation(Param.class).value() : "");
                     String pType = simpleTypeName(p.getType());
                     if (i > 0) paramsSb.append(", ");
                     paramsSb.append(pName).append(": ").append(pType);
@@ -205,17 +212,29 @@ public class ToolScanner {
     private record ObjectSchema(String fieldLines, String example) {}
 
     /**
-     * Scans {@code type}'s declared fields for {@link Param} annotations and builds
-     * a schema description + JSON example string for LLM guidance.
+     * Builds a schema description + JSON example for a complex VO type.
+     *
+     * <p>Description priority per field:
+     * <ol>
+     *   <li>{@code inlineParams} from {@link AgentTool#params()} — for third-party VOs</li>
+     *   <li>{@link Param} on the VO field — for own VOs</li>
+     *   <li>Field name as fallback</li>
+     * </ol>
      */
-    private static ObjectSchema buildObjectSchema(Class<?> type) {
+    private static ObjectSchema buildObjectSchema(Class<?> type, ParamDesc[] inlineParams) {
+        Map<String, String> inlineDescMap = buildInlineDescMap(inlineParams);
         StringBuilder fieldsSb = new StringBuilder();
         StringBuilder exampleSb = new StringBuilder("{");
         boolean first = true;
         for (Field field : type.getDeclaredFields()) {
             if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) continue;
-            Param fieldAnn = field.getAnnotation(Param.class);
-            String desc = fieldAnn != null ? fieldAnn.value() : field.getName();
+            String desc;
+            if (inlineDescMap.containsKey(field.getName())) {
+                desc = inlineDescMap.get(field.getName());
+            } else {
+                Param fieldAnn = field.getAnnotation(Param.class);
+                desc = fieldAnn != null ? fieldAnn.value() : field.getName();
+            }
             String fType = simpleTypeName(field.getType());
             fieldsSb.append("    - ").append(field.getName())
                     .append(" (").append(fType).append("): ").append(desc).append("\n");
@@ -225,6 +244,15 @@ public class ToolScanner {
         }
         exampleSb.append("}");
         return new ObjectSchema(fieldsSb.toString(), exampleSb.toString());
+    }
+
+    /** Converts {@link ParamDesc} array to a name→desc map for O(1) lookup. */
+    private static Map<String, String> buildInlineDescMap(ParamDesc[] inlineParams) {
+        Map<String, String> map = new LinkedHashMap<>();
+        for (ParamDesc pd : inlineParams) {
+            map.put(pd.name(), pd.desc());
+        }
+        return map;
     }
 
     private static Object invokeMethod(Object instance, Method method, Object[] args) {
