@@ -21,7 +21,9 @@ import org.salt.jlangchain.rag.tools.annotation.AgentTool;
 import org.salt.jlangchain.rag.tools.annotation.Param;
 import org.salt.jlangchain.rag.tools.annotation.ToolScanner;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Unit tests for {@link ToolScanner} – no Spring context needed.
@@ -124,6 +126,23 @@ public class ToolScannerTest {
     }
 
     @Test
+    public void complexObjectParam_deserializesFromMap() {
+        List<Tool> tools = ToolScanner.scan(new FlightTools());
+        Tool book = tools.stream()
+                .filter(t -> t.getName().equals("book_flight"))
+                .findFirst()
+                .orElseThrow();
+
+        Map<String, Object> args = new LinkedHashMap<>();
+        args.put("fromCity", "北京");
+        args.put("toCity", "上海");
+        args.put("date", "2026-05-01");
+
+        String result = (String) book.getFunc().apply(args);
+        Assert.assertEquals("已成功预订 北京 → 上海，日期 2026-05-01 的机票", result);
+    }
+
+    @Test
     public void complexObjectParam_schemaContainsJsonExample() {
         List<Tool> tools = ToolScanner.scan(new FlightTools());
         Tool book = tools.stream()
@@ -152,6 +171,22 @@ public class ToolScannerTest {
         System.out.println("input JSON : " + json);
         String result = (String) multi.getFunc().apply(json);
         System.out.println("result     : " + result);
+        Assert.assertEquals("广州 → 深圳", result);
+    }
+
+    @Test
+    public void multiParam_mapInputDispatchedCorrectly() {
+        List<Tool> tools = ToolScanner.scan(new FlightTools());
+        Tool multi = tools.stream()
+                .filter(t -> t.getName().equals("multi_param"))
+                .findFirst()
+                .orElseThrow();
+
+        Map<String, Object> args = new LinkedHashMap<>();
+        args.put("from", "广州");
+        args.put("to", "深圳");
+
+        String result = (String) multi.getFunc().apply(args);
         Assert.assertEquals("广州 → 深圳", result);
     }
 }

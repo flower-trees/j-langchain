@@ -20,17 +20,18 @@ import org.junit.runner.RunWith;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.agent.AgentExecutor;
+import org.salt.jlangchain.core.agent.McpAgentExecutor;
 import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
 import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.rag.tools.annotation.AgentTool;
 import org.salt.jlangchain.rag.tools.annotation.Param;
 import org.salt.jlangchain.rag.tools.annotation.ParamDesc;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
 
 /**
@@ -370,11 +371,11 @@ public class Article19DubboMcpTools {
 
     @Test
     public void feignAgentDemo() {
-        AgentExecutor agent = AgentExecutor.builder(chainActor)
-            .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
+        McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
+            .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
             .tools(retailFeignTools)
             .maxIterations(8)
-            .onThought(t -> System.out.println("[思考] " + t))
+            .onToolCall(t -> System.out.println("[思考] " + t))
             .onObservation(obs -> System.out.println("[服务返回] " + obs))
             .build();
 

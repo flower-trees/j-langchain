@@ -78,9 +78,9 @@ public class CustomerServiceAgent {
 
 ## 四、场景一：Dubbo — 第三方 VO + @AgentTool.params 内联描述
 
-VO 来自合作方二方包，字段上无法加 `@Param`。改用 `@AgentTool.params` 内联描述，效果完全相同。
+VO 来自合作方三方包，字段上无法加 `@Param`。改用 `@AgentTool.params` 内联描述，效果完全相同。
 
-### 第三方 VO（来自二方包，不可修改）
+### 第三方 VO（来自三方包，不可修改）
 
 ```java
 // 来自二方包，无法修改

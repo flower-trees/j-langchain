@@ -90,17 +90,12 @@ public class ToolScanner {
                     description = ann.value();
                 }
                 func = input -> {
-                    String raw = input.toString().trim();
-                    // If LLM still wraps a single value in JSON, extract the first field's value
-                    if (raw.startsWith("{")) {
-                        try {
-                            JsonNode node = JsonUtil.fromJson(raw);
-                            if (node != null && node.isObject() && node.fields().hasNext()) {
-                                JsonNode val = node.get(paramName);
-                                if (val == null) val = node.fields().next().getValue();
-                                raw = val.asText();
-                            }
-                        } catch (Exception ignored) {}
+                    Object raw = input;
+                    JsonNode node = toJsonNode(input);
+                    if (node != null && node.isObject() && node.fields().hasNext()) {
+                        JsonNode val = node.get(paramName);
+                        if (val == null) val = node.fields().next().getValue();
+                        raw = val != null && !val.isNull() ? val.asText() : "";
                     }
                     return invokeMethod(toolsProvider, method, new Object[]{coerce(raw, parameters[0].getType())});
                 };
@@ -122,11 +117,7 @@ public class ToolScanner {
                 description = ann.value() + "\n" + schemaSb + "  Action Input format: JSON, e.g. " + schema.example();
 
                 func = input -> {
-                    String raw = input.toString().trim();
-                    if (raw.startsWith("```")) {
-                        raw = raw.replaceAll("^```[a-zA-Z]*\\n?", "").replaceAll("```$", "").trim();
-                    }
-                    return invokeMethod(toolsProvider, method, new Object[]{coerce(raw, paramType)});
+                    return invokeMethod(toolsProvider, method, new Object[]{coerce(input, paramType)});
                 };
 
             } else {
@@ -159,12 +150,8 @@ public class ToolScanner {
 
                 Parameter[] paramsCopy = parameters;
                 func = input -> {
-                    String raw = input.toString().trim();
-                    // strip markdown code fence if LLM wraps it
-                    if (raw.startsWith("```")) {
-                        raw = raw.replaceAll("^```[a-zA-Z]*\\n?", "").replaceAll("```$", "").trim();
-                    }
-                    JsonNode node = JsonUtil.fromJson(raw);
+                    String raw = normalizeRawInput(input);
+                    JsonNode node = toJsonNode(input);
                     if (node == null || !node.isObject()) {
                         throw new RuntimeException("Tool '" + toolName + "' expects JSON input, got: " + raw);
                     }
@@ -177,7 +164,7 @@ public class ToolScanner {
                         if (val == null) {
                             throw new RuntimeException("Missing key '" + key + "' in Action Input JSON: " + raw);
                         }
-                        args[i] = coerce(val.asText(), paramsCopy[i].getType());
+                        args[i] = coerce(val.isValueNode() ? val.asText() : val, paramsCopy[i].getType());
                     }
                     return invokeMethod(toolsProvider, method, args);
                 };
@@ -280,20 +267,61 @@ public class ToolScanner {
         return names.getOrDefault(type, type.getSimpleName());
     }
 
-    /** Best-effort coercion from string to the required parameter type. */
-    private static Object coerce(String value, Class<?> type) {
-        if (type == String.class) return value;
-        if (type == int.class || type == Integer.class) return Integer.parseInt(value.trim());
-        if (type == long.class || type == Long.class) return Long.parseLong(value.trim());
-        if (type == double.class || type == Double.class) return Double.parseDouble(value.trim());
-        if (type == boolean.class || type == Boolean.class) return Boolean.parseBoolean(value.trim());
-        if (isComplexType(type)) {
+    /** Best-effort coercion from string/Map/JsonNode to the required parameter type. */
+    private static Object coerce(Object value, Class<?> type) {
+        if (value == null) return null;
+        if (type == String.class) return value.toString();
+        if (value instanceof JsonNode node) {
+            if (isComplexType(type)) {
+                try {
+                    return TOOL_MAPPER.treeToValue(node, type);
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to deserialize Action Input into " + type.getSimpleName() + ": " + node, e);
+                }
+            }
+            value = node.isValueNode() ? node.asText() : node.toString();
+        }
+        if (isComplexType(type) && !(value instanceof String)) {
             try {
-                return TOOL_MAPPER.readValue(value, type);
-            } catch (Exception e) {
+                return TOOL_MAPPER.convertValue(value, type);
+            } catch (IllegalArgumentException e) {
                 throw new RuntimeException("Failed to deserialize Action Input into " + type.getSimpleName() + ": " + value, e);
             }
         }
-        return value;
+        String text = value.toString().trim();
+        if (text.startsWith("```")) {
+            text = text.replaceAll("^```[a-zA-Z]*\\n?", "").replaceAll("```$", "").trim();
+        }
+        if (type == int.class || type == Integer.class) return Integer.parseInt(text);
+        if (type == long.class || type == Long.class) return Long.parseLong(text);
+        if (type == double.class || type == Double.class) return Double.parseDouble(text);
+        if (type == boolean.class || type == Boolean.class) return Boolean.parseBoolean(text);
+        if (isComplexType(type)) {
+            try {
+                return TOOL_MAPPER.readValue(text, type);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to deserialize Action Input into " + type.getSimpleName() + ": " + text, e);
+            }
+        }
+        return text;
+    }
+
+    private static String normalizeRawInput(Object input) {
+        if (input == null) return "";
+        if (input instanceof String text) {
+            String raw = text.trim();
+            if (raw.startsWith("```")) {
+                raw = raw.replaceAll("^```[a-zA-Z]*\\n?", "").replaceAll("```$", "").trim();
+            }
+            return raw;
+        }
+        String json = JsonUtil.toJson(input);
+        return json != null ? json : input.toString();
+    }
+
+    private static JsonNode toJsonNode(Object input) {
+        String raw = normalizeRawInput(input);
+        if (raw.isBlank()) return null;
+        return JsonUtil.fromJson(raw);
     }
 }
