@@ -1,6 +1,6 @@
-# Two Annotations to Turn Enterprise RPC into AI Tools: Dubbo and Feign in Practice
+# Two Annotations to Turn Enterprise RPC into AI Tools
 
-> **Tags**: Java, Agent, ReAct, j-langchain, @AgentTool, @Param, @ParamDesc, VO, Dubbo, Feign, RPC, tool registration  
+> **Tags**: `Java` `Agent` `j-langchain` `RPC` `Dubbo` `Feign` `@AgentTool` `@Param` `@ParamDesc`  
 > **Prerequisite**: [AgentExecutor: Start a ReAct Agent with One Line](09-agent-executor.md)  
 > **Audience**: Java developers who want to connect existing Dubbo / Feign / gRPC services to an AI Agent with minimal effort
 
@@ -14,7 +14,7 @@ Enterprise systems carry large numbers of existing RPC services. The natural exp
 - Minimal "configuration", not a rewritten tool layer
 - A consistent approach regardless of whether the underlying framework is Dubbo or Feign
 
-j-langchain's `@AgentTool` + `@Param` / `@ParamDesc` system is designed for exactly this.
+j-langchain's `@AgentTool` + `@Param` / `@ParamDesc` system is designed for exactly this. The same tool wrapper works with both `AgentExecutor` (ReAct) and `McpAgentExecutor` (Function Calling) without any modification.
 
 ---
 
@@ -32,75 +32,9 @@ All three are complementary and backward-compatible — choose based on your sit
 
 ---
 
-## 3. Universal Wiring Steps
-
-**Step 1: Create a tool-wrapper class annotated with `@Component`**
-
-The wrapper must be a Spring bean so that `@DubboReference` / `@Autowired` fields are injected by the container.
-
-```java
-@Component
-public class EcommerceDubboTools {
-
-    @DubboReference
-    private OrderFacade orderFacade;
-
-    @AgentTool("Query user order information")
-    public String queryOrder(OrderQueryRequest request) {
-        return orderFacade.queryOrder(request).toString();
-    }
-}
-```
-
-**Step 2: Inject the tool bean and pass it to AgentExecutor**
-
-```java
-@Service
-public class CustomerServiceAgent {
-
-    @Autowired
-    private ChainActor chainActor;
-
-    @Autowired
-    private EcommerceDubboTools ecommerceDubboTools;  // Spring-managed; @DubboReference injected
-
-    public String handle(String userQuestion) {
-        AgentExecutor agent = AgentExecutor.builder(chainActor)
-            .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
-            .tools(ecommerceDubboTools)   // pass the bean reference, not new
-            .build();
-        return agent.invoke(userQuestion).getText();
-    }
-}
-```
-
----
-
-## 4. Scenario A: Dubbo — Third-Party VO + Inline `@AgentTool.params`
+## 3. Scenario A: Dubbo — Third-Party VO + Inline `@AgentTool.params`
 
 When the VO is from a partner's SDK and you cannot modify its fields, use `@AgentTool.params` with `@ParamDesc` instead. The generated schema is identical to field-level `@Param`.
-
-### Third-party VOs (from partner SDK — unmodifiable)
-
-```java
-// From a partner SDK — cannot be modified
-public class OrderQueryRequest {
-    private String orderId;
-    private String userId;
-    private String queryType;
-}
-
-public class RefundRequest {
-    private String orderId;
-    private String reason;
-    private String amount;
-}
-
-public class LogisticsQueryRequest {
-    private String orderId;
-    private String trackingNo;
-}
-```
 
 ### Tool wrapper class
 
@@ -165,6 +99,27 @@ Query user order information
   Action Input format: JSON, e.g. {"orderId": ..., "userId": ..., "queryType": ...}
 ```
 
+### Sample test (using `AgentExecutor` — ReAct)
+
+See [`dubboAgentDemo()`](../../../src/test/java/org/salt/jlangchain/demo/article/Article19RpcMcpTools.java):
+
+```java
+@Test
+public void dubboAgentDemo() {
+    AgentExecutor agent = AgentExecutor.builder(chainActor)
+        .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
+        .tools(ecommerceDubboTools)
+        .maxIterations(8)
+        .build();
+
+    agent.invoke("My order ORD-2024-001 has been in transit for days with no delivery. " +
+        "Please: 1) check the order details; 2) check where the shipment is; " +
+        "3) if there is an anomaly, submit a refund request with reason: logistics delay.");
+}
+```
+
+> The same `ecommerceDubboTools` can be passed directly to `McpAgentExecutor` without any changes.
+
 ### Execution trace
 
 ```
@@ -185,9 +140,9 @@ Final Answer: Here is a summary of what was done...
 
 ---
 
-## 5. Scenario B: Feign — Own VO + `@Param` on Fields
+## 4. Scenario B: Feign — Own VO + `@Param` on Fields
 
-When the VO belongs to your team, annotate its fields with `@Param` directly.
+When the VO belongs to your team, annotate its fields with `@Param` directly. The tool method itself stays clean.
 
 ### VO definitions
 
@@ -262,6 +217,27 @@ Check product inventory
   Action Input format: JSON, e.g. {"sku": ..., "region": ...}
 ```
 
+### Sample test (using `McpAgentExecutor` — Function Calling)
+
+See [`feignAgentDemo()`](../../../src/test/java/org/salt/jlangchain/demo/article/Article19RpcMcpTools.java):
+
+```java
+@Test
+public void feignAgentDemo() {
+    McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
+        .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
+        .tools(retailFeignTools)
+        .maxIterations(8)
+        .build();
+
+    agent.invoke("I want to buy Sony WH-1000XM5 headphones (ID: PROD-SONY-001, SKU: SKU-SONY-WH1000XM5). " +
+        "Please: 1) get product details; 2) check EAST warehouse inventory; " +
+        "3) I am a VIP user — what is the price?");
+}
+```
+
+> The same `retailFeignTools` can be passed directly to `AgentExecutor` without any changes.
+
 ### Execution trace
 
 ```
@@ -282,43 +258,27 @@ Final Answer: Here is the information for the Sony WH-1000XM5...
 
 ---
 
-## 6. Scenario Comparison
+## 5. Scenario Comparison
 
 | Dimension | Dubbo (`@AgentTool.params`) | Feign (`@Param` on field) |
 |---|---|---|
 | VO modifiable | No (from partner SDK) | Yes (owned by your team) |
 | Description location | Tool method annotation | VO field annotation |
 | LLM-visible schema | Identical | Identical |
-| Tool wrapper class | `@Component` + `@AgentTool` | `@Component` + `@AgentTool` |
+| Works with `AgentExecutor` | ✓ | ✓ |
+| Works with `McpAgentExecutor` | ✓ | ✓ |
 
 Both approaches produce exactly the same schema for the LLM. The difference is only where the descriptions are written.
 
 ---
 
-## 7. Applicable Frameworks
+## 6. Summary
 
-Any service shaped as `Response method(Request req)` fits:
-
-| Framework | Injection |
-|---|---|
-| Apache Dubbo | `@DubboReference` |
-| Spring Cloud Feign | `@Autowired` FeignClient |
-| gRPC | `@Autowired` Stub |
-| Spring MVC (internal HTTP) | `@Autowired` RestTemplate |
-| MyBatis Mapper | `@Autowired` Mapper |
+- **Own VO**: `@Param` on fields — descriptions live in the data model layer
+- **Third-party VO**: `@AgentTool.params` with `@ParamDesc` — descriptions live in the tool method
+- **Works with both executors**: the same tool definitions work for `AgentExecutor` and `McpAgentExecutor` — no need to maintain two versions
+- **Framework transparency**: schema generation, JSON deserialization, and method invocation are all automatic
 
 ---
 
-## 8. Summary
-
-- **`@Component` on the wrapper class**: Spring manages it, so `@DubboReference` / `@Autowired` fields are properly injected. The caller `@Autowired`-injects the wrapper and passes it to `tools()` — not `new`.
-- **Own VO**: `@Param` on fields — descriptions live in the data model layer.
-- **Third-party VO**: `@AgentTool.params` with `@ParamDesc` — descriptions live in the tool method.
-- **Framework transparency**: schema generation, JSON deserialization, and method invocation are all automatic; Spring Bean proxies are transparently penetrated.
-
----
-
-> Sample: `Article19DubboMcpTools.java`  
-> - `dubboAgentDemo()` — Dubbo scenario: third-party VO + `@AgentTool.params` inline descriptions  
-> - `feignAgentDemo()` — Feign scenario: own VO + `@Param` on fields  
-> Requires `ALIYUN_KEY` (`qwen-plus`).
+> Full sample: [Article19RpcMcpTools.java](../../../src/test/java/org/salt/jlangchain/demo/article/Article19RpcMcpTools.java)

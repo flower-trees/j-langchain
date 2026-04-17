@@ -35,7 +35,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
 
 /**
- * 文章 19：两行注解把企业 RPC 接口变成 AI 工具——Dubbo 与 Feign 实战接入。
+ * 文章 19：两行注解把企业 RPC 接口变成 AI 工具。
  *
  * <p>演示两种参数描述方式：
  * <ol>
@@ -44,7 +44,8 @@ import org.springframework.test.context.junit4.SpringRunner;
  * </ol>
  *
  * <p>示例中的 Mock Facade / Mock FeignClient / 工具包装类通过测试配置显式注册为 Spring Bean，
- * 测试方法直接注入后传给 {@code agent.tools()}。
+ * 同一套工具定义既可传给 {@link AgentExecutor}，也可传给
+ * {@link org.salt.jlangchain.core.agent.McpAgentExecutor}。
  *
  * <p>真实项目中，Mock 类替换为真实的 {@code @DubboReference} / {@code @Autowired FeignClient}，
  * 工具包装类结构不变。
@@ -52,8 +53,8 @@ import org.springframework.test.context.junit4.SpringRunner;
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestApplication.class)
 @SpringBootConfiguration
-@Import(Article19DubboMcpTools.TestConfig.class)
-public class Article19DubboMcpTools {
+@Import(Article19RpcMcpTools.TestConfig.class)
+public class Article19RpcMcpTools {
 
     @Autowired
     private ChainActor chainActor;
