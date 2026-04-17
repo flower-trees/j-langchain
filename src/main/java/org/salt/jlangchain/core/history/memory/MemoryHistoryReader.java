@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.core.history.HistoryInfos;
 import org.salt.jlangchain.core.history.HistoryReaderBase;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -27,20 +28,17 @@ import java.util.List;
 @Data
 public class MemoryHistoryReader extends HistoryReaderBase {
 
-    protected Long userId = 0L;
-    protected Long sessionId = 0L;
-    protected Integer limit = 10;
+    // appId / userId / sessionId / limit are all inherited from HistoryBase / HistoryReaderBase
 
+    @Override
     public List<HistoryInfos> readHistory() {
-
-        MemoryHistory.init(userId, sessionId);
-
-        List<HistoryInfos> historyInfosList = MemoryHistory.historyMap.get(String.valueOf(userId)).get(String.valueOf(sessionId));
-
-        if (historyInfosList.size() > limit) {
-            return historyInfosList.subList(historyInfosList.size() - limit, historyInfosList.size());
+        List<HistoryInfos> list = MemoryHistory.getOrCreate(appId, userId, sessionId);
+        synchronized (list) {
+            if (list.size() > limit) {
+                return new ArrayList<>(list.subList(list.size() - limit, list.size()));
+            }
+            return new ArrayList<>(list);
         }
-        return historyInfosList;
     }
 
     public static MemoryHistoryReaderBuilder builder() {
@@ -48,45 +46,41 @@ public class MemoryHistoryReader extends HistoryReaderBase {
     }
 
     public static final class MemoryHistoryReaderBuilder {
+        private Long appId;
         private Long userId;
-        private boolean userIdSet;
         private Long sessionId;
-        private boolean sessionIdSet;
         private Integer limit;
-        private boolean limitSet;
 
         private MemoryHistoryReaderBuilder() {
         }
 
+        public MemoryHistoryReaderBuilder appId(Long appId) {
+            this.appId = appId;
+            return this;
+        }
+
         public MemoryHistoryReaderBuilder userId(Long userId) {
             this.userId = userId;
-            this.userIdSet = true;
             return this;
         }
 
         public MemoryHistoryReaderBuilder sessionId(Long sessionId) {
             this.sessionId = sessionId;
-            this.sessionIdSet = true;
             return this;
         }
 
         public MemoryHistoryReaderBuilder limit(Integer limit) {
             this.limit = limit;
-            this.limitSet = true;
             return this;
         }
 
         public MemoryHistoryReader build() {
             MemoryHistoryReader reader = new MemoryHistoryReader();
-            reader.setUserId(this.userIdSet ? this.userId : 0L);
-            reader.setSessionId(this.sessionIdSet ? this.sessionId : 0L);
-            reader.setLimit(this.limitSet ? this.limit : 10);
+            if (appId != null)     reader.setAppId(appId);
+            if (userId != null)    reader.setUserId(userId);
+            if (sessionId != null) reader.setSessionId(sessionId);
+            if (limit != null)     reader.setLimit(limit);
             return reader;
-        }
-
-        @Override
-        public String toString() {
-            return "MemoryHistoryReader.MemoryHistoryReaderBuilder(userId=" + (this.userIdSet ? this.userId : 0L) + ", sessionId=" + (this.sessionIdSet ? this.sessionId : 0L) + ", limit=" + (this.limitSet ? this.limit : 10) + ")";
         }
     }
 }
