@@ -23,6 +23,8 @@
 | [AgentExecutor 嵌套：旅行规划助手](15-travel-agent.md)                      | AgentExecutor 节点嵌入 chain、结构化报告 | ⭐⭐ | `Article15TravelAgent` |
 | [客服双 Agent：投诉分析 + filesystem 执行](16-multi-agent-executor.md)       | ReAct + MCP 双 Agent 串联、文件写入确认 | ⭐⭐⭐ | `Article16CustomerService`（示例） |
 | [国内主流厂商顺序链实例](17-domestic-vendors-chain.md)                       | 与文章2顺序链相同形态、逐个对接国内 `Chat*` | ⭐ | `Article17DomesticVendorsChain` |
+| [三 Agent 并行调研：concurrent 节点构建扇出-汇聚式旅游规划助手](18-parallel-agent-concurrent.md) | concurrent 并行 Agent、cAlias、合并节点、扇出-汇聚 | ⭐⭐⭐ | `Article18ParallelTravelResearch` |
+| [两行注解把企业 RPC 接口变成 AI 工具](19-rpc-vo-param.md) | @Param 标注 VO 字段、@AgentTool 包装 RPC、Dubbo / Feign 零侵入接入 | ⭐⭐ | `Article19RpcMcpTools` |
 
 ## 建议阅读顺序
 
@@ -30,7 +32,7 @@
 入门（01-hello-ai）→ 多模型（07-multi-model）→ 流式（06-streaming）→ 编排（02-chain-patterns）→ 国内厂商顺序链（17-domestic-vendors-chain，可选）
 → RAG（03-rag-pipeline）→ ReAct（04-react-agent）→ AgentExecutor（09-agent-executor）
 → 航司比价（10-flight-compare-agent）→ TTS（05-llm-tts）→ MCP 基础（08-mcp）
-→ MCP Function-Calling ReAct（11-mcp-react-agent）→ McpAgentExecutor（12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent）→ AgentExecutor 嵌套（15-travel-agent）→ 双 Agent 串联（Article16CustomerService）
+→ MCP Function-Calling ReAct（11-mcp-react-agent）→ McpAgentExecutor（12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent）→ AgentExecutor 嵌套（15-travel-agent）→ 双 Agent 串联（16-multi-agent-executor）→ 并行 Agent（18-parallel-agent-concurrent）→ RPC 接入 AI 工具（19-rpc-vo-param）
 ```
 
 ## 代码位置
@@ -55,7 +57,9 @@ src/test/java/org/salt/jlangchain/demo/article/
 ├── Article14McpMixedAgent.java   ← 14-mcp-mixed-agent.md
 ├── Article15TravelAgent.java     ← 15-travel-agent.md
 ├── Article16CustomerService.java ← （客服双 Agent 示例）
-└── Article17DomesticVendorsChain.java ← 17-domestic-vendors-chain.md
+├── Article17DomesticVendorsChain.java ← 17-domestic-vendors-chain.md
+├── Article18ParallelTravelResearch.java ← 18-parallel-agent-concurrent.md
+└── Article19RpcMcpTools.java            ← 19-rpc-vo-param.md
 ```
 
 ## 运行环境要求
@@ -72,3 +76,5 @@ src/test/java/org/salt/jlangchain/demo/article/
 | `12-mcp-manager-agent.md`、`13-mcp-client-agent.md`、`14-mcp-mixed-agent.md` | Node.js + ALIYUN_KEY（`McpAgentExecutor` + qwen3.6-plus） |
 | `Article16CustomerService`（示例） | Node.js + ALIYUN_KEY（ReAct + filesystem MCP） |
 | `17-domestic-vendors-chain.md` / `Article17DomesticVendorsChain` | 按需配置对应厂商 API Key（见文内表格）；Coze 另需有效 `COZE_BOT_ID` |
+| `18-parallel-agent-concurrent.md` / `Article18ParallelTravelResearch` | `ALIYUN_KEY`（`qwen-plus`） |
+| `19-rpc-vo-param.md` / `Article19RpcMcpTools` | `ALIYUN_KEY`（`qwen-plus`） |

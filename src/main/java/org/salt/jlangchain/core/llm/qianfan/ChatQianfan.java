@@ -14,7 +14,8 @@
 
 package org.salt.jlangchain.core.llm.qianfan;
 
-import lombok.*;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
@@ -24,20 +25,102 @@ import org.salt.jlangchain.core.llm.BaseChatModel;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
 @EqualsAndHashCode(callSuper = true)
+@Slf4j
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class ChatQianfan extends BaseChatModel {
 
-    protected String vendor = "qianfan";
-    protected String modelType = "llm";
-    protected String model = "ernie-4.5-8k";
-    protected Float temperature = 0.7f;
-    protected Map<String, Object> modelKwargs;
-    protected List<AiChatInput.Tool> tools;
+    public ChatQianfan() {
+        this.vendor = "qianfan";
+        this.model = "ernie-4.5-8k";
+    }
+
+    protected ChatQianfan(ChatQianfanBuilder<?, ?> builder) {
+        super();
+        this.vendor = "qianfan";
+        this.model = "ernie-4.5-8k";
+        this.vendor = builder.vendorSet ? builder.vendor : this.vendor;
+        this.modelType = builder.modelTypeSet ? builder.modelType : this.modelType;
+        this.model = builder.modelSet ? builder.model : this.model;
+        this.temperature = builder.temperatureSet ? builder.temperature : this.temperature;
+        this.modelKwargs = builder.modelKwargs;
+        this.tools = builder.tools;
+    }
+
+    public static ChatQianfanBuilder<?, ?> builder() {
+        return new ChatQianfanBuilderImpl();
+    }
+
+    public static abstract class ChatQianfanBuilder<C extends ChatQianfan, B extends ChatQianfanBuilder<C, B>> {
+        private String vendor;
+        private boolean vendorSet;
+        private String modelType;
+        private boolean modelTypeSet;
+        private String model;
+        private boolean modelSet;
+        private Float temperature;
+        private boolean temperatureSet;
+        private Map<String, Object> modelKwargs;
+        private List<AiChatInput.Tool> tools;
+
+        protected abstract B self();
+
+        public abstract C build();
+
+        public B vendor(String vendor) {
+            this.vendor = vendor;
+            this.vendorSet = true;
+            return self();
+        }
+
+        public B modelType(String modelType) {
+            this.modelType = modelType;
+            this.modelTypeSet = true;
+            return self();
+        }
+
+        public B model(String model) {
+            this.model = model;
+            this.modelSet = true;
+            return self();
+        }
+
+        public B temperature(Float temperature) {
+            this.temperature = temperature;
+            this.temperatureSet = true;
+            return self();
+        }
+
+        public B modelKwargs(Map<String, Object> modelKwargs) {
+            this.modelKwargs = modelKwargs;
+            return self();
+        }
+
+        public B tools(List<AiChatInput.Tool> tools) {
+            this.tools = tools;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "ChatQianfan.ChatQianfanBuilder(vendor=" + this.vendor + ", modelType=" + this.modelType + ", model=" + this.model + ", temperature=" + this.temperature + ", modelKwargs=" + this.modelKwargs + ", tools=" + this.tools + ")";
+        }
+    }
+
+    private static final class ChatQianfanBuilderImpl extends ChatQianfanBuilder<ChatQianfan, ChatQianfanBuilderImpl> {
+        private ChatQianfanBuilderImpl() {
+        }
+
+        @Override
+        protected ChatQianfanBuilderImpl self() {
+            return this;
+        }
+
+        @Override
+        public ChatQianfan build() {
+            return new ChatQianfan(this);
+        }
+    }
 
     @Override
     public void otherInformation(AiChatInput aiChatInput) {

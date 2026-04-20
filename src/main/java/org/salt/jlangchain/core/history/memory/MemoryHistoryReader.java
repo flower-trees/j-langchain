@@ -14,37 +14,73 @@
 
 package org.salt.jlangchain.core.history.memory;
 
-import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.core.history.HistoryInfos;
 import org.salt.jlangchain.core.history.HistoryReaderBase;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
 @EqualsAndHashCode(callSuper = true)
 @Data
-@Builder
 public class MemoryHistoryReader extends HistoryReaderBase {
 
-    @Builder.Default
-    protected Long userId = 0L;
-    @Builder.Default
-    protected Long sessionId = 0L;
-    @Builder.Default
-    protected Integer limit = 10;
+    // appId / userId / sessionId / limit are all inherited from HistoryBase / HistoryReaderBase
 
+    @Override
     public List<HistoryInfos> readHistory() {
-
-        MemoryHistory.init(userId, sessionId);
-
-        List<HistoryInfos> historyInfosList = MemoryHistory.historyMap.get(String.valueOf(userId)).get(String.valueOf(sessionId));
-
-        if (historyInfosList.size() > limit) {
-            return historyInfosList.subList(historyInfosList.size() - limit, historyInfosList.size());
+        List<HistoryInfos> list = MemoryHistory.getOrCreate(appId, userId, sessionId);
+        synchronized (list) {
+            if (list.size() > limit) {
+                return new ArrayList<>(list.subList(list.size() - limit, list.size()));
+            }
+            return new ArrayList<>(list);
         }
-        return historyInfosList;
+    }
+
+    public static MemoryHistoryReaderBuilder builder() {
+        return new MemoryHistoryReaderBuilder();
+    }
+
+    public static final class MemoryHistoryReaderBuilder {
+        private Long appId;
+        private Long userId;
+        private Long sessionId;
+        private Integer limit;
+
+        private MemoryHistoryReaderBuilder() {
+        }
+
+        public MemoryHistoryReaderBuilder appId(Long appId) {
+            this.appId = appId;
+            return this;
+        }
+
+        public MemoryHistoryReaderBuilder userId(Long userId) {
+            this.userId = userId;
+            return this;
+        }
+
+        public MemoryHistoryReaderBuilder sessionId(Long sessionId) {
+            this.sessionId = sessionId;
+            return this;
+        }
+
+        public MemoryHistoryReaderBuilder limit(Integer limit) {
+            this.limit = limit;
+            return this;
+        }
+
+        public MemoryHistoryReader build() {
+            MemoryHistoryReader reader = new MemoryHistoryReader();
+            if (appId != null)     reader.setAppId(appId);
+            if (userId != null)    reader.setUserId(userId);
+            if (sessionId != null) reader.setSessionId(sessionId);
+            if (limit != null)     reader.setLimit(limit);
+            return reader;
+        }
     }
 }

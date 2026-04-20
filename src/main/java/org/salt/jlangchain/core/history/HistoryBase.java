@@ -14,11 +14,17 @@
 
 package org.salt.jlangchain.core.history;
 
+import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.core.BaseRunnable;
 
 @Slf4j
+@Data
 @EqualsAndHashCode(callSuper = true)
 public abstract class HistoryBase extends BaseRunnable<Object, Object> {
+
+    protected Long appId = 0L;
+    protected Long userId = 0L;
+    protected Long sessionId = 0L;
 }

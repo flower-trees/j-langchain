@@ -14,12 +14,8 @@
 
 package org.salt.jlangchain.core;
 
-import lombok.NoArgsConstructor;
-import lombok.experimental.SuperBuilder;
 import org.salt.jlangchain.utils.JsonUtil;
 
-@SuperBuilder
-@NoArgsConstructor
 public abstract class Serializable {
 
     public String toJson() {
@@ -28,5 +24,22 @@ public abstract class Serializable {
 
     public static <T extends Serializable> T fromJson(String json, Class<T> clazz) {
         return JsonUtil.fromJson(json, clazz);
+    }
+
+    public static abstract class SerializableBuilder<C extends Serializable, B extends SerializableBuilder<C, B>> {
+        protected abstract B self();
+
+        public abstract C build();
+
+        @Override
+        public String toString() {
+            return "Serializable.SerializableBuilder()";
+        }
+    }
+
+    protected Serializable(SerializableBuilder<?, ?> builder) {
+    }
+
+    protected Serializable() {
     }
 }

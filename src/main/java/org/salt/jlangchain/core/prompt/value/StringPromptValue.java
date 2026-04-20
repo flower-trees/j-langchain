@@ -16,12 +16,52 @@ package org.salt.jlangchain.core.prompt.value;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
 
-@EqualsAndHashCode(callSuper = true)
+@EqualsAndHashCode(callSuper = false)
 @Data
-@SuperBuilder
 public class StringPromptValue extends PromptValue {
 
     private String text;
+
+    public StringPromptValue() {
+        super();
+    }
+
+    protected StringPromptValue(StringPromptValueBuilder<?, ?> builder) {
+        super(builder);
+        this.text = builder.text;
+    }
+
+    public static StringPromptValueBuilder<?, ?> builder() {
+        return new StringPromptValueBuilderImpl();
+    }
+
+    public static abstract class StringPromptValueBuilder<C extends StringPromptValue, B extends StringPromptValueBuilder<C, B>> extends PromptValueBuilder<C, B> {
+        private String text;
+
+        public B text(String text) {
+            this.text = text;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "StringPromptValue.StringPromptValueBuilder(super=" + super.toString() + ", text=" + this.text + ")";
+        }
+    }
+
+    private static final class StringPromptValueBuilderImpl extends StringPromptValueBuilder<StringPromptValue, StringPromptValueBuilderImpl> {
+        private StringPromptValueBuilderImpl() {
+        }
+
+        @Override
+        protected StringPromptValueBuilderImpl self() {
+            return this;
+        }
+
+        @Override
+        public StringPromptValue build() {
+            return new StringPromptValue(this);
+        }
+    }
 }

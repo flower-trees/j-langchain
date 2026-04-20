@@ -23,18 +23,28 @@ import java.lang.annotation.*;
  * Multi-parameter methods expect a JSON object as Action Input; each key maps
  * to the corresponding parameter name (camelCase or snake_case both accepted).
  *
+ * <p>Parameter descriptions are resolved in the following priority order:
+ * <ol>
+ *   <li>{@link #params()} — inline {@link ParamDesc} entries on this annotation
+ *       (use when the VO is from a third-party package and cannot be modified)</li>
+ *   <li>{@link Param} on VO fields — when you own the VO class</li>
+ *   <li>{@link Param} on method parameters — for simple primitive/String parameters</li>
+ * </ol>
+ *
  * <pre>{@code
- * public class CityTools {
+ * // Own VO: put @Param on fields
+ * @AgentTool("查询用户订单信息")
+ * public String queryOrder(OrderQueryRequest request) { ... }
  *
- *     @AgentTool("获取城市天气信息，输入城市名称")
- *     public String getWeather(String location) { ... }
- *
- *     @AgentTool("订机票")
- *     public String bookFlight(
- *         @Param("出发城市") String fromCity,
- *         @Param("目的城市") String toCity,
- *         @Param("日期，格式 YYYY-MM-DD") String date) { ... }
- * }
+ * // Third-party VO: use inline @ParamDesc
+ * @AgentTool(
+ *     value = "查询用户订单信息",
+ *     params = {
+ *         @ParamDesc(name = "orderId",   desc = "订单ID，格式：ORD-2024-XXXXXX"),
+ *         @ParamDesc(name = "queryType", desc = "查询类型：LATEST / ALL，默认 LATEST")
+ *     }
+ * )
+ * public String queryOrder(ThirdPartyOrderRequest request) { ... }
  * }</pre>
  */
 @Target(ElementType.METHOD)
@@ -50,4 +60,10 @@ public @interface AgentTool {
      * snake_case (e.g. {@code getWeather} → {@code get_weather}).
      */
     String name() default "";
+
+    /**
+     * Inline parameter descriptions for third-party VOs whose fields cannot be
+     * annotated with {@link Param}. Takes priority over field-level {@link Param}.
+     */
+    ParamDesc[] params() default {};
 }

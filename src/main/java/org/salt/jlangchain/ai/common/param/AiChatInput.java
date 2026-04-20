@@ -31,7 +31,6 @@ package org.salt.jlangchain.ai.common.param;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.salt.jlangchain.utils.GroceryUtil;
@@ -40,7 +39,6 @@ import java.util.List;
 import java.util.Map;
 
 @Data
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class AiChatInput {
@@ -170,5 +168,192 @@ public class AiChatInput {
             private Map<String, Object> schema;
             private Boolean strict;
         }
+    }
+
+    @SuppressWarnings("all")
+    public static class AiChatInputBuilder {
+        private String id;
+        private String parentId;
+        private String model;
+        private String botId;
+        private String userId;
+        private List<Message> messages;
+        private boolean stream;
+        private List<String> input;
+        private Float temperature;
+        private Float topP;
+        private Integer maxTokens;
+        private Float presencePenalty;
+        private Float frequencyPenalty;
+        private List<String> stop;
+        private Integer n;
+        private String suffix;
+        private Integer logprobs;
+        private Integer topLogprobs;
+        private Boolean echo;
+        private int vectorSize;
+        private String key;
+        private McpConfig mcpConfig;
+        private List<Tool> tools;
+        private String toolChoice;
+        private Boolean parallelToolCalls;
+        private ResponseFormat responseFormat;
+        private String responseSchema;
+
+        AiChatInputBuilder() {
+        }
+
+        @JsonIgnore
+        public AiChatInputBuilder id(final String id) {
+            this.id = id;
+            return this;
+        }
+
+        @JsonIgnore
+        @JsonProperty("parent_id")
+        public AiChatInputBuilder parentId(final String parentId) {
+            this.parentId = parentId;
+            return this;
+        }
+
+        public AiChatInputBuilder model(final String model) {
+            this.model = model;
+            return this;
+        }
+
+        @JsonProperty("bot_id")
+        public AiChatInputBuilder botId(final String botId) {
+            this.botId = botId;
+            return this;
+        }
+
+        @JsonProperty("user_id")
+        public AiChatInputBuilder userId(final String userId) {
+            this.userId = userId;
+            return this;
+        }
+
+        public AiChatInputBuilder messages(final List<Message> messages) {
+            this.messages = messages;
+            return this;
+        }
+
+        public AiChatInputBuilder stream(final boolean stream) {
+            this.stream = stream;
+            return this;
+        }
+
+        public AiChatInputBuilder input(final List<String> input) {
+            this.input = input;
+            return this;
+        }
+
+        public AiChatInputBuilder temperature(final Float temperature) {
+            this.temperature = temperature;
+            return this;
+        }
+
+        public AiChatInputBuilder topP(final Float topP) {
+            this.topP = topP;
+            return this;
+        }
+
+        public AiChatInputBuilder maxTokens(final Integer maxTokens) {
+            this.maxTokens = maxTokens;
+            return this;
+        }
+
+        public AiChatInputBuilder presencePenalty(final Float presencePenalty) {
+            this.presencePenalty = presencePenalty;
+            return this;
+        }
+
+        public AiChatInputBuilder frequencyPenalty(final Float frequencyPenalty) {
+            this.frequencyPenalty = frequencyPenalty;
+            return this;
+        }
+
+        public AiChatInputBuilder stop(final List<String> stop) {
+            this.stop = stop;
+            return this;
+        }
+
+        public AiChatInputBuilder n(final Integer n) {
+            this.n = n;
+            return this;
+        }
+
+        public AiChatInputBuilder suffix(final String suffix) {
+            this.suffix = suffix;
+            return this;
+        }
+
+        public AiChatInputBuilder logprobs(final Integer logprobs) {
+            this.logprobs = logprobs;
+            return this;
+        }
+
+        public AiChatInputBuilder topLogprobs(final Integer topLogprobs) {
+            this.topLogprobs = topLogprobs;
+            return this;
+        }
+
+        public AiChatInputBuilder echo(final Boolean echo) {
+            this.echo = echo;
+            return this;
+        }
+
+        public AiChatInputBuilder vectorSize(final int vectorSize) {
+            this.vectorSize = vectorSize;
+            return this;
+        }
+
+        public AiChatInputBuilder key(final String key) {
+            this.key = key;
+            return this;
+        }
+
+        public AiChatInputBuilder mcpConfig(final McpConfig mcpConfig) {
+            this.mcpConfig = mcpConfig;
+            return this;
+        }
+
+        public AiChatInputBuilder tools(final List<Tool> tools) {
+            this.tools = tools;
+            return this;
+        }
+
+        public AiChatInputBuilder toolChoice(final String toolChoice) {
+            this.toolChoice = toolChoice;
+            return this;
+        }
+
+        public AiChatInputBuilder parallelToolCalls(final Boolean parallelToolCalls) {
+            this.parallelToolCalls = parallelToolCalls;
+            return this;
+        }
+
+        public AiChatInputBuilder responseFormat(final ResponseFormat responseFormat) {
+            this.responseFormat = responseFormat;
+            return this;
+        }
+
+        public AiChatInputBuilder responseSchema(final String responseSchema) {
+            this.responseSchema = responseSchema;
+            return this;
+        }
+
+        public AiChatInput build() {
+            return new AiChatInput(this.id, this.parentId, this.model, this.botId, this.userId, this.messages, this.stream, this.input, this.temperature, this.topP, this.maxTokens, this.presencePenalty, this.frequencyPenalty, this.stop, this.n, this.suffix, this.logprobs, this.topLogprobs, this.echo, this.vectorSize, this.key, this.mcpConfig, this.tools, this.toolChoice, this.parallelToolCalls, this.responseFormat, this.responseSchema);
+        }
+
+        @Override
+        public String toString() {
+            return "AiChatInput.AiChatInputBuilder(id=" + this.id + ", parentId=" + this.parentId + ", model=" + this.model + ", botId=" + this.botId + ", userId=" + this.userId + ", messages=" + this.messages + ", stream=" + this.stream + ", input=" + this.input + ", temperature=" + this.temperature + ", topP=" + this.topP + ", maxTokens=" + this.maxTokens + ", presencePenalty=" + this.presencePenalty + ", frequencyPenalty=" + this.frequencyPenalty + ", stop=" + this.stop + ", n=" + this.n + ", suffix=" + this.suffix + ", logprobs=" + this.logprobs + ", topLogprobs=" + this.topLogprobs + ", echo=" + this.echo + ", vectorSize=" + this.vectorSize + ", key=" + this.key + ", mcpConfig=" + this.mcpConfig + ", tools=" + this.tools + ", toolChoice=" + this.toolChoice + ", parallelToolCalls=" + this.parallelToolCalls + ", responseFormat=" + this.responseFormat + ", responseSchema=" + this.responseSchema + ")";
+        }
+    }
+
+    public static AiChatInputBuilder builder() {
+        return new AiChatInputBuilder();
     }
 }

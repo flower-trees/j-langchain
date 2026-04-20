@@ -102,8 +102,9 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private List<Tool> tools = new ArrayList<>();
         private String systemPrompt;
         private int maxIterations = 10;
-        private Consumer<String> toolCallLogger;
-        private Consumer<String> observationLogger;
+        private Consumer<String> llmConsumer;
+        private Consumer<String> toolCallConsumer;
+        private Consumer<String> observationConsumer;
         // optional per-request authorization supplier (e.g. for MCP HTTP calls)
         private java.util.function.Supplier<String> authorizationSupplier;
 
@@ -216,15 +217,21 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
+        /** Hook called with the full LLM input payload before each model invocation. */
+        public Builder onLlm(Consumer<String> consumer) {
+            this.llmConsumer = consumer;
+            return this;
+        }
+
         /** Hook called with the tool name + arguments JSON before execution. */
-        public Builder onToolCall(Consumer<String> logger) {
-            this.toolCallLogger = logger;
+        public Builder onToolCall(Consumer<String> consumer) {
+            this.toolCallConsumer = consumer;
             return this;
         }
 
         /** Hook called with the observation string after tool execution. */
-        public Builder onObservation(Consumer<String> logger) {
-            this.observationLogger = logger;
+        public Builder onObservation(Consumer<String> consumer) {
+            this.observationConsumer = consumer;
             return this;
         }
 
@@ -258,6 +265,14 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             messages.add(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), "${input}"));
             var prompt = ChatPromptTemplate.fromMessages(messages);
 
+            Consumer<String> llmConsumer = this.llmConsumer;
+            TranslateHandler<ChatPromptValue, ChatPromptValue> emitBeforeLlm = new TranslateHandler<>(promptValue -> {
+                if (llmConsumer != null && promptValue != null) {
+                    llmConsumer.accept(formatChatPromptValue(promptValue));
+                }
+                return promptValue;
+            });
+
             // ── 3. Loop condition: continue while LLM returns tool calls ──
             int maxIter = this.maxIterations;
             Function<Integer, Boolean> shouldContinue = i -> {
@@ -275,8 +290,8 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 msg instanceof ToolMessage tm && !CollectionUtils.isEmpty(tm.getToolCalls());
 
             Map<String, Tool> toolMapFinal = toolMap;
-            Consumer<String> tcLogger = this.toolCallLogger;
-            Consumer<String> obsLogger = this.observationLogger;
+            Consumer<String> toolCallConsumer = this.toolCallConsumer;
+            Consumer<String> observationConsumer = this.observationConsumer;
             // reserved for future per-call MCP authorization token injection
             @SuppressWarnings("unused")
             java.util.function.Supplier<String> authSupplier = this.authorizationSupplier;
@@ -292,7 +307,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     String toolName = toolCall.getFunction().getName();
                     String argsJson = toolCall.getFunction().getArguments();
 
-                    if (tcLogger != null) tcLogger.accept(toolName + " " + argsJson);
+                    if (toolCallConsumer != null) toolCallConsumer.accept(toolName + " " + argsJson);
                     else log.debug("Tool call: {} args={}", toolName, argsJson);
 
                     Tool tool = toolMapFinal.get(toolName);
@@ -313,7 +328,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                         }
                     }
 
-                    if (obsLogger != null) obsLogger.accept(observation);
+                    if (observationConsumer != null) observationConsumer.accept(observation);
                     else log.debug("Observation: {}", observation);
 
                     chatPromptValue.getMessages().add(
@@ -329,6 +344,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 .next(prompt)
                 .loop(
                     shouldContinue,
+                    emitBeforeLlm,
                     llm,
                     chainActor.builder()
                         .next(
@@ -391,6 +407,20 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 "properties", properties,
                 "required", required
             );
+        }
+
+        private static String formatChatPromptValue(ChatPromptValue promptValue) {
+            if (promptValue == null || CollectionUtils.isEmpty(promptValue.getMessages())) {
+                return "";
+            }
+
+            return promptValue.getMessages().stream()
+                .map(message -> {
+                    String role = message.getRole() != null ? message.getRole() : "unknown";
+                    String content = message.getContent() != null ? message.getContent() : "";
+                    return role + ": " + content;
+                })
+                .collect(Collectors.joining("\n"));
         }
     }
 }

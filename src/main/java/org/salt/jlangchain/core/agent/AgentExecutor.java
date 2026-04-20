@@ -117,8 +117,9 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private List<Tool> tools = new ArrayList<>();
         private int maxIterations = 10;
         private String promptTemplate;
-        private Consumer<String> thoughtLogger;
-        private Consumer<String> observationLogger;
+        private Consumer<String> llmConsumer;
+        private Consumer<String> thoughtConsumer;
+        private Consumer<String> observationConsumer;
 
         private Builder(ChainActor chainActor) {
             this.chainActor = chainActor;
@@ -156,15 +157,21 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
+        /** Hook called with the full LLM input text before each model invocation. */
+        public Builder onLlm(Consumer<String> consumer) {
+            this.llmConsumer = consumer;
+            return this;
+        }
+
         /** Hook called with each Thought+Action block before tool execution. */
-        public Builder onThought(Consumer<String> logger) {
-            this.thoughtLogger = logger;
+        public Builder onThought(Consumer<String> consumer) {
+            this.thoughtConsumer = consumer;
             return this;
         }
 
         /** Hook called with each Observation result after tool execution. */
-        public Builder onObservation(Consumer<String> logger) {
-            this.observationLogger = logger;
+        public Builder onObservation(Consumer<String> consumer) {
+            this.observationConsumer = consumer;
             return this;
         }
 
@@ -178,6 +185,15 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             PromptTemplate prompt = PromptTemplate.fromTemplate(template);
             prompt.withTools(tools);
 
+            Consumer<String> llmConsumer = this.llmConsumer;
+
+            TranslateHandler<StringPromptValue, StringPromptValue> emitBeforeLlm = new TranslateHandler<>(promptValue -> {
+                if (llmConsumer != null && promptValue != null) {
+                    llmConsumer.accept(promptValue.getText());
+                }
+                return promptValue;
+            });
+
             TranslateHandler<AIMessage, AIMessage> cutAtObservation = new TranslateHandler<>(llmResult -> {
                 if (llmResult == null || StringUtils.isEmpty(llmResult.getContent())) {
                     return llmResult;
@@ -187,7 +203,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 String prefix = content.contains("Observation:")
                     ? content.substring(0, content.indexOf("Observation:"))
                     : content;
-                if (thoughtLogger != null) thoughtLogger.accept(prefix);
+                if (thoughtConsumer != null) thoughtConsumer.accept(prefix);
                 else log.debug("Thought/Action:\n{}", prefix);
                 llmResult.setContent(prefix);
                 return llmResult;
@@ -207,7 +223,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 ((Map<String, String>) map).containsKey("Action") && ((Map<String, String>) map).containsKey("Action Input");
 
             List<Tool> toolList = this.tools;
-            Consumer<String> obsLogger = this.observationLogger;
+            Consumer<String> observationConsumer = this.observationConsumer;
 
             TranslateHandler<Object, Map<String, String>> executeTool = new TranslateHandler<>(map -> {
                 StringPromptValue promptValue = ContextBus.get().getResult(prompt.getNodeId());
@@ -224,7 +240,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 }
 
                 String observation = (String) useTool.getFunc().apply(((Map<String, String>) map).get("Action Input"));
-                if (obsLogger != null) obsLogger.accept(observation);
+                if (observationConsumer != null) observationConsumer.accept(observation);
                 else log.debug("Observation: {}", observation);
 
                 String prefix = cutResult.getContent();
@@ -250,6 +266,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 .next(prompt)
                 .loop(
                     shouldContinue,
+                    emitBeforeLlm,
                     llm,
                     chainActor.builder()
                         .next(cutAtObservation)

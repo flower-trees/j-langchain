@@ -30,6 +30,9 @@ import java.util.List;
 @Data
 public abstract class HistoryReaderBase extends HistoryBase {
 
+    /** How many recent conversation turns (Human+AI pairs) to inject into the prompt. */
+    protected Integer limit = 10;
+
     @Override
     public ChatPromptValue invoke(Object input) {
 

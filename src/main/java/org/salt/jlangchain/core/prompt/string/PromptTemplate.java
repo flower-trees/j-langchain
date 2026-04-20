@@ -14,7 +14,6 @@
 
 package org.salt.jlangchain.core.prompt.string;
 
-import lombok.Builder;
 import org.apache.commons.text.StringSubstitutor;
 import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.prompt.value.StringPromptValue;
@@ -26,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Builder
 public class PromptTemplate extends StringPromptTemplate {
 
     private String template;
@@ -69,5 +67,34 @@ public class PromptTemplate extends StringPromptTemplate {
         String toolNames = tools.stream().map(Tool::getName).collect(Collectors.joining(","));
         StringSubstitutor sub = new StringSubstitutor(Map.of("tools", toolInfos, "toolNames", toolNames));
         template = sub.replace(template);
+    }
+
+    private PromptTemplate(String template) {
+        this.template = template;
+    }
+
+    public static PromptTemplateBuilder builder() {
+        return new PromptTemplateBuilder();
+    }
+
+    public static final class PromptTemplateBuilder {
+        private String template;
+
+        private PromptTemplateBuilder() {
+        }
+
+        public PromptTemplateBuilder template(String template) {
+            this.template = template;
+            return this;
+        }
+
+        public PromptTemplate build() {
+            return new PromptTemplate(this.template);
+        }
+
+        @Override
+        public String toString() {
+            return "PromptTemplate.PromptTemplateBuilder(template=" + this.template + ")";
+        }
     }
 }

@@ -15,13 +15,43 @@
 package org.salt.jlangchain.core.history;
 
 import lombok.Data;
-import lombok.experimental.SuperBuilder;
 import org.salt.jlangchain.core.message.BaseMessage;
 
 import java.util.List;
 
 @Data
-@SuperBuilder
 public class HistoryInfos {
     private List<BaseMessage> messages;
+
+    protected HistoryInfos(HistoryInfosBuilder builder) {
+        this.messages = builder.messages;
+    }
+
+    public HistoryInfos() {
+    }
+
+    public static HistoryInfosBuilder builder() {
+        return new HistoryInfosBuilder();
+    }
+
+    public static final class HistoryInfosBuilder {
+        private List<BaseMessage> messages;
+
+        private HistoryInfosBuilder() {
+        }
+
+        public HistoryInfosBuilder messages(List<BaseMessage> messages) {
+            this.messages = messages;
+            return this;
+        }
+
+        public HistoryInfos build() {
+            return new HistoryInfos(this);
+        }
+
+        @Override
+        public String toString() {
+            return "HistoryInfos.HistoryInfosBuilder(messages=" + this.messages + ")";
+        }
+    }
 }

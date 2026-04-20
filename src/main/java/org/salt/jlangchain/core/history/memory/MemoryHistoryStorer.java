@@ -14,30 +14,75 @@
 
 package org.salt.jlangchain.core.history.memory;
 
-import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.core.history.HistoryInfos;
 import org.salt.jlangchain.core.history.HistoryStorerBase;
 
+import java.util.List;
+
 @Slf4j
 @EqualsAndHashCode(callSuper = true)
 @Data
-@Builder
 public class MemoryHistoryStorer extends HistoryStorerBase {
 
-    @Builder.Default
-    protected Long userId = 0L;
-    @Builder.Default
-    protected Long sessionId = 0L;
-    @Builder.Default
-    protected Integer limit = 10;
+    // appId / userId / sessionId are inherited from HistoryBase
 
+    /** Maximum number of conversation turns to keep in memory per session. Oldest turns are dropped. */
+    private Integer maxSize = 100;
+
+    @Override
     public void storeHistory(HistoryInfos historyInfos) {
+        List<HistoryInfos> list = MemoryHistory.getOrCreate(appId, userId, sessionId);
+        synchronized (list) {
+            list.add(historyInfos);
+            if (list.size() > maxSize) {
+                list.remove(0);
+            }
+        }
+    }
 
-        MemoryHistory.init(userId, sessionId);
+    public static MemoryHistoryStorerBuilder builder() {
+        return new MemoryHistoryStorerBuilder();
+    }
 
-        MemoryHistory.historyMap.get(String.valueOf(userId)).get(String.valueOf(sessionId)).add(historyInfos);
+    public static final class MemoryHistoryStorerBuilder {
+        private Long appId;
+        private Long userId;
+        private Long sessionId;
+        private Integer maxSize;
+
+        private MemoryHistoryStorerBuilder() {
+        }
+
+        public MemoryHistoryStorerBuilder appId(Long appId) {
+            this.appId = appId;
+            return this;
+        }
+
+        public MemoryHistoryStorerBuilder userId(Long userId) {
+            this.userId = userId;
+            return this;
+        }
+
+        public MemoryHistoryStorerBuilder sessionId(Long sessionId) {
+            this.sessionId = sessionId;
+            return this;
+        }
+
+        public MemoryHistoryStorerBuilder maxSize(Integer maxSize) {
+            this.maxSize = maxSize;
+            return this;
+        }
+
+        public MemoryHistoryStorer build() {
+            MemoryHistoryStorer storer = new MemoryHistoryStorer();
+            if (appId != null)    storer.setAppId(appId);
+            if (userId != null)   storer.setUserId(userId);
+            if (sessionId != null) storer.setSessionId(sessionId);
+            if (maxSize != null)  storer.setMaxSize(maxSize);
+            return storer;
+        }
     }
 }

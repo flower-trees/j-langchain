@@ -1,28 +1,24 @@
 # J-LangChain API Reference
 
-This document describes the APIs of J-LangChain core components. All packages use the prefix `org.salt.jlangchain`.
+All packages use the prefix `org.salt.jlangchain`.
 
 ---
 
-## 1. ChainActor (Chain Orchestration)
+## 1. ChainActor
 
 **Package**: `org.salt.jlangchain.core.ChainActor`
 
-Orchestrates Prompt, LLM, Parser nodes to build executable chains.
-
-### Methods
+Orchestrates Prompt, LLM, and Parser nodes into executable chains.
 
 | Method | Description | Returns |
 |--------|-------------|---------|
 | `builder()` | Get chain builder | `FlowEngine.Builder` |
-| `invoke(FlowInstance flow, I input)` | Execute chain synchronously | Output type `O` |
-| `invoke(FlowInstance flow, I input, Map<String,Object> transmitMap)` | Execute with pass-through params | Output type `O` |
-| `stream(FlowInstance flow, I input)` | Execute chain in streaming mode | Streaming output (e.g. `ChatGenerationChunk`) |
-| `streamEvent(FlowInstance flow, I input)` | Event stream execution, emit node events | `EventMessageChunk` |
+| `invoke(flow, input)` | Execute synchronously | Output type `O` |
+| `invoke(flow, input, transmitMap)` | Execute with pass-through params | Output type `O` |
+| `stream(flow, input)` | Streaming execution | `ChatGenerationChunk` |
+| `streamEvent(flow, input)` | Event stream execution | `EventMessageChunk` |
 | `streamEvent(flow, input, filter)` | Event stream with filter | `EventMessageChunk` |
-| `stop(FlowInstance flowInstance)` | Stop chain execution | void |
-
-### Example
+| `stop(flowInstance)` | Stop chain | void |
 
 ```java
 FlowInstance chain = chainActor.builder()
@@ -31,84 +27,63 @@ FlowInstance chain = chainActor.builder()
     .next(new StrOutputParser())
     .build();
 
-ChatGeneration result = chainActor.invoke(chain, Map.of("topic", "AI"));
+String result = chainActor.invoke(chain, Map.of("topic", "AI"));
 ```
 
 ---
 
-## 2. LLM Models (BaseChatModel)
+## 2. LLM Models
 
 **Base class**: `org.salt.jlangchain.core.llm.BaseChatModel`
 
-All LLM implementations extend this class. Support `invoke`, `stream`, `streamEvent`.
+All implementations support `invoke`, `stream`, `streamEvent`, and `withConfig`.
 
-### 2.1 ChatOpenAI
+**Supported input types**: `String`, `StringPromptValue`, `ChatPromptValue`
 
-**Package**: `org.salt.jlangchain.core.llm.openai.ChatOpenAI`
+### 2.1 All Supported Models
+
+| Class | Package | Env Variable | Description |
+|-------|---------|--------------|-------------|
+| `ChatOpenAI` | `core.llm.openai` | `CHATGPT_KEY` | OpenAI GPT-4 / GPT-3.5 |
+| `ChatOllama` | `core.llm.ollama` | `OLLAMA_KEY1` | Local open-source models |
+| `ChatAliyun` | `core.llm.aliyun` | `ALIYUN_KEY` | Alibaba Cloud Qwen |
+| `ChatMoonshot` | `core.llm.moonshot` | `MOONSHOT_KEY` | Moonshot (Kimi) |
+| `ChatDoubao` | `core.llm.doubao` | `DOUBAO_KEY` | Doubao (ByteDance) |
+| `ChatCoze` | `core.llm.doubao` | `COZE_KEY` | Coze |
+| `ChatDeepseek` | `core.llm.deepseek` | `DEEPSEEK_KEY` | DeepSeek-V3 / R1 |
+| `ChatHunyuan` | `core.llm.hunyuan` | `HUNYUAN_KEY` | Tencent Hunyuan |
+| `ChatQianfan` | `core.llm.qianfan` | `QIANFAN_KEY` | Baidu ERNIE |
+| `ChatZhipu` | `core.llm.zhipu` | `ZHIPU_KEY` | Zhipu GLM |
+| `ChatMinimax` | `core.llm.minimax` | `MINIMAX_KEY` | MiniMax |
+| `ChatLingyi` | `core.llm.lingyi` | `LINGYI_KEY` | 01.AI Yi |
+| `ChatStepfun` | `core.llm.stepfun` | `STEPFUN_KEY` | StepFun |
+
+### 2.2 Common Builder Parameters
 
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
-| model | String | gpt-4 | Model name |
-| temperature | Float | 0.7 | Temperature |
-| tools | List\<AiChatInput.Tool\> | - | Tool calling list |
-
-```java
-ChatOpenAI llm = ChatOpenAI.builder()
-    .model("gpt-4")
-    .temperature(0.7f)
-    .build();
-```
-
-### 2.2 ChatAliyun (Alibaba Cloud Qwen)
-
-**Package**: `org.salt.jlangchain.core.llm.aliyun.ChatAliyun`
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| model | String | qwq-32b-preview | e.g. qwen-plus, qwen-turbo |
-| temperature | Float | 0.7 | Temperature |
-| tools | List\<AiChatInput.Tool\> | - | Tool calling |
+| `model` | String | vendor default | Model name (e.g. `qwen-plus`, `gpt-4`) |
+| `temperature` | Float | 0.7 | Sampling temperature |
+| `tools` | `List<AiChatInput.Tool>` | — | Tool calling definitions |
 
 ```java
 ChatAliyun llm = ChatAliyun.builder()
     .model("qwen-plus")
+    .temperature(0.7f)
     .build();
+
+AIMessage response = llm.invoke("Hello");
+AIMessageChunk stream = llm.stream("Tell me a story");
 ```
 
-### 2.3 ChatOllama
-
-**Package**: `org.salt.jlangchain.core.llm.ollama.ChatOllama`
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| model | String | qwen2.5:0.5b | e.g. llama3:8b |
-| temperature | Float | 0.7 | Temperature |
-| tools | List\<AiChatInput.Tool\> | - | Tool calling |
+### 2.3 Coze OAuth 2.0
 
 ```java
-ChatOllama llm = ChatOllama.builder()
-    .model("qwen2.5:0.5b")
-    .build();
+// OAuth alternative to COZE_KEY
+export COZE_CLIENT_ID=xxx
+export COZE_PRIVATE_KEY_PATH=/path/to/private-key.pem
+export COZE_PUBLIC_KEY_ID=xxx
 ```
-
-### 2.4 Other Models
-
-| Class | Package | Description |
-|-------|---------|-------------|
-| ChatMoonshot | core.llm.moonshot | Kimi / Moonshot |
-| ChatDoubao | core.llm.doubao | Doubao |
-| ChatCoze | core.llm.doubao | Coze |
-
-### 2.5 Common Methods
-
-| Method | Description | Returns |
-|--------|-------------|---------|
-| `invoke(Object input)` | Invoke synchronously | `AIMessage` |
-| `stream(Object input)` | Invoke in streaming mode | `AIMessageChunk` |
-| `streamEvent(Object input)` | Event stream | `EventMessageChunk` |
-| `withConfig(Map<String,Object> config)` | Attach config (run_name, tags, etc.) | `BaseChatModel` |
-
-**Supported input**: `String`, `StringPromptValue`, `ChatPromptValue`
 
 ---
 
@@ -120,28 +95,20 @@ ChatOllama llm = ChatOllama.builder()
 
 Simple string template with `${variable}` placeholders.
 
-| Method | Description |
-|--------|-------------|
-| `fromTemplate(String template)` | Static factory to create template |
-
 ```java
 PromptTemplate prompt = PromptTemplate.fromTemplate("Tell me about ${topic}");
-// Input: Map.of("topic", "AI") → Output: "Tell me about AI"
+// Input: Map.of("topic","AI") → Output: "Tell me about AI"
 ```
 
 ### 3.2 ChatPromptTemplate
 
 **Package**: `org.salt.jlangchain.core.prompt.chat.ChatPromptTemplate`
 
-Multi-turn dialogue template supporting system/human/ai roles.
-
-| Method | Description |
-|--------|-------------|
-| `fromMessages(List<?> messages)` | Static factory to create chat template |
+Multi-turn dialogue template supporting `system` / `human` / `ai` roles.
 
 ```java
 ChatPromptTemplate prompt = ChatPromptTemplate.fromMessages(List.of(
-    Pair.of("system", "You are an assistant."),
+    Pair.of("system", "You are a helpful assistant. Context: ${context}"),
     Pair.of("human", "${question}")
 ));
 ```
@@ -150,68 +117,194 @@ ChatPromptTemplate prompt = ChatPromptTemplate.fromMessages(List.of(
 
 ## 4. Output Parsers
 
-### 4.1 StrOutputParser
+| Class | Package | Description |
+|-------|---------|-------------|
+| `StrOutputParser` | `core.parser` | `AIMessage` → `String` |
+| `JsonOutputParser` | `core.parser` | LLM output → parsed JSON |
+| `FunctionOutputParser` | `core.parser` | Custom function parser for stream chunks |
 
-**Package**: `org.salt.jlangchain.core.parser.StrOutputParser`
+---
 
-Converts `AIMessage` to String.
+## 5. Agent & Tool Calling
+
+### 5.1 AgentExecutor
+
+**Package**: `org.salt.jlangchain.core.agent.AgentExecutor`
+
+Wraps the ReAct (Reason + Act) loop. Automatically calls tools and reasons until a final answer.
+
+| Builder Param | Type | Description |
+|---------------|------|-------------|
+| `llm` | `BaseChatModel` | LLM to reason with |
+| `toolScanner` | `ToolScanner` | Scans `@AgentTool` methods |
+| `maxIterations` | int | Max ReAct cycles (default: 10) |
+| `onThought` | `Consumer<String>` | Callback on each thought step |
+| `onObservation` | `Consumer<String>` | Callback on tool result |
+| `onLlm` | `Consumer<String>` | Callback before each LLM call (new in 1.0.14) |
 
 ```java
-.next(new StrOutputParser())
+AgentExecutor agent = AgentExecutor.builder()
+    .llm(ChatAliyun.builder().model("qwen-plus").build())
+    .toolScanner(new ToolScanner(this))
+    .build();
+
+String result = agent.invoke("Find flights from Beijing to Shanghai");
 ```
 
-### 4.2 JsonOutputParser
+### 5.2 McpAgentExecutor
 
-**Package**: `org.salt.jlangchain.core.parser.JsonOutputParser`
+**Package**: `org.salt.jlangchain.core.agent.McpAgentExecutor`
 
-Parses LLM output as JSON (supports incremental parsing).
+Model-side Function Calling with MCP tool orchestration. Uses native tool-call messages instead of ReAct prompting.
 
 ```java
-.next(new JsonOutputParser())
+McpAgentExecutor agent = McpAgentExecutor.builder()
+    .llm(ChatAliyun.builder().model("qwen-plus").build())
+    .mcpManager(mcpManager)
+    .build();
 ```
 
-### 4.3 FunctionOutputParser
+### 5.3 @AgentTool / @Param / @ParamDesc / ToolScanner
 
-**Package**: `org.salt.jlangchain.core.parser.FunctionOutputParser`
+**Package**: `org.salt.jlangchain.rag.tools.annotation`
 
-Parses streaming output with custom function.
+Declare tools by annotating Java methods:
 
 ```java
-.next(new FunctionOutputParser(this::extractField))
+@AgentTool(description = "Search flight prices between two cities")
+public String searchFlights(
+    @Param("departure city") String from,
+    @Param("destination city") String to) {
+    return from + "→" + to + ": $299 Economy";
+}
+```
+
+**`@AgentTool`** — marks a method as an AI tool.
+
+| Attribute | Description |
+|-----------|-------------|
+| `description` | Tool description shown to the LLM |
+| `params` | `@ParamDesc[]` array for third-party VO parameter descriptions (1.0.14+) |
+
+**`@Param`** — annotates a method parameter or a VO field (1.0.14+, supports `ElementType.PARAMETER` and `ElementType.FIELD`).
+
+**`@ParamDesc`** — annotates VO fields on third-party objects where direct `@Param` is not possible. Priority: `@AgentTool.params` > VO field `@Param` > method parameter `@Param`.
+
+```java
+// Zero-intrusion RPC: describe VO fields without modifying the class
+@AgentTool(
+    description = "Query order",
+    params = {
+        @ParamDesc(name = "orderId", description = "order ID"),
+        @ParamDesc(name = "userId",  description = "user ID")
+    }
+)
+public OrderVO queryOrder(OrderQuery query) { ... }
+```
+
+**`ToolScanner`** — scans a bean for `@AgentTool` methods, auto-generates JSON Schema for parameters (including complex object types in 1.0.14+).
+
+```java
+ToolScanner scanner = new ToolScanner(myToolBean);
+// Pass to AgentExecutor or use standalone to get ToolDesc list
 ```
 
 ---
 
-## 5. RAG
+## 6. MCP Protocol
 
-### 5.1 Document
+### 6.1 McpClient
 
-**Package**: `org.salt.jlangchain.rag.media.Document`
+**Package**: `org.salt.jlangchain.rag.tools.mcp.McpClient`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| pageContent | String | Text content |
-| fileId | Long | File ID |
+| Constructor | Description |
+|-------------|-------------|
+| `McpClient()` | Load `mcp.server.config.json` from classpath |
+| `McpClient(String configPath)` | Specify config file path |
 
-### 5.2 Document Loaders
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `listAllTools()` | All tools from all servers | `Map<String, List<ToolDesc>>` |
+| `callTool(serverName, toolName, arguments)` | Call a specific tool | `ToolResult` |
+| `getServerStatuses()` | Connection status per server | `Map<String, ServerStatus>` |
+| `destroy()` | Close all connections | void |
+
+Config file supports env placeholders: `${VAR_NAME}` or `${VAR_NAME:default}`.
+
+### 6.2 McpManager
+
+**Package**: `org.salt.jlangchain.rag.tools.mcp.McpManager`
+
+Wrapper over `McpClient` with `manifest()` and `manifestForInput()` for LLM tool injection.
+
+```java
+List<AiChatInput.Tool> tools = mcpManager.manifest();        // all tools
+List<AiChatInput.Tool> tools = mcpManager.manifestForInput(); // tools as LLM input format
+```
+
+---
+
+## 7. History Management
+
+**Package**: `org.salt.jlangchain.core.history`
+
+Multi-application conversation history with thread safety (1.0.14+).
+
+### HistoryBase
+
+| Field | Description |
+|-------|-------------|
+| `appId` | Application identifier (multi-app isolation) |
+| `userId` | User identifier |
+| `sessionId` | Session identifier |
+
+### MemoryHistory
+
+In-memory history store with three-level `ConcurrentHashMap` (`appId → userId → sessionId`).
+
+| Builder Param | Description |
+|---------------|-------------|
+| `appId` | Application ID |
+| `maxSize` | Max history entries per session (default: unlimited) |
+
+```java
+MemoryHistory history = MemoryHistory.builder()
+    .appId("my-app")
+    .maxSize(20)
+    .build();
+```
+
+### MemoryHistoryReader / MemoryHistoryStorer
+
+Thread-safe reader and storer. Pair them with an LLM to add conversation memory:
+
+```java
+chainActor.builder()
+    .next(new MemoryHistoryReader(history))
+    .next(prompt)
+    .next(llm)
+    .next(new MemoryHistoryStorer(history))
+    .build();
+```
+
+---
+
+## 8. RAG
+
+### 8.1 Document Loaders
 
 | Class | Package | Description |
 |-------|---------|-------------|
-| PdfboxLoader | rag.loader.pdf | PDF loading |
-| ApachePoiDocxLoader | rag.loader.docx | Word DOCX loading |
+| `PdfboxLoader` | `rag.loader.pdf` | PDF loading |
+| `ApachePoiDocxLoader` | `rag.loader.docx` | Word DOCX |
+| `ApachePoiDocLoader` | `rag.loader.doc` | Word DOC (legacy) |
 
 ```java
-PdfboxLoader loader = PdfboxLoader.builder()
-    .filePath("path/to/file.pdf")
-    .build();
+PdfboxLoader loader = PdfboxLoader.builder().filePath("doc.pdf").build();
 List<Document> docs = loader.load();
 ```
 
-### 5.3 Text Splitting
-
-| Class | Package | Description |
-|-------|---------|-------------|
-| StanfordNLPTextSplitter | rag.splitter | Chunking based on Stanford NLP |
+### 8.2 Text Splitting
 
 ```java
 StanfordNLPTextSplitter splitter = StanfordNLPTextSplitter.builder()
@@ -221,120 +314,113 @@ StanfordNLPTextSplitter splitter = StanfordNLPTextSplitter.builder()
 List<Document> chunks = splitter.splitDocument(docs);
 ```
 
-### 5.4 Embeddings
+### 8.3 Embeddings
 
-**Base class**: `org.salt.jlangchain.rag.embedding.Embeddings`
-
-| Class | Package | Description |
-|-------|---------|-------------|
-| OllamaEmbeddings | rag.embedding | Ollama embeddings |
-| OpenAIEmbeddings | rag.embedding | OpenAI embeddings |
-| AliyunEmbeddings | rag.embedding | Alibaba Cloud embeddings |
+| Class | Env Variable | Description |
+|-------|--------------|-------------|
+| `OllamaEmbeddings` | `OLLAMA_KEY1` | Ollama local |
+| `OpenAIEmbeddings` | `CHATGPT_KEY` | OpenAI |
+| `AliyunEmbeddings` | `ALIYUN_KEY` | Alibaba Cloud |
 
 ```java
 OllamaEmbeddings embeddings = OllamaEmbeddings.builder()
     .model("nomic-embed-text")
     .vectorSize(768)
     .build();
-List<List<Float>> vectors = embeddings.embedDocuments(texts);
-List<Float> queryVector = embeddings.embedQuery("query text");
 ```
 
-### 5.5 VectorStore
-
-**Base class**: `org.salt.jlangchain.rag.vector.VectorStore`
-
-| Method | Description |
-|--------|-------------|
-| addText(texts, metadatas, ids, fileId) | Add texts |
-| addDocument(documents, fileId) | Add documents |
-| similaritySearch(query, k) | Similarity search, return top K |
-| asRetriever() | Convert to Retriever |
-| delete(ids) | Delete by IDs |
-| getByIds(ids) | Get by IDs |
-
-**Milvus implementation**: `org.salt.jlangchain.rag.vector.Milvus`
+### 8.4 Vector Store (Milvus)
 
 ```java
-VectorStore vectorStore = Milvus.fromDocuments(
-    documents,
-    embeddings,
-    "collection_name"
-);
+Milvus vectorStore = Milvus.fromDocuments(docs, embeddings, "collection");
 List<Document> results = vectorStore.similaritySearch("query", 3);
 ```
 
----
-
-## 6. MCP Tool Calling
-
-### 6.1 McpClient
-
-**Package**: `org.salt.jlangchain.rag.tools.mcp.McpClient`
-
-| Constructor | Description |
-|-------------|-------------|
-| McpClient() | Load `mcp.server.config.json` from classpath |
-| McpClient(String configPath) | Specify config file path |
-
-| Method | Description | Returns |
-|--------|-------------|---------|
-| loadConfig(String configPath) | Load config | McpConfig |
-| initializeFromConfig(McpConfig config) | Initialize connections from config | void |
-| listAllTools() | List tools from all MCP servers | Map\<String, List\<ToolDesc\>\> |
-| callTool(serverName, toolName, arguments) | Call specified tool | ToolResult |
-| getServerStatuses() | Get connection status per server | Map\<String, ServerStatus\> |
-
-### 6.2 McpManager
-
-**Package**: `org.salt.jlangchain.rag.tools.mcp.McpManager`
-
-Wrapper of McpClient with `manifest()` and other convenience methods for LLM tool injection.
+| Method | Description |
+|--------|-------------|
+| `addDocuments(docs)` | Add documents |
+| `similaritySearch(query, k)` | Return top-K similar documents |
+| `asRetriever()` | Wrap as Retriever |
+| `delete(ids)` | Delete by IDs |
 
 ---
 
-## 7. Message Types
+## 9. TTS
 
-| Class | Package | Description |
-|-------|---------|-------------|
-| AIMessage | core.message | AI reply |
-| HumanMessage | core.message | User message |
-| BaseMessage | core.message | Base class |
-| AIMessageChunk | core.message | Streaming AI chunk |
-| ToolMessage | core.message | Tool call result |
+**Package**: `org.salt.jlangchain.ai.tts`
+
+| Class | Env Variable | Description |
+|-------|--------------|-------------|
+| `AliyunTts` | `ALIYUN_TTS_KEY` | Alibaba Cloud TTS |
+| `DoubaoTts` | `DOUBAO_TTS_KEY` | Doubao TTS |
+
+```java
+AliyunTts tts = AliyunTts.builder()
+    .appKey("your-app-key")
+    .voice("xiaoyun")
+    .format("wav")
+    .build();
+
+TtsCardChunk audio = tts.stream("Hello, welcome to J-LangChain!");
+// Bracket content auto-filtered before synthesis
+```
 
 ---
 
-## 8. Generation Result Types
+## 10. Flow Orchestration
 
-| Class | Package | Description |
-|-------|---------|-------------|
-| ChatGeneration | core.parser.generation | Sync generation result |
-| Generation | core.parser.generation | Base class |
-| ChatGenerationChunk | core.parser.generation | Streaming generation chunk |
-
----
-
-## 9. Flow Orchestration (salt-function-flow)
-
-Chain building uses [salt-function-flow](https://github.com/flower-trees/salt-function-flow):
+Chain building is powered by [salt-function-flow](https://github.com/flower-trees/salt-function-flow):
 
 | Concept | Description |
 |---------|-------------|
-| FlowInstance | Flow instance |
-| Info.c("condition", handler) | Conditional routing, SpEL supported |
-| .concurrent(chain1, chain2...) | Execute multiple chains in parallel |
-| .next(handler) | Next node in sequence |
+| `.next(runnable)` | Next sequential node |
+| `.concurrent(chain1, chain2, ...)` | Parallel execution |
+| `cAlias("name", chain)` | Named parallel branch (result accessible by alias) |
+| `Info.c("condition", runnable)` | Conditional routing (SpEL expressions) |
+| `Info.c(runnable)` | Default branch |
+| `FlowInstance` | Built flow instance |
 
 ---
 
-## 10. Configuration
+## 11. Message & Result Types
 
-### Environment Variables
+| Class | Package | Description |
+|-------|---------|-------------|
+| `AIMessage` | `core.message` | AI reply |
+| `HumanMessage` | `core.message` | User message |
+| `AIMessageChunk` | `core.message` | Streaming AI chunk |
+| `ToolMessage` | `core.message` | Tool call result |
+| `EventMessageChunk` | `core.event` | Event stream chunk |
+| `TtsCardChunk` | `ai.tts` | TTS audio stream chunk |
+| `ChatGeneration` | `core.parser.generation` | Sync generation result |
+| `ChatGenerationChunk` | `core.parser.generation` | Streaming generation chunk |
 
-See [README - Set API Key](../../README.md#3️⃣-set-api-key).
+---
 
-### application.yml Example
+## 12. Environment Variables
+
+| Variable | LLM Class | Description |
+|----------|-----------|-------------|
+| `CHATGPT_KEY` | `ChatOpenAI` | OpenAI API key |
+| `OLLAMA_KEY1` | `ChatOllama` | Ollama (usually empty for local) |
+| `ALIYUN_KEY` | `ChatAliyun` | Alibaba Cloud Qwen |
+| `MOONSHOT_KEY` | `ChatMoonshot` | Moonshot (Kimi) |
+| `DOUBAO_KEY` | `ChatDoubao` | Doubao (ByteDance) |
+| `COZE_KEY` | `ChatCoze` | Coze API key |
+| `COZE_CLIENT_ID` | `ChatCoze` | Coze OAuth 2.0 client ID |
+| `COZE_PRIVATE_KEY_PATH` | `ChatCoze` | Coze OAuth 2.0 private key path |
+| `COZE_PUBLIC_KEY_ID` | `ChatCoze` | Coze OAuth 2.0 public key ID |
+| `DEEPSEEK_KEY` | `ChatDeepseek` | DeepSeek API key |
+| `HUNYUAN_KEY` | `ChatHunyuan` | Tencent Hunyuan |
+| `QIANFAN_KEY` | `ChatQianfan` | Baidu Qianfan (ERNIE) |
+| `ZHIPU_KEY` | `ChatZhipu` | Zhipu AI (GLM) |
+| `MINIMAX_KEY` | `ChatMinimax` | MiniMax |
+| `LINGYI_KEY` | `ChatLingyi` | 01.AI (Yi) |
+| `STEPFUN_KEY` | `ChatStepfun` | StepFun |
+| `ALIYUN_TTS_KEY` | `AliyunTts` | Alibaba Cloud TTS |
+| `DOUBAO_TTS_KEY` | `DoubaoTts` | Doubao TTS |
+
+All variables can alternatively be set in `application.yml`:
 
 ```yaml
 models:
@@ -342,6 +428,14 @@ models:
     chat-key: ${ALIYUN_KEY}
   chatgpt:
     chat-key: ${CHATGPT_KEY}
+  deepseek:
+    chat-key: ${DEEPSEEK_KEY}
+  # ... same pattern for all vendors
+tts:
+  aliyun:
+    api-key: ${ALIYUN_TTS_KEY}
+  doubao:
+    api-key: ${DOUBAO_TTS_KEY}
 rag:
   vector:
     milvus:
@@ -350,4 +444,4 @@ rag:
 
 ---
 
-**Related**: [Quick Start](../guide/quickstart.md) | [Sample Code](../../src/test/java/org/salt/jlangchain/demo/)
+**Related**: [Quick Start](../guide/quickstart.md) · [Tutorial Series](../article/001-en/README.md) · [Sample Code](../../src/test/java/org/salt/jlangchain/demo/)

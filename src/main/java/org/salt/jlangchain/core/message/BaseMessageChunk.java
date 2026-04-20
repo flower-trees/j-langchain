@@ -18,16 +18,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.salt.jlangchain.core.common.Iterator;
 import org.salt.jlangchain.core.common.IteratorAction;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
-@SuperBuilder
-@NoArgsConstructor
 public abstract class BaseMessageChunk<T extends BaseMessage> extends BaseMessage implements IteratorAction<T> {
 
     @Getter
@@ -49,5 +45,36 @@ public abstract class BaseMessageChunk<T extends BaseMessage> extends BaseMessag
         this.cumulate.append(chunk.getContent());
         this.content = this.cumulate.toString();
         return this;
+    }
+
+    protected BaseMessageChunk(BaseMessageChunkBuilder<T, ?, ?> builder) {
+        super(builder);
+        this.iterator = builder.iterator != null ? builder.iterator : new Iterator<>(this::isLast);
+        this.cumulate = builder.cumulate != null ? builder.cumulate : new StringBuilder();
+    }
+
+    protected BaseMessageChunk() {
+    }
+
+    public static abstract class BaseMessageChunkBuilder<T extends BaseMessage, C extends BaseMessageChunk<T>, B extends BaseMessageChunkBuilder<T, C, B>> extends BaseMessageBuilder<C, B> {
+        private Iterator<T> iterator;
+        private StringBuilder cumulate;
+
+        @JsonIgnore
+        public B iterator(Iterator<T> iterator) {
+            this.iterator = iterator;
+            return self();
+        }
+
+        @JsonIgnore
+        public B cumulate(StringBuilder cumulate) {
+            this.cumulate = cumulate;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "BaseMessageChunk.BaseMessageChunkBuilder(super=" + super.toString() + ", iterator=" + this.iterator + ", cumulate=" + this.cumulate + ")";
+        }
     }
 }

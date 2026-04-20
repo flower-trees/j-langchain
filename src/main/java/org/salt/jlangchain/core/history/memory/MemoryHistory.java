@@ -17,21 +17,25 @@ package org.salt.jlangchain.core.history.memory;
 import org.salt.jlangchain.core.history.HistoryInfos;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MemoryHistory {
 
-    protected static final Map<String, Map<String, List<HistoryInfos>>> historyMap = new HashMap<>();
+    // appId -> userId -> sessionId -> conversation turns
+    private static final ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<String, List<HistoryInfos>>>> historyMap
+            = new ConcurrentHashMap<>();
 
-    protected static void init(Long userId, Long sessionId) {
-        if (!MemoryHistory.historyMap.containsKey(String.valueOf(userId))) {
-            MemoryHistory.historyMap.put(String.valueOf(userId), new HashMap<>());
-        }
-
-        if (!MemoryHistory.historyMap.get(String.valueOf(userId)).containsKey(String.valueOf(sessionId))) {
-            MemoryHistory.historyMap.get(String.valueOf(userId)).put(String.valueOf(sessionId), new ArrayList<>());
-        }
+    /**
+     * Returns the conversation-turn list for the given (appId, userId, sessionId),
+     * creating it on first access. The returned list is thread-safe for individual
+     * operations; compound operations (read-then-modify) must synchronize on the list.
+     */
+    protected static List<HistoryInfos> getOrCreate(Long appId, Long userId, Long sessionId) {
+        return historyMap
+                .computeIfAbsent(String.valueOf(appId),  k -> new ConcurrentHashMap<>())
+                .computeIfAbsent(String.valueOf(userId),  k -> new ConcurrentHashMap<>())
+                .computeIfAbsent(String.valueOf(sessionId), k -> Collections.synchronizedList(new ArrayList<>()));
     }
 }

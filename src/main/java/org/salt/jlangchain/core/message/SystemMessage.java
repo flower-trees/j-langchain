@@ -14,16 +14,60 @@
 
 package org.salt.jlangchain.core.message;
 
-import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.experimental.SuperBuilder;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
-@SuperBuilder
 public class SystemMessage extends BaseMessage {
 
-    @Builder.Default
     private String role = MessageType.SYSTEM.getCode();
+
+    private static String defaultRole() {
+        return MessageType.SYSTEM.getCode();
+    }
+
+    protected SystemMessage(SystemMessageBuilder<?, ?> builder) {
+        super(builder);
+        if (builder.roleSet) {
+            this.role = builder.roleValue;
+        } else {
+            this.role = defaultRole();
+        }
+    }
+
+    public static SystemMessageBuilder<?, ?> builder() {
+        return new SystemMessageBuilderImpl();
+    }
+
+    public static abstract class SystemMessageBuilder<C extends SystemMessage, B extends SystemMessageBuilder<C, B>> extends BaseMessageBuilder<C, B> {
+        private boolean roleSet;
+        private String roleValue;
+
+        public B role(final String role) {
+            this.roleValue = role;
+            this.roleSet = true;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "SystemMessage.SystemMessageBuilder(super=" + super.toString() + ", roleValue=" + this.roleValue + ")";
+        }
+    }
+
+    private static final class SystemMessageBuilderImpl extends SystemMessageBuilder<SystemMessage, SystemMessageBuilderImpl> {
+        private SystemMessageBuilderImpl() {
+        }
+
+        @Override
+        protected SystemMessageBuilderImpl self() {
+            return this;
+        }
+
+        @Override
+        public SystemMessage build() {
+            return new SystemMessage(this);
+        }
+    }
 }

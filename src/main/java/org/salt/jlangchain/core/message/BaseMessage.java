@@ -16,16 +16,12 @@ package org.salt.jlangchain.core.message;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import lombok.experimental.SuperBuilder;
 import org.salt.jlangchain.core.Serializable;
 
 import java.util.Map;
 
-@EqualsAndHashCode(callSuper = true)
+@EqualsAndHashCode(callSuper = false)
 @Data
-@SuperBuilder
-@NoArgsConstructor
 public class BaseMessage extends Serializable {
     protected String id;
     protected String role;
@@ -45,5 +41,85 @@ public class BaseMessage extends Serializable {
             case HUMAN -> HumanMessage.builder().content(message).build();
             case TOOL -> ToolMessage.builder().content(message).name(name).toolCallId(toolCallId).build();
         };
+    }
+
+    public BaseMessage() {
+        super();
+    }
+
+    public static BaseMessageBuilder<?, ?> builder() {
+        return new BaseMessageBuilderImpl();
+    }
+
+    protected BaseMessage(BaseMessageBuilder<?, ?> builder) {
+        super(builder);
+        this.id = builder.id;
+        this.role = builder.role;
+        this.content = builder.content;
+        this.responseMetadata = builder.responseMetadata;
+        this.additionalKwargs = builder.additionalKwargs;
+        this.finishReason = builder.finishReason;
+    }
+
+    private static final class BaseMessageBuilderImpl extends BaseMessageBuilder<BaseMessage, BaseMessageBuilderImpl> {
+        private BaseMessageBuilderImpl() {
+        }
+
+        @Override
+        protected BaseMessageBuilderImpl self() {
+            return this;
+        }
+
+        @Override
+        public BaseMessage build() {
+            return new BaseMessage(this);
+        }
+    }
+
+    public static abstract class BaseMessageBuilder<C extends BaseMessage, B extends BaseMessageBuilder<C, B>> extends SerializableBuilder<C, B> {
+        private String id;
+        private String role;
+        private String content;
+        private Map<String, Object> responseMetadata;
+        private Map<String, Object> additionalKwargs;
+        private String finishReason;
+
+        public B id(String id) {
+            this.id = id;
+            return self();
+        }
+
+        public B role(String role) {
+            this.role = role;
+            return self();
+        }
+
+        public B content(String content) {
+            this.content = content;
+            return self();
+        }
+
+        public B responseMetadata(Map<String, Object> responseMetadata) {
+            this.responseMetadata = responseMetadata;
+            return self();
+        }
+
+        public B additionalKwargs(Map<String, Object> additionalKwargs) {
+            this.additionalKwargs = additionalKwargs;
+            return self();
+        }
+
+        public B finishReason(String finishReason) {
+            this.finishReason = finishReason;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "BaseMessage.BaseMessageBuilder(super=" + super.toString() + ", id=" + this.id + ", role=" + this.role + ", content=" + this.content + ", responseMetadata=" + this.responseMetadata + ", additionalKwargs=" + this.additionalKwargs + ", finishReason=" + this.finishReason + ")";
+        }
+
+        @Override
+        protected abstract B self();
     }
 }

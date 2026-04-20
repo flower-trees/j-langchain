@@ -15,7 +15,6 @@
 package org.salt.jlangchain.rag.embedding;
 
 import lombok.Data;
-import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
@@ -26,11 +25,18 @@ import org.springframework.util.CollectionUtils;
 import java.util.List;
 
 @Data
-@SuperBuilder
 public abstract class Embeddings {
 
     protected String model;
     protected int vectorSize;
+
+    protected Embeddings() {
+    }
+
+    protected Embeddings(EmbeddingsBuilder<?, ?> builder) {
+        this.model = builder.model;
+        this.vectorSize = builder.vectorSize != null ? builder.vectorSize : this.vectorSize;
+    }
 
     public List<List<Float>> embedDocuments(List<String> texts) {
 
@@ -67,4 +73,28 @@ public abstract class Embeddings {
     }
 
     public abstract Class<? extends AiChatActuator> getActuator();
+
+    public static abstract class EmbeddingsBuilder<C extends Embeddings, B extends EmbeddingsBuilder<C, B>> {
+        private String model;
+        private Integer vectorSize;
+
+        protected abstract B self();
+
+        public abstract C build();
+
+        public B model(String model) {
+            this.model = model;
+            return self();
+        }
+
+        public B vectorSize(int vectorSize) {
+            this.vectorSize = vectorSize;
+            return self();
+        }
+
+        @Override
+        public String toString() {
+            return "Embeddings.EmbeddingsBuilder(model=" + this.model + ", vectorSize=" + this.vectorSize + ")";
+        }
+    }
 }
