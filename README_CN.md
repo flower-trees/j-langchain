@@ -74,13 +74,13 @@
 <dependency>
     <groupId>io.github.flower-trees</groupId>
     <artifactId>j-langchain</artifactId>
-    <version>1.0.13</version>
+    <version>1.0.14</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation 'io.github.flower-trees:j-langchain:1.0.13'
+implementation 'io.github.flower-trees:j-langchain:1.0.14'
 ```
 
 ### 2️⃣ 配置启动类
