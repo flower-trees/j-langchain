@@ -1,40 +1,53 @@
-# McpAgentExecutor + McpClient: Agents Operating Filesystems and Databases
+# McpAgentExecutor + McpClient: Let Agents Operate Filesystems and Databases
 
-> **Tags**: Java, MCP, NPX, Agent, j-langchain  
-> **Prerequisites**: [MCP integration](08-mcp.md) → [McpAgentExecutor for HTTP tools](12-mcp-manager-agent.md)
-
----
-
-## 1. Beyond HTTP APIs
-
-`McpManager` exposes REST endpoints, but many capabilities aren’t HTTP-friendly:
-
-- Read server log/config files
-- Query PostgreSQL without writing JDBC
-- Persist state between turns (KV store)
-- Interact with GitHub, drive browsers, etc.
-
-These are provided by **NPX MCP servers**—standalone processes launched via `npx`. Article 08 showed how to connect with `McpClient`; this article combines it with `McpAgentExecutor` so the model can call them autonomously.
+> **Tags**: `Java` `MCP` `NPX` `Agent` `j-langchain` `McpAgentExecutor` `filesystem` `database`  
+> **Prerequisite**: [Integrate the MCP Tool Protocol in Java](08-mcp.md) → [McpAgentExecutor: Let Models Call HTTP Tools in a Few Lines](12-mcp-manager-agent.md)  
+> **Audience**: Java developers who have configured NPX MCP servers and want an Agent to operate files, databases, and other local resources
 
 ---
 
-## 2. Only One Line Changes
+## 1. Capabilities Beyond HTTP Tools
 
+The previous article used `McpManager` to connect HTTP APIs to the Agent, letting the model autonomously query public IP, weather, and other network services. But there's a class of capabilities HTTP APIs can't cover:
+
+- Reading log files, configuration files from the server
+- Querying a local PostgreSQL database without writing JDBC
+- Letting the Agent remember state across rounds (key-value storage)
+- Operating GitHub repositories, running browser automation
+
+These capabilities correspond to **NPX MCP servers** — independent processes maintained by the MCP team or community, started with a single `npx` command, exposing a standard MCP tool interface. Article 08 already showed how to connect to these servers with `McpClient`. This article combines that with `McpAgentExecutor` so the model can autonomously call these tools.
+
+---
+
+## 2. The Only Difference from the Previous Article
+
+Look at the code first — the comparison is very clear.
+
+**Previous article (HTTP tools):**
 ```java
-// Previous article (HTTP tools)
-.tools(mcpManager, "default")
-
-// This article (NPX server)
-.tools(mcpClient, "filesystem")
+McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
+    .llm(...)
+    .tools(mcpManager, "default")     // Load HTTP tools from mcp.config.json
+    .systemPrompt("...")
+    .build();
 ```
 
-Everything else—LLM, system prompt, callbacks—stays the same. Tool sources are swappable.
+**This article (NPX MCP server):**
+```java
+McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
+    .llm(...)
+    .tools(mcpClient, "filesystem")   // Load NPX server tools from mcp.server.config.json
+    .systemPrompt("...")
+    .build();
+```
+
+Only one line changed: `tools(mcpManager, "default")` becomes `tools(mcpClient, "filesystem")`. Everything else — LLM, system prompt, `maxIterations`, callbacks — stays exactly the same. This is the design value of `McpAgentExecutor`: **the tool source can be swapped freely without touching the Agent-layer code**.
 
 ---
 
-## 3. Config
+## 3. Configuration
 
-`mcp.server.config.json`:
+`mcp.server.config.json` describes which NPX servers to start:
 
 ```json
 {
@@ -48,18 +61,19 @@ Everything else—LLM, system prompt, callbacks—stays the same. Tool sources a
 }
 ```
 
-`McpClient` launches this process, receives tools like `list_directory`, `read_file`, `write_file`, and hands them to `McpAgentExecutor`.
+`McpClient` starts this process at Spring startup time under the alias `filesystem`. Once the server is running it exposes a standard set of tools: `list_directory`, `read_file`, `write_file`, `create_directory`, etc. `McpAgentExecutor` converts this tool list to a Function Calling Schema, registers it with the model, and lets the model autonomously decide which tools to call.
 
 ---
 
-## 4. Code
+## 4. Full Code
 
 ```java
 @Test
 public void mcpClientAgent() {
+
     McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
         .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
-        .tools(mcpClient, "filesystem")
+        .tools(mcpClient, "filesystem")   // Load all tools from the filesystem server
         .systemPrompt("""
             你是一个文件管理助手，可以浏览和读取 /tmp 目录中的文件。
             请直接执行操作，不要询问用户额外确认。
@@ -70,64 +84,91 @@ public void mcpClientAgent() {
         .build();
 
     ChatGeneration result = agent.invoke("列出 /tmp 目录下的所有文件，并告诉我有多少个文件");
+
+    System.out.println("\n=== 最终答案 ===");
     System.out.println(result.getText());
 }
 ```
 
 ---
 
-## 5. Output
+## 5. Execution Result
 
 ```
->> Tool call: list_directory
->> Observation: {"files": ["ticket_result.txt", "demo.log", ...]}
+>> Tool call: list_directory -> {"path": "/tmp"}
+>> Observation: {"files": ["ticket_result.txt", "demo.log", "config.yaml", ...]}
 
-/tmp has 8 files including ticket_result.txt, demo.log, config.yaml, ...
+=== 最终答案 ===
+/tmp 目录下共有 8 个文件，包括 ticket_result.txt、demo.log、config.yaml 等。
 ```
 
-For “read config.yaml and show the DB host”, the model would add a `read_file` ToolCall automatically.
+After getting the `list_directory` result, the model counts the files directly and outputs the conclusion — only one tool call needed. For a more complex task like "read config.yaml and tell me the database address," the model automatically adds a `read_file` call without any extra code.
 
 ---
 
-## 6. Switching to PostgreSQL
+## 6. Swapping the Server: PostgreSQL
 
-Add another server entry:
+`filesystem` is just one of many NPX MCP servers. Switch the alias to `postgres` and the Agent can query a database directly — no JDBC code required:
+
+Add to `mcp.server.config.json`:
 
 ```json
-"postgres": {
-  "command": "npx",
-  "args": ["-y", "@modelcontextprotocol/server-postgres",
-           "postgresql://user:password@localhost:5432/mydb"],
-  "env": {}
+{
+  "mcpServers": {
+    "filesystem": { ... },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres",
+               "postgresql://user:password@localhost:5432/mydb"],
+      "env": {}
+    }
+  }
 }
 ```
 
-Then:
+Only one change in the Agent code:
 
 ```java
-.tools(mcpClient, "postgres")
-.systemPrompt("你是一个数据库助手...")
+McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
+    .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
+    .tools(mcpClient, "postgres")     // Switch to the postgres server
+    .systemPrompt("你是一个数据库助手，可以查询数据库中的表结构和数据。")
+    .maxIterations(5)
+    .build();
+
+ChatGeneration result = agent.invoke("查询 orders 表中最近 5 条记录");
 ```
 
-The agent can now call `query`, `list_tables`, `describe_table` without JDBC.
+`@modelcontextprotocol/server-postgres` exposes tools including `query` (execute SQL), `list_tables` (list all tables), and `describe_table` (view table schema). The model automatically selects the appropriate tools, assembles the SQL, and returns the results.
 
 ---
 
-## 7. Production Notes
+## 7. Production Considerations
 
-- **Path safety**: limit filesystem servers to safe directories.
-- **DB permissions**: use least-privilege accounts.
-- **Auditing**: stream `onToolCall`/`onObservation` to your logging system.
-- **Isolation**: spin up multiple server aliases with different parameters if agents need isolated access.
+**Path safety**: the filesystem server can access the directory specified in its startup command. Always pass a restricted path (like `/tmp` or a dedicated working directory) — never pass the system root or a path containing sensitive files.
+
+**Database permissions**: the database account in the postgres connection string should be granted only SELECT (for read-only scenarios) or the minimum permissions explicitly required, to prevent the Agent from accidentally executing destructive operations.
+
+**Audit logging**: the `onToolCall` and `onObservation` callbacks aren't just for debugging in production. They can feed a logging system to record every file read/write or SQL execution, meeting compliance audit requirements.
+
+**Concurrent sharing**: a single `McpClient` instance (corresponding to a single server process) can be shared by multiple Agents. If you need to isolate different Agents' access paths, configure multiple aliases in `mcp.server.config.json`, each pointing to the same server type with different parameters.
 
 ---
 
 ## 8. Summary
 
-`McpAgentExecutor` works identically whether tools come from HTTP (`McpManager`) or NPX servers (`McpClient`). Switching sources is literally one line. Mix-and-match by loading different groups per agent.
+`McpAgentExecutor + McpClient` has almost exactly the same integration approach as the `McpManager` version in the previous article — near-zero additional learning cost. The only difference is the tool source: HTTP APIs use `McpManager`, NPX servers use `McpClient`.
 
-Next: combine both sources in a single agent.
+When switching tool sources, only one line of Agent code changes. This means you can start with `McpManager` and HTTP tools to quickly validate business logic, then replace some tools with more stable NPX servers once the approach is confirmed — with extremely low migration cost.
+
+If your scenario requires using HTTP tools and NPX servers simultaneously, the next article shows how to combine both in a single Agent.
 
 ---
 
-> Sample: `Article13McpClientAgent.java` (`mcpClientAgent`) – requires Aliyun `qwen3.6-plus` and Node.js for NPX.
+> 📎 Resources
+> - Full example: [Article13McpClientAgent.java](../../../src/test/java/org/salt/jlangchain/demo/article/Article13McpClientAgent.java), method `mcpClientAgent()`
+> - Server config: [mcp.server.config.json](../../../src/test/resources/mcp.server.config.json)
+> - Common NPX MCP servers: `@modelcontextprotocol/server-filesystem`, `server-postgres`, `server-memory`, `server-github`
+> - j-langchain GitHub: https://github.com/flower-trees/j-langchain
+> - j-langchain Gitee mirror: https://gitee.com/flower-trees-z/j-langchain
+> - Runtime requirements: Aliyun API Key required, example model `qwen3.6-plus`; Node.js must be installed locally to run npx
