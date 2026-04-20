@@ -109,17 +109,18 @@ McpAgentExecutor writeAgent = McpAgentExecutor.builder(chainActor)
     .systemPrompt(
         "You are a Java implementation expert.\n" +
         "Task: write or fix a Java class and save it to the specified file path.\n" +
-        "Rules:\n" +
+        "Follow these steps exactly, in order:\n" +
         "  1. Do NOT include any package declaration.\n" +
         "  2. The class must be public and have a public method matching the required signature.\n" +
-        "  3. Use the write_file tool to save the file.\n" +
-        "  4. Reply only with confirmation that the file was written."
+        "  3. Call write_file ONCE to save the file.\n" +
+        "  4. After write_file succeeds, call list_directory on the parent directory to confirm the file is listed.\n" +
+        "  5. Once you see the file in the listing, output one confirmation line and stop. Make NO further tool calls."
     )
     .maxIterations(5)
     .build();
 ```
 
-Write Agent 只有 MCP filesystem 工具，职责单一：**把代码写到文件**。
+Write Agent 只有 MCP filesystem 工具，职责单一：**把代码写到文件**。写完后调用 `list_directory` 确认文件存在，给 LLM 一个明确的收尾动作，避免反复重写。
 
 ### Test Agent
 
@@ -131,7 +132,7 @@ McpAgentExecutor testAgent = McpAgentExecutor.builder(chainActor)
     .systemPrompt(
         "You are a Java testing expert. You will be given EXACTLY three tasks to execute in sequence.\n" +
         "CRITICAL: Call each tool exactly once, in this order, then stop:\n" +
-        "  CALL 1 — read_file: read the implementation file.\n" +
+        "  CALL 1 — read_file: read the implementation file. Pass ONLY the 'path' parameter, no other parameters.\n" +
         "  CALL 2 — write_file: write a JUnit 4 test class to the test file path.\n" +
         "  CALL 3 — compile_and_run: pass the implementation file path and test file path.\n" +
         "After compile_and_run returns, output its result verbatim and make NO further tool calls."
