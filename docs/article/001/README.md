@@ -25,6 +25,7 @@
 | [国内主流厂商顺序链实例](17-domestic-vendors-chain.md)                       | 与文章2顺序链相同形态、逐个对接国内 `Chat*` | ⭐ | `Article17DomesticVendorsChain` |
 | [三 Agent 并行调研：concurrent 节点构建并发-汇聚式旅游规划助手](18-parallel-agent-concurrent.md) | concurrent 并行 Agent、cAlias、合并节点、并发-汇聚 | ⭐⭐⭐ | `Article18ParallelTravelResearch` |
 | [两行注解把企业 RPC 接口变成 AI 工具](19-rpc-vo-param.md) | @Param 标注 VO 字段、@AgentTool 包装 RPC、Dubbo / Feign 零侵入接入 | ⭐⭐ | `Article19RpcMcpTools` |
+| [双 Agent 自我纠错代码生成：Write Agent + Test Agent 驱动 loop() 循环](20-two-agent-self-correct.md) | McpAgentExecutor 双 Agent 协作、MCP filesystem 真实文件读写、javac + JUnit 实时执行、职责分离 | ⭐⭐⭐ | `Article20TwoAgentSelfCorrect` |
 
 ## 建议阅读顺序
 
@@ -32,7 +33,7 @@
 入门（01-hello-ai）→ 多模型（07-multi-model）→ 流式（06-streaming）→ 编排（02-chain-patterns）→ 国内厂商顺序链（17-domestic-vendors-chain，可选）
 → RAG（03-rag-pipeline）→ ReAct（04-react-agent）→ AgentExecutor（09-agent-executor）
 → 航司比价（10-flight-compare-agent）→ TTS（05-llm-tts）→ MCP 基础（08-mcp）
-→ MCP Function-Calling ReAct（11-mcp-react-agent）→ McpAgentExecutor（12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent）→ AgentExecutor 嵌套（15-travel-agent）→ 双 Agent 串联（16-multi-agent-executor）→ 并行 Agent（18-parallel-agent-concurrent）→ RPC 接入 AI 工具（19-rpc-vo-param）
+→ MCP Function-Calling ReAct（11-mcp-react-agent）→ McpAgentExecutor（12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent）→ AgentExecutor 嵌套（15-travel-agent）→ 双 Agent 串联（16-multi-agent-executor）→ 并行 Agent（18-parallel-agent-concurrent）→ RPC 接入 AI 工具（19-rpc-vo-param）→ 双Agent纠错（20-two-agent-self-correct）
 ```
 
 ## 代码位置
@@ -59,7 +60,8 @@ src/test/java/org/salt/jlangchain/demo/article/
 ├── Article16CustomerService.java ← （客服双 Agent 示例）
 ├── Article17DomesticVendorsChain.java ← 17-domestic-vendors-chain.md
 ├── Article18ParallelTravelResearch.java ← 18-parallel-agent-concurrent.md
-└── Article19RpcMcpTools.java            ← 19-rpc-vo-param.md
+├── Article19RpcMcpTools.java            ← 19-rpc-vo-param.md
+└── Article20TwoAgentSelfCorrect.java    ← 20-two-agent-self-correct.md
 ```
 
 ## 运行环境要求
@@ -78,3 +80,4 @@ src/test/java/org/salt/jlangchain/demo/article/
 | `17-domestic-vendors-chain.md` / `Article17DomesticVendorsChain` | 按需配置对应厂商 API Key（见文内表格）；Coze 另需有效 `COZE_BOT_ID` |
 | `18-parallel-agent-concurrent.md` / `Article18ParallelTravelResearch` | `ALIYUN_KEY`（`qwen-plus`） |
 | `19-rpc-vo-param.md` / `Article19RpcMcpTools` | `ALIYUN_KEY`（`qwen-plus`） |
+| `20-two-agent-self-correct.md` / `Article20TwoAgentSelfCorrect` | JDK 17+、Node.js、`ALIYUN_KEY`（`qwen3.6-plus`） |

@@ -25,6 +25,7 @@
 | [Sequential Chains for Domestic Vendors](17-domestic-vendors-chain.md) | Same as Article 2 sequential chain, connect each domestic `Chat*` API | ⭐ | `Article17DomesticVendorsChain` |
 | [Parallel Agent Research: Fan-out / Fan-in with `concurrent`](18-parallel-agent-concurrent.md) | Concurrent AgentExecutor nodes, `cAlias`, merge lambda, fan-out / fan-in | ⭐⭐⭐ | `Article18ParallelTravelResearch` |
 | [Turn Enterprise RPC into AI Tools with Two Annotations](19-rpc-vo-param.md) | `@Param` on VO fields, `@AgentTool` wrapping RPC, zero-intrusion Dubbo / Feign wiring | ⭐⭐ | `Article19RpcMcpTools` |
+| [Dual-Agent Self-Correcting Code Generation: Write Agent + Test Agent Driving `loop()`](20-two-agent-self-correct.md) | Dual McpAgentExecutor coordination, MCP filesystem file I/O, real `javac` + JUnit execution, role separation | ⭐⭐⭐ | `Article20TwoAgentSelfCorrect` |
 
 ## Suggested Reading Order
 
@@ -32,7 +33,7 @@
 Getting started (01-hello-ai) → Multi-model (07-multi-model) → Streaming (06-streaming) → Orchestration (02-chain-patterns) → Domestic vendors sequential chain (17-domestic-vendors-chain, optional)
 → RAG (03-rag-pipeline) → ReAct (04-react-agent) → AgentExecutor (09-agent-executor)
 → Airline comparison (10-flight-compare-agent) → TTS (05-llm-tts) → MCP basics (08-mcp)
-→ MCP Function-Calling ReAct (11-mcp-react-agent) → McpAgentExecutor (12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent) → Nested AgentExecutor (15-travel-agent) → Dual agents (16-multi-agent-executor) → Parallel agents (18-parallel-agent-concurrent) → RPC as AI tools (19-rpc-vo-param)
+→ MCP Function-Calling ReAct (11-mcp-react-agent) → McpAgentExecutor (12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent) → Nested AgentExecutor (15-travel-agent) → Dual agents (16-multi-agent-executor) → Parallel agents (18-parallel-agent-concurrent) → RPC as AI tools (19-rpc-vo-param) → Dual-agent correction (20-two-agent-self-correct)
 ```
 
 ## Code Location
@@ -59,7 +60,8 @@ src/test/java/org/salt/jlangchain/demo/article/
 ├── Article16CustomerService.java ← (customer-support dual agent sample)
 ├── Article17DomesticVendorsChain.java ← 17-domestic-vendors-chain.md
 ├── Article18ParallelTravelResearch.java ← 18-parallel-agent-concurrent.md
-└── Article19RpcMcpTools.java            ← 19-rpc-vo-param.md
+├── Article19RpcMcpTools.java            ← 19-rpc-vo-param.md
+└── Article20TwoAgentSelfCorrect.java    ← 20-two-agent-self-correct.md
 ```
 
 ## Runtime Requirements
@@ -78,3 +80,4 @@ src/test/java/org/salt/jlangchain/demo/article/
 | `17-domestic-vendors-chain.md` / `Article17DomesticVendorsChain` | Configure the required vendor API keys as needed (see table in the article); Coze also requires a valid `COZE_BOT_ID` |
 | `18-parallel-agent-concurrent.md` / `Article18ParallelTravelResearch` | `ALIYUN_KEY` (`qwen-plus`) |
 | `19-rpc-vo-param.md` / `Article19RpcMcpTools` | `ALIYUN_KEY` (`qwen-plus`) |
+| `20-two-agent-self-correct.md` / `Article20TwoAgentSelfCorrect` | JDK 17+, Node.js, `ALIYUN_KEY` (`qwen3.6-plus`) |
