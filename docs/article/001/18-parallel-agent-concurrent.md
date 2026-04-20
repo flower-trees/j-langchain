@@ -1,4 +1,4 @@
-# 三个 Agent 并行调研：用 concurrent 节点构建扇出-汇聚式旅游规划助手
+# 三个 Agent 并行调研：用 concurrent 节点构建并发-汇聚式旅游规划助手
 
 > **标签**：`Java` `Agent` `ReAct` `j-langchain` `多Agent` `并行` `concurrent` `旅游规划` `AgentExecutor`  
 > **前置阅读**：[双 Agent 串联：用分析 Agent + 执行 Agent 构建客服工单处理流水线](16-multi-agent-executor.md)  
@@ -54,7 +54,7 @@ TranslateHandler（后处理：格式化最终输出）
 旅行规划方案
 ```
 
-三个专项 Agent 并行调研，结果通过一个合并节点汇聚，再交给综合规划 Agent 生成完整方案。这种"扇出-汇聚"（Fan-out / Fan-in）是并行 Agent 最典型的拓扑结构。
+三个专项 Agent 并行调研，结果通过一个合并节点汇聚，再交给综合规划 Agent 生成完整方案。这种"并发-汇聚"（Fan-out / Fan-in）是并行 Agent 最典型的拓扑结构。
 
 ---
 
@@ -462,7 +462,7 @@ Action: get_plan_timestamp
 | 工具设计 | 每个 Agent 的工具可以有关联 | 各 Agent 工具集完全独立 |
 | 合并节点 | TranslateHandler 做格式转换 | 合并 Map，组装综合 prompt |
 
-本文的三 Agent 并行 + 一 Agent 综合，是"扇出-汇聚"的基础形态。如果需要更复杂的拓扑（比如先并行采集，再串行决策，再并行通知），只需在 `chainActor.builder()` 里组合 `.concurrent()`、`.next()`、`.notify()` 等节点，每种节点各司其职。
+本文的三 Agent 并行 + 一 Agent 综合，是"并发-汇聚"的基础形态。如果需要更复杂的拓扑（比如先并行采集，再串行决策，再并行通知），只需在 `chainActor.builder()` 里组合 `.concurrent()`、`.next()`、`.notify()` 等节点，每种节点各司其职。
 
 ---
 

@@ -23,7 +23,7 @@
 | [AgentExecutor 嵌套：旅行规划助手](15-travel-agent.md)                      | AgentExecutor 节点嵌入 chain、结构化报告 | ⭐⭐ | `Article15TravelAgent` |
 | [客服双 Agent：投诉分析 + filesystem 执行](16-multi-agent-executor.md)       | ReAct + MCP 双 Agent 串联、文件写入确认 | ⭐⭐⭐ | `Article16CustomerService`（示例） |
 | [国内主流厂商顺序链实例](17-domestic-vendors-chain.md)                       | 与文章2顺序链相同形态、逐个对接国内 `Chat*` | ⭐ | `Article17DomesticVendorsChain` |
-| [三 Agent 并行调研：concurrent 节点构建扇出-汇聚式旅游规划助手](18-parallel-agent-concurrent.md) | concurrent 并行 Agent、cAlias、合并节点、扇出-汇聚 | ⭐⭐⭐ | `Article18ParallelTravelResearch` |
+| [三 Agent 并行调研：concurrent 节点构建并发-汇聚式旅游规划助手](18-parallel-agent-concurrent.md) | concurrent 并行 Agent、cAlias、合并节点、并发-汇聚 | ⭐⭐⭐ | `Article18ParallelTravelResearch` |
 | [两行注解把企业 RPC 接口变成 AI 工具](19-rpc-vo-param.md) | @Param 标注 VO 字段、@AgentTool 包装 RPC、Dubbo / Feign 零侵入接入 | ⭐⭐ | `Article19RpcMcpTools` |
 
 ## 建议阅读顺序
