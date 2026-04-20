@@ -21,9 +21,14 @@ import java.util.List;
 
 @Data
 public class HistoryInfos {
+
+    public enum Type { NORMAL, SUMMARY }
+
+    private Type type = Type.NORMAL;
     private List<BaseMessage> messages;
 
     protected HistoryInfos(HistoryInfosBuilder builder) {
+        this.type = builder.type != null ? builder.type : Type.NORMAL;
         this.messages = builder.messages;
     }
 
@@ -35,9 +40,15 @@ public class HistoryInfos {
     }
 
     public static final class HistoryInfosBuilder {
+        private Type type;
         private List<BaseMessage> messages;
 
         private HistoryInfosBuilder() {
+        }
+
+        public HistoryInfosBuilder type(Type type) {
+            this.type = type;
+            return this;
         }
 
         public HistoryInfosBuilder messages(List<BaseMessage> messages) {
@@ -47,11 +58,6 @@ public class HistoryInfos {
 
         public HistoryInfos build() {
             return new HistoryInfos(this);
-        }
-
-        @Override
-        public String toString() {
-            return "HistoryInfos.HistoryInfosBuilder(messages=" + this.messages + ")";
         }
     }
 }

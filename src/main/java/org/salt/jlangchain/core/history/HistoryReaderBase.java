@@ -51,21 +51,28 @@ public abstract class HistoryReaderBase extends HistoryBase {
         List<HistoryInfos> historyInfosList = readHistory();
         if (CollectionUtils.isNotEmpty(historyInfosList)) {
             List<BaseMessage> messages = new ArrayList<>();
+            // 1. main system prompt
             chatPromptValueAll.getMessages().forEach(message -> {
                 if (message instanceof SystemMessage systemMessage) {
                     messages.add(systemMessage);
                 }
             });
+            // 2. history: summary injected as SystemMessage, normal turns as Human+AI
             for (HistoryInfos historyInfos : historyInfosList) {
-                historyInfos.getMessages().forEach(message -> {
-                    if (message instanceof HumanMessage humanMessage) {
-                        messages.add(humanMessage);
-                    }
-                    if (message instanceof AIMessage aiMessage) {
-                        messages.add(aiMessage);
-                    }
-                });
+                if (historyInfos.getType() == HistoryInfos.Type.SUMMARY) {
+                    messages.addAll(historyInfos.getMessages());
+                } else {
+                    historyInfos.getMessages().forEach(message -> {
+                        if (message instanceof HumanMessage humanMessage) {
+                            messages.add(humanMessage);
+                        }
+                        if (message instanceof AIMessage aiMessage) {
+                            messages.add(aiMessage);
+                        }
+                    });
+                }
             }
+            // 3. current human message
             chatPromptValueAll.getMessages().forEach(message -> {
                 if (message instanceof HumanMessage humanMessage) {
                     messages.add(humanMessage);
