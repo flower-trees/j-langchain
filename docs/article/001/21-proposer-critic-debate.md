@@ -66,7 +66,7 @@ TranslateHandler（格式化最终方案）
 ```java
 FlowInstance proposerFlow = chainActor.builder()
     .next(PromptTemplate.fromTemplate("${prompt}"))
-    .next(ChatAliyun.builder().model("qwen-plus").temperature(0.7f).build())
+    .next(ChatAliyun.builder().model("deepseek-v4-flash").temperature(0.7f).build())
     .next(new StrOutputParser())
     .build();
 ```
@@ -78,7 +78,7 @@ FlowInstance proposerFlow = chainActor.builder()
 ```java
 FlowInstance criticFlow = chainActor.builder()
     .next(PromptTemplate.fromTemplate("${prompt}"))
-    .next(ChatAliyun.builder().model("qwen-plus").temperature(0.3f).build())
+    .next(ChatAliyun.builder().model("deepseek-v4-flash").temperature(0.3f).build())
     .next(new StrOutputParser())
     .build();
 ```
@@ -228,7 +228,7 @@ etcd Raft 选主满足秒级切换要求。整体设计具备生产可行性。
 
 ## 八、运行前置条件
 
-1. **`ALIYUN_KEY`** 环境变量：示例使用 `qwen-plus`
+1. **`ALIYUN_KEY`** 环境变量：示例使用 `deepseek-v4-flash`
 2. 无需 Node.js，无需 JDK 工具链，无需 MCP 配置
 
 ---
@@ -249,4 +249,4 @@ etcd Raft 选主满足秒级切换要求。整体设计具备生产可行性。
 > 📎 相关资源
 > - 完整代码：[Article21ProposerCriticDebate.java](../../../src/test/java/org/salt/jlangchain/demo/article/Article21ProposerCriticDebate.java)，方法 `proposerCriticDebate()`
 > - j-langchain GitHub：https://github.com/flower-trees/j-langchain
-> - 运行环境：`ALIYUN_KEY`（`qwen-plus`）
+> - 运行环境：`ALIYUN_KEY`（`deepseek-v4-flash`）

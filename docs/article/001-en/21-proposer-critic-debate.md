@@ -66,7 +66,7 @@ Both agents are plain LLM call chains — no `McpAgentExecutor`, no tools of any
 ```java
 FlowInstance proposerFlow = chainActor.builder()
     .next(PromptTemplate.fromTemplate("${prompt}"))
-    .next(ChatAliyun.builder().model("qwen-plus").temperature(0.7f).build())
+    .next(ChatAliyun.builder().model("deepseek-v4-flash").temperature(0.7f).build())
     .next(new StrOutputParser())
     .build();
 ```
@@ -78,7 +78,7 @@ Higher `temperature(0.7f)` encourages the Proposer to generate more creative pro
 ```java
 FlowInstance criticFlow = chainActor.builder()
     .next(PromptTemplate.fromTemplate("${prompt}"))
-    .next(ChatAliyun.builder().model("qwen-plus").temperature(0.3f).build())
+    .next(ChatAliyun.builder().model("deepseek-v4-flash").temperature(0.3f).build())
     .next(new StrOutputParser())
     .build();
 ```
@@ -234,7 +234,7 @@ Two rounds to consensus. The round-1 proposal had three flaws; the Proposer fixe
 
 ## 8. Prerequisites
 
-1. **`ALIYUN_KEY`** environment variable: example uses `qwen-plus`
+1. **`ALIYUN_KEY`** environment variable: example uses `deepseek-v4-flash`
 2. No Node.js, no JDK toolchain, no MCP configuration needed
 
 ---
@@ -255,4 +255,4 @@ This pattern generalizes to any "generate → review → improve" scenario: copy
 > 📎 Resources
 > - Full example: [Article21ProposerCriticDebate.java](../../../src/test/java/org/salt/jlangchain/demo/article/Article21ProposerCriticDebate.java), method `proposerCriticDebate()`
 > - j-langchain GitHub: https://github.com/flower-trees/j-langchain
-> - Runtime requirements: `ALIYUN_KEY` (`qwen-plus`)
+> - Runtime requirements: `ALIYUN_KEY` (`deepseek-v4-flash`)
