@@ -1,6 +1,6 @@
 # Build Your First AI App with Java in 5 Minutes
 
-> **Project**: [j-langchain](https://github.com/your-org/j-langchain)  
+> **Project**: [j-langchain](https://github.com/flower-trees/j-langchain)  
 > **Audience**: Java developers, no AI experience required  
 > **Time**: 5 minutes
 
