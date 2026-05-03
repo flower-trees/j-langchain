@@ -22,7 +22,7 @@ import org.salt.jlangchain.core.history.storage.ConversationStorage;
 
 /**
  * Base class for all conversation memory storers.
- * Subclasses implement {@link #storeHistory()} with strategy-specific logic.
+ * Subclasses implement {@link #storeHistory(org.salt.jlangchain.core.history.HistoryInfos)} with strategy-specific logic.
  * {@code maxSize} semantics differ by strategy:
  * <ul>
  *   <li>BufferWindow — max total turns kept</li>
