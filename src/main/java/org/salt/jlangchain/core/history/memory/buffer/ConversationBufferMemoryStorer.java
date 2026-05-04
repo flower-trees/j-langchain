@@ -21,26 +21,19 @@ import org.salt.jlangchain.core.history.HistoryInfos;
 import org.salt.jlangchain.core.history.memory.ConversationMemoryStorerBase;
 import org.salt.jlangchain.core.history.storage.ConversationStorage;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
- * Appends each new turn and drops the oldest when total turns exceed {@code maxSize}.
- * No LLM call required.
+ * Appends every turn to storage with no size limit.
+ * Use {@link ConversationBufferWindowMemoryStorer} if automatic trimming is needed.
+ * Pair with {@link ConversationBufferMemoryReader}.
  */
 @Slf4j
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class ConversationBufferWindowMemoryStorer extends ConversationMemoryStorerBase {
+public class ConversationBufferMemoryStorer extends ConversationMemoryStorerBase {
 
     @Override
     public void storeHistory(HistoryInfos historyInfos) {
-        List<HistoryInfos> all = new ArrayList<>(storage.loadAll(appId, userId, sessionId));
-        all.add(historyInfos);
-        if (all.size() > maxSize) {
-            all = new ArrayList<>(all.subList(all.size() - maxSize, all.size()));
-        }
-        storage.replace(appId, userId, sessionId, all);
+        storage.append(appId, userId, sessionId, historyInfos);
     }
 
     public static Builder builder() { return new Builder(); }
@@ -49,21 +42,18 @@ public class ConversationBufferWindowMemoryStorer extends ConversationMemoryStor
         private Long appId;
         private Long userId;
         private Long sessionId;
-        private Integer maxSize;
         private ConversationStorage storage;
 
-        public Builder appId(Long v)                 { this.appId = v;     return this; }
-        public Builder userId(Long v)                { this.userId = v;    return this; }
-        public Builder sessionId(Long v)             { this.sessionId = v; return this; }
-        public Builder maxSize(Integer v)            { this.maxSize = v;   return this; }
-        public Builder storage(ConversationStorage v){ this.storage = v;   return this; }
+        public Builder appId(Long v)                  { this.appId = v;     return this; }
+        public Builder userId(Long v)                 { this.userId = v;    return this; }
+        public Builder sessionId(Long v)              { this.sessionId = v; return this; }
+        public Builder storage(ConversationStorage v) { this.storage = v;   return this; }
 
-        public ConversationBufferWindowMemoryStorer build() {
-            ConversationBufferWindowMemoryStorer s = new ConversationBufferWindowMemoryStorer();
+        public ConversationBufferMemoryStorer build() {
+            ConversationBufferMemoryStorer s = new ConversationBufferMemoryStorer();
             if (appId != null)     s.setAppId(appId);
             if (userId != null)    s.setUserId(userId);
             if (sessionId != null) s.setSessionId(sessionId);
-            if (maxSize != null)   s.setMaxSize(maxSize);
             if (storage != null)   s.setStorage(storage);
             return s;
         }

@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.core.history.memory.buffer;
+package org.salt.jlangchain.core.history.memory.bufferwindow;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -51,11 +51,11 @@ public class ConversationBufferWindowMemoryReader extends ConversationMemoryRead
         private Integer limit;
         private ConversationStorage storage;
 
-        public Builder appId(Long v)                 { this.appId = v;     return this; }
-        public Builder userId(Long v)                { this.userId = v;    return this; }
-        public Builder sessionId(Long v)             { this.sessionId = v; return this; }
-        public Builder limit(Integer v)              { this.limit = v;     return this; }
-        public Builder storage(ConversationStorage v){ this.storage = v;   return this; }
+        public Builder appId(Long v)                  { this.appId = v;     return this; }
+        public Builder userId(Long v)                 { this.userId = v;    return this; }
+        public Builder sessionId(Long v)              { this.sessionId = v; return this; }
+        public Builder limit(Integer v)               { this.limit = v;     return this; }
+        public Builder storage(ConversationStorage v) { this.storage = v;   return this; }
 
         public ConversationBufferWindowMemoryReader build() {
             ConversationBufferWindowMemoryReader r = new ConversationBufferWindowMemoryReader();
