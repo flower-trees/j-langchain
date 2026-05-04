@@ -60,6 +60,11 @@ public class AIMessageChunk extends BaseMessageChunk<AIMessageChunk> {
         }
     }
 
+    @Override
+    public String toString() {
+        return "AIMessageChunk{role='" + role + "', content='" + content + "', finishReason='" + finishReason + "'}";
+    }
+
     private static final class AIMessageChunkBuilderImpl extends AIMessageChunkBuilder<AIMessageChunk, AIMessageChunkBuilderImpl> {
         private AIMessageChunkBuilderImpl() {
         }

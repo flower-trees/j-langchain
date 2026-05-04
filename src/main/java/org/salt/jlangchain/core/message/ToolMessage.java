@@ -92,6 +92,11 @@ public class ToolMessage extends AIMessage {
         }
     }
 
+    @Override
+    public String toString() {
+        return "ToolMessage{role='" + role + "', name='" + name + "', toolCallId='" + toolCallId + "', content='" + content + "'}";
+    }
+
     private static final class ToolMessageBuilderImpl extends ToolMessageBuilder<ToolMessage, ToolMessageBuilderImpl> {
         private ToolMessageBuilderImpl() {
         }

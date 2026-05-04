@@ -56,6 +56,11 @@ public class HumanMessage extends BaseMessage {
         }
     }
 
+    @Override
+    public String toString() {
+        return "HumanMessage{role='" + role + "', content='" + content + "'}";
+    }
+
     private static final class HumanMessageBuilderImpl extends HumanMessageBuilder<HumanMessage, HumanMessageBuilderImpl> {
         private HumanMessageBuilderImpl() {
         }

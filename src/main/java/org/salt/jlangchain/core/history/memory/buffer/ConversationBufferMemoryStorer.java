@@ -23,7 +23,7 @@ import org.salt.jlangchain.core.history.storage.ConversationStorage;
 
 /**
  * Appends every turn to storage with no size limit.
- * Use {@link ConversationBufferWindowMemoryStorer} if automatic trimming is needed.
+ * Use {@link org.salt.jlangchain.core.history.memory.bufferwindow.ConversationBufferWindowMemoryStorer} if automatic trimming is needed.
  * Pair with {@link ConversationBufferMemoryReader}.
  */
 @Slf4j

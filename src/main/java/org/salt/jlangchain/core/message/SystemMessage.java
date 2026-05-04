@@ -56,6 +56,11 @@ public class SystemMessage extends BaseMessage {
         }
     }
 
+    @Override
+    public String toString() {
+        return "SystemMessage{role='" + role + "', content='" + content + "'}";
+    }
+
     private static final class SystemMessageBuilderImpl extends SystemMessageBuilder<SystemMessage, SystemMessageBuilderImpl> {
         private SystemMessageBuilderImpl() {
         }
