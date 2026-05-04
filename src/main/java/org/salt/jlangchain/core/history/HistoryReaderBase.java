@@ -57,10 +57,25 @@ public abstract class HistoryReaderBase extends HistoryBase {
                     messages.add(systemMessage);
                 }
             });
-            // 2. history: summary injected as SystemMessage, normal turns as Human+AI
+            // 2. history: summary merged into system message, normal turns as Human+AI
             for (HistoryInfos historyInfos : historyInfosList) {
                 if (historyInfos.getType() == HistoryInfos.Type.SUMMARY) {
-                    messages.addAll(historyInfos.getMessages());
+                    String summaryText = historyInfos.getMessages().get(0).getContent();
+                    int lastSystemIdx = -1;
+                    for (int i = messages.size() - 1; i >= 0; i--) {
+                        if (messages.get(i) instanceof SystemMessage) {
+                            lastSystemIdx = i;
+                            break;
+                        }
+                    }
+                    if (lastSystemIdx >= 0) {
+                        SystemMessage existing = (SystemMessage) messages.get(lastSystemIdx);
+                        messages.set(lastSystemIdx, SystemMessage.builder()
+                                .content(existing.getContent() + "\n\n" + summaryText)
+                                .build());
+                    } else {
+                        messages.add(SystemMessage.builder().content(summaryText).build());
+                    }
                 } else {
                     historyInfos.getMessages().forEach(message -> {
                         if (message instanceof HumanMessage humanMessage) {
