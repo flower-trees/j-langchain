@@ -22,10 +22,9 @@ import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.handler.TranslateHandler;
-import org.salt.jlangchain.core.history.HistoryInfos;
-import org.salt.jlangchain.core.history.storage.AgentTaskStorage;
-import org.salt.jlangchain.core.history.storage.ConversationStorage;
+import org.salt.jlangchain.core.history.memory.ConversationMemoryStorerBase;
 import org.salt.jlangchain.core.llm.BaseChatModel;
 import org.salt.jlangchain.core.message.*;
 import org.salt.jlangchain.core.parser.StrOutputParser;
@@ -54,19 +53,16 @@ import java.util.stream.Collectors;
  * rather than ReAct text parsing. Suitable for MCP tools and any model that supports
  * the {@code tools} parameter (OpenAI, Doubao, Qwen, etc.).
  *
- * <p>Loop: LLM → ToolCall? → execute tool → record in AgentTaskContext → LLM → ... → final answer
- *
- * <p>AgentTaskContext manages a sliding window of recent steps. When the window exceeds
- * {@code windowSize}, the oldest step is compressed into {@code earlyStepsSummary} and prepended
- * to the system message, preventing unbounded context growth over long task loops.
+ * <p>Context management is delegated to {@link AgentTaskContext}. Inject a
+ * {@link SlidingWindowContext} for sliding-window compression, or omit {@code context()}
+ * to use the default {@link FullContext} (no compression).
  *
  * <pre>{@code
  * ChatGeneration result = McpAgentExecutor.builder(chainActor)
  *     .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
  *     .tools(mcpManager, "default")
  *     .systemPrompt("You are an intelligent assistant")
- *     .windowSize(5)                    // keep last 5 steps; compress older ones
- *     .agentTaskStorage(taskStorage)    // optional: persist steps for debugging
+ *     .context(SlidingWindowContext.builder().windowSize(5).build())
  *     .build()
  *     .invoke("Can you help me check the public IP address");
  * }</pre>
@@ -77,72 +73,16 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
     private final FlowInstance agentChain;
     private final ChainActor chainActor;
 
-    /** Carries the per-invocation AgentTaskContext into the lambda handlers. */
-    private final ThreadLocal<AgentTaskContext> contextHolder;
-
-    // Configuration captured for invoke()-level logic
-    private final String systemPrompt;
-    private final int windowSize;
-    private final BaseChatModel summarizer;
-    private final AgentTaskStorage agentTaskStorage;
-    private final ConversationStorage conversationStorage;
-    private final Long appId;
-    private final Long userId;
-    private final Long sessionId;
-    private final String parentId;
-
-    private McpAgentExecutor(ChainActor chainActor, FlowInstance agentChain,
-                              ThreadLocal<AgentTaskContext> contextHolder,
-                              String systemPrompt, int windowSize, BaseChatModel summarizer,
-                              AgentTaskStorage agentTaskStorage,
-                              ConversationStorage conversationStorage,
-                              Long appId, Long userId, Long sessionId, String parentId) {
+    private McpAgentExecutor(ChainActor chainActor, FlowInstance agentChain) {
         this.chainActor = chainActor;
         this.agentChain = agentChain;
-        this.contextHolder = contextHolder;
-        this.systemPrompt = systemPrompt;
-        this.windowSize = windowSize;
-        this.summarizer = summarizer;
-        this.agentTaskStorage = agentTaskStorage;
-        this.conversationStorage = conversationStorage;
-        this.appId = appId;
-        this.userId = userId;
-        this.sessionId = sessionId;
-        this.parentId = parentId;
     }
 
-    /**
-     * Execute the agent with the given user question (node-compatible entry point).
-     *
-     * <p>Creates an {@link AgentTaskContext} for this invocation, runs the agent loop,
-     * and optionally saves the final (question, answer) turn to {@link ConversationStorage}.
-     */
     @Override
     public ChatGeneration invoke(Object input) {
-        String question = input.toString();
-        AgentTaskContext ctx = AgentTaskContext.create(question, systemPrompt, windowSize, parentId);
-        contextHolder.set(ctx);
-        try {
-            ChatGeneration result = chainActor.invoke(agentChain, Map.of("input", question));
-            if (conversationStorage != null && result != null) {
-                List<BaseMessage> msgs = List.of(
-                        HumanMessage.builder().content(question).build(),
-                        AIMessage.builder().content(result.getText()).build()
-                );
-                conversationStorage.append(appId != null ? appId : 0L,
-                        userId != null ? userId : 0L,
-                        sessionId != null ? sessionId : 0L,
-                        HistoryInfos.builder().parentId(parentId).messages(msgs).build());
-            }
-            return result;
-        } finally {
-            contextHolder.remove();
-        }
+        return (ChatGeneration) chainActor.invoke(agentChain, Map.of("input", input.toString()));
     }
 
-    /**
-     * Execute the agent with the given user question.
-     */
     public ChatGeneration invoke(String input) {
         return invoke((Object) input);
     }
@@ -158,14 +98,8 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private List<Tool> tools = new ArrayList<>();
         private String systemPrompt;
         private int maxIterations = 10;
-        private int windowSize = Integer.MAX_VALUE;
-        private BaseChatModel summarizer;
-        private AgentTaskStorage agentTaskStorage;
-        private ConversationStorage conversationStorage;
-        private Long appId;
-        private Long userId;
-        private Long sessionId;
-        private String parentId;
+        private AgentContext context;
+        private ConversationMemoryStorerBase conversationStorer;
         private Consumer<String> llmConsumer;
         private Consumer<String> toolCallConsumer;
         private Consumer<String> observationConsumer;
@@ -190,23 +124,20 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
-        /** Scan {@code toolsProvider} for {@link org.salt.jlangchain.rag.tools.annotation.AgentTool}-annotated methods. */
         public Builder tools(Object toolsProvider) {
-            this.tools.addAll(ToolScanner.scan(toolsProvider));
+            if (toolsProvider instanceof Tool tool) {
+                this.tools.add(tool);
+            } else {
+                this.tools.addAll(ToolScanner.scan(toolsProvider));
+            }
             return this;
         }
 
-        /**
-         * Load tools from a McpManager group (HTTP API mode).
-         */
         public Builder tools(McpManager mcpManager, String group) {
             this.tools.addAll(mcpManager.toTools(group));
             return this;
         }
 
-        /**
-         * Load tools from a McpClient server (NPX / SSE process mode).
-         */
         public Builder tools(McpClient mcpClient, String serverName) {
             List<ToolDesc> descs = mcpClient.listAllTools().getOrDefault(serverName, List.of());
             this.tools.addAll(descs.stream()
@@ -238,76 +169,33 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
-        /**
-         * Set the sliding-window size for AgentTaskContext.
-         * When recentSteps exceeds this value the oldest step is compressed into earlyStepsSummary.
-         * Default: {@code Integer.MAX_VALUE} (no compression, equivalent to previous behaviour).
-         */
-        public Builder windowSize(int windowSize) {
-            this.windowSize = windowSize;
+        /** Inject a context strategy. Defaults to {@link FullContext} if not set. */
+        public Builder context(AgentContext context) {
+            this.context = context;
             return this;
         }
 
-        /**
-         * LLM used to produce earlyStepsSummary when the window is exceeded.
-         * If not set, steps are concatenated as plain text instead.
-         */
-        public Builder summarizer(BaseChatModel summarizer) {
-            this.summarizer = summarizer;
+        /** Optional: save the final (question, answer) turn to conversation history after the loop. */
+        public Builder conversationStorer(ConversationMemoryStorerBase conversationStorer) {
+            this.conversationStorer = conversationStorer;
             return this;
         }
 
-        /**
-         * Optional storage for agent step records (debugging / auditing).
-         * Each tool-call+result pair is appended as a {@code AGENT_STEP} HistoryInfos entry.
-         */
-        public Builder agentTaskStorage(AgentTaskStorage storage) {
-            this.agentTaskStorage = storage;
-            return this;
-        }
-
-        /**
-         * Optional conversation storage.
-         * When set, the final (question, answer) pair is saved as a {@code NORMAL} turn after the loop.
-         */
-        public Builder conversationStorage(ConversationStorage storage, Long appId, Long userId, Long sessionId) {
-            this.conversationStorage = storage;
-            this.appId = appId;
-            this.userId = userId;
-            this.sessionId = sessionId;
-            return this;
-        }
-
-        /**
-         * Optional parent record id (ConversationStorage entry or parent agent task id).
-         * When set, step records written to AgentTaskStorage carry this as their parentId.
-         */
-        public Builder parentId(String parentId) {
-            this.parentId = parentId;
-            return this;
-        }
-
-        /** Hook called with the full LLM input payload before each model invocation. */
         public Builder onLlm(Consumer<String> consumer) {
             this.llmConsumer = consumer;
             return this;
         }
 
-        /** Hook called with the tool name + arguments JSON before execution. */
         public Builder onToolCall(Consumer<String> consumer) {
             this.toolCallConsumer = consumer;
             return this;
         }
 
-        /** Hook called with the observation string after tool execution. */
         public Builder onObservation(Consumer<String> consumer) {
             this.observationConsumer = consumer;
             return this;
         }
 
-        /**
-         * Supplier for a per-request authorization token (e.g. Bearer token for MCP HTTP calls).
-         */
         public Builder authorization(java.util.function.Supplier<String> supplier) {
             this.authorizationSupplier = supplier;
             return this;
@@ -334,7 +222,22 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             messages.add(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), "${input}"));
             var prompt = ChatPromptTemplate.fromMessages(messages);
 
+            AgentContext contextFinal = this.context != null ? this.context : FullContext.build();
+            String systemPromptFinal = this.systemPrompt;
+            ConversationMemoryStorerBase conversationStorerFinal = this.conversationStorer;
             Consumer<String> llmConsumer = this.llmConsumer;
+
+            // First node: create per-invocation AgentTaskContext and put in ContextBus
+            TranslateHandler<Object, Object> initContext = new TranslateHandler<>(input -> {
+                String question = (input instanceof Map<?, ?> m && m.get("input") != null)
+                        ? m.get("input").toString()
+                        : input.toString();
+                AgentTaskContext ctx = contextFinal.create(question, systemPromptFinal);
+                ContextBus.get().putTransmit(CallInfo.AGENT_TASK_CTX.name(), ctx);
+                ContextBus.get().putTransmit(CallInfo.QUESTION.name(), question);
+                return input;
+            });
+
             TranslateHandler<ChatPromptValue, ChatPromptValue> emitBeforeLlm = new TranslateHandler<>(promptValue -> {
                 if (llmConsumer != null && promptValue != null) {
                     llmConsumer.accept(formatChatPromptValue(promptValue));
@@ -361,19 +264,13 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             Map<String, Tool> toolMapFinal = toolMap;
             Consumer<String> toolCallConsumer = this.toolCallConsumer;
             Consumer<String> observationConsumer = this.observationConsumer;
-            BaseChatModel summarizerFinal = this.summarizer;
-            AgentTaskStorage agentTaskStorageFinal = this.agentTaskStorage;
             @SuppressWarnings("unused")
             java.util.function.Supplier<String> authSupplier = this.authorizationSupplier;
 
-            // Shared context holder: created here, set/cleared in invoke() per call.
-            ThreadLocal<AgentTaskContext> contextHolder = new ThreadLocal<>();
-
             TranslateHandler<Object, AIMessage> executeTool = new TranslateHandler<>(msg -> {
                 ToolMessage toolMessage = (ToolMessage) msg;
-                AgentTaskContext ctx = contextHolder.get();
+                AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
 
-                // Execute all tool calls and collect results
                 List<BaseMessage> toolResults = new ArrayList<>();
                 for (AiChatOutput.ToolCall toolCall : toolMessage.getToolCalls()) {
                     String toolName = toolCall.getFunction().getName();
@@ -406,23 +303,13 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                             toolName, toolCall.getId()));
                 }
 
-                if (ctx != null) {
-                    // Record step in AgentTaskContext (handles window + optional storage)
-                    ctx.addStep(AgentStep.ofFunctionCall(toolMessage, toolResults),
-                            summarizerFinal, agentTaskStorageFinal);
-                    // Return rebuilt ChatPromptValue for next iteration
-                    return ctx.buildChatPromptValue();
-                }
-
-                // Fallback (context not set): original accumulate-in-place behaviour
-                ChatPromptValue chatPromptValue = ContextBus.get().getResult(prompt.getNodeId());
-                chatPromptValue.getMessages().add(toolMessage);
-                chatPromptValue.getMessages().addAll(toolResults);
-                return chatPromptValue;
+                ctx.addStep(AgentStep.ofFunctionCall(toolMessage, toolResults));
+                return ctx.buildChatPromptValue();
             });
 
             // ── 5. Assemble the chain ──
-            FlowInstance agentChain = chainActor.builder()
+            var chainBuilder = chainActor.builder()
+                .next(initContext)
                 .next(prompt)
                 .loop(
                     shouldContinue,
@@ -440,15 +327,15 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                         throw new RuntimeException("Max iterations (" + maxIter + ") reached without a final answer.");
                     }),
                     Info.c(new StrOutputParser())
-                )
-                .build();
+                );
 
-            return new McpAgentExecutor(chainActor, agentChain, contextHolder,
-                    systemPrompt, windowSize, summarizer, agentTaskStorage,
-                    conversationStorage, appId, userId, sessionId, parentId);
+            FlowInstance agentChain = conversationStorerFinal != null
+                    ? chainBuilder.next(conversationStorerFinal).build()
+                    : chainBuilder.build();
+
+            return new McpAgentExecutor(chainActor, agentChain);
         }
 
-        /** Convert a j-langchain Tool to the AiChatInput.Tool format the LLM expects. */
         private static AiChatInput.Tool toAiTool(Tool tool) {
             AiChatInput.Tool aiTool = new AiChatInput.Tool();
             aiTool.setType("function");
@@ -459,14 +346,9 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return aiTool;
         }
 
-        /**
-         * Build a minimal OpenAI-compatible JSON Schema from the Tool params string.
-         * Params format: "paramA: TypeA, paramB: TypeB"
-         */
         private static Map<String, Object> buildSchema(String params) {
             Map<String, Object> properties = new java.util.LinkedHashMap<>();
             List<String> required = new ArrayList<>();
-
             if (params != null && !params.isBlank()) {
                 for (String part : params.split(",")) {
                     String[] kv = part.trim().split(":", 2);
@@ -484,12 +366,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     }
                 }
             }
-
-            return Map.of(
-                "type", "object",
-                "properties", properties,
-                "required", required
-            );
+            return Map.of("type", "object", "properties", properties, "required", required);
         }
 
         @SuppressWarnings("unchecked")

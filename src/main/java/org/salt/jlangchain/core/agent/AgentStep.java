@@ -49,6 +49,9 @@ public class AgentStep {
     /** Create a step for function-calling agents (McpAgentExecutor). */
     public static AgentStep ofFunctionCall(AIMessage aiMessage, List<BaseMessage> toolResults) {
         AgentStep step = new AgentStep();
+        if (aiMessage != null && aiMessage.getContent() == null) {
+            aiMessage.setContent("");
+        }
         step.aiMessage = aiMessage;
         step.toolResults = toolResults != null ? toolResults : List.of();
         return step;

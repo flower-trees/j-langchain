@@ -21,14 +21,11 @@ import org.salt.function.flow.Info;
 import org.salt.function.flow.context.ContextBus;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.handler.TranslateHandler;
-import org.salt.jlangchain.core.history.HistoryInfos;
-import org.salt.jlangchain.core.history.storage.AgentTaskStorage;
-import org.salt.jlangchain.core.history.storage.ConversationStorage;
+import org.salt.jlangchain.core.history.memory.ConversationMemoryStorerBase;
 import org.salt.jlangchain.core.llm.BaseChatModel;
 import org.salt.jlangchain.core.message.AIMessage;
-import org.salt.jlangchain.core.message.HumanMessage;
-import org.salt.jlangchain.core.message.BaseMessage;
 import org.salt.jlangchain.core.parser.StrOutputParser;
 import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.prompt.string.PromptTemplate;
@@ -48,15 +45,15 @@ import java.util.function.Function;
  *
  * <p>Encapsulates the full Thought → Action → Observation → Final Answer loop.
  *
- * <p>AgentTaskContext manages a sliding window of recent steps. When the window exceeds
- * {@code windowSize}, the oldest step is compressed into {@code earlyStepsSummary} and
- * injected into the reconstructed prompt, preventing unbounded text growth over long loops.
+ * <p>Context management is delegated to {@link AgentTaskContext}. Inject a
+ * {@link SlidingWindowContext} for sliding-window compression, or omit {@code context()}
+ * to use the default {@link FullContext} (no compression).
  *
  * <pre>{@code
  * ChatGeneration result = AgentExecutor.builder(chainActor)
  *     .llm(ChatOllama.builder().model("llama3:8b").temperature(0f).build())
  *     .tools(getWeather, getTime)
- *     .windowSize(5)
+ *     .context(SlidingWindowContext.builder().windowSize(5).build())
  *     .build()
  *     .invoke("What's the weather like in Shanghai now?");
  * }</pre>
@@ -92,66 +89,16 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
     private final FlowInstance agentChain;
     private final ChainActor chainActor;
 
-    /** Carries the per-invocation AgentTaskContext into the lambda handlers. */
-    private final ThreadLocal<AgentTaskContext> contextHolder;
-
-    private final int windowSize;
-    private final BaseChatModel summarizer;
-    private final AgentTaskStorage agentTaskStorage;
-    private final ConversationStorage conversationStorage;
-    private final Long appId;
-    private final Long userId;
-    private final Long sessionId;
-    private final String parentId;
-
-    private AgentExecutor(ChainActor chainActor, FlowInstance agentChain,
-                          ThreadLocal<AgentTaskContext> contextHolder,
-                          int windowSize, BaseChatModel summarizer,
-                          AgentTaskStorage agentTaskStorage,
-                          ConversationStorage conversationStorage,
-                          Long appId, Long userId, Long sessionId, String parentId) {
+    private AgentExecutor(ChainActor chainActor, FlowInstance agentChain) {
         this.chainActor = chainActor;
         this.agentChain = agentChain;
-        this.contextHolder = contextHolder;
-        this.windowSize = windowSize;
-        this.summarizer = summarizer;
-        this.agentTaskStorage = agentTaskStorage;
-        this.conversationStorage = conversationStorage;
-        this.appId = appId;
-        this.userId = userId;
-        this.sessionId = sessionId;
-        this.parentId = parentId;
     }
 
-    /**
-     * Execute the agent with the given user input (node-compatible entry point).
-     */
     @Override
     public ChatGeneration invoke(Object input) {
-        String question = input.toString();
-        AgentTaskContext ctx = AgentTaskContext.create(question, null, windowSize, parentId);
-        contextHolder.set(ctx);
-        try {
-            ChatGeneration result = chainActor.invoke(agentChain, Map.of("input", question));
-            if (conversationStorage != null && result != null) {
-                List<BaseMessage> msgs = List.of(
-                        HumanMessage.builder().content(question).build(),
-                        AIMessage.builder().content(result.getText()).build()
-                );
-                conversationStorage.append(appId != null ? appId : 0L,
-                        userId != null ? userId : 0L,
-                        sessionId != null ? sessionId : 0L,
-                        HistoryInfos.builder().parentId(parentId).messages(msgs).build());
-            }
-            return result;
-        } finally {
-            contextHolder.remove();
-        }
+        return (ChatGeneration) chainActor.invoke(agentChain, Map.of("input", input.toString()));
     }
 
-    /**
-     * Execute the agent with the given user input.
-     */
     public ChatGeneration invoke(String input) {
         return invoke((Object) input);
     }
@@ -166,14 +113,8 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private BaseChatModel llm;
         private List<Tool> tools = new ArrayList<>();
         private int maxIterations = 10;
-        private int windowSize = Integer.MAX_VALUE;
-        private BaseChatModel summarizer;
-        private AgentTaskStorage agentTaskStorage;
-        private ConversationStorage conversationStorage;
-        private Long appId;
-        private Long userId;
-        private Long sessionId;
-        private String parentId;
+        private AgentContext context;
+        private ConversationMemoryStorerBase conversationStorer;
         private String promptTemplate;
         private Consumer<String> llmConsumer;
         private Consumer<String> thoughtConsumer;
@@ -198,9 +139,12 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
-        /** Scan {@code toolsProvider} for {@link org.salt.jlangchain.rag.tools.annotation.AgentTool}-annotated methods. */
         public Builder tools(Object toolsProvider) {
-            this.tools.addAll(ToolScanner.scan(toolsProvider));
+            if (toolsProvider instanceof Tool tool) {
+                this.tools.add(tool);
+            } else {
+                this.tools.addAll(ToolScanner.scan(toolsProvider));
+            }
             return this;
         }
 
@@ -209,70 +153,33 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
-        /**
-         * Set the sliding-window size for AgentTaskContext.
-         * When recentSteps exceeds this value the oldest step is compressed into earlyStepsSummary.
-         * Default: {@code Integer.MAX_VALUE} (no compression, equivalent to previous behaviour).
-         */
-        public Builder windowSize(int windowSize) {
-            this.windowSize = windowSize;
+        /** Inject a context strategy. Defaults to {@link FullContext} if not set. */
+        public Builder context(AgentContext context) {
+            this.context = context;
             return this;
         }
 
-        /**
-         * LLM used to produce earlyStepsSummary when the window is exceeded.
-         * If not set, steps are concatenated as plain text instead.
-         */
-        public Builder summarizer(BaseChatModel summarizer) {
-            this.summarizer = summarizer;
+        /** Optional: save the final (question, answer) turn to conversation history after the loop. */
+        public Builder conversationStorer(ConversationMemoryStorerBase conversationStorer) {
+            this.conversationStorer = conversationStorer;
             return this;
         }
 
-        /**
-         * Optional storage for agent step records (debugging / auditing).
-         */
-        public Builder agentTaskStorage(AgentTaskStorage storage) {
-            this.agentTaskStorage = storage;
-            return this;
-        }
-
-        /**
-         * Optional conversation storage.
-         * When set, the final (question, answer) pair is saved as a {@code NORMAL} turn after the loop.
-         */
-        public Builder conversationStorage(ConversationStorage storage, Long appId, Long userId, Long sessionId) {
-            this.conversationStorage = storage;
-            this.appId = appId;
-            this.userId = userId;
-            this.sessionId = sessionId;
-            return this;
-        }
-
-        /** Optional parent record id for tree-structured history. */
-        public Builder parentId(String parentId) {
-            this.parentId = parentId;
-            return this;
-        }
-
-        /** Override the default ReAct prompt template. Must contain ${tools}, ${toolNames}, ${maxIterations}, ${input}. */
         public Builder promptTemplate(String promptTemplate) {
             this.promptTemplate = promptTemplate;
             return this;
         }
 
-        /** Hook called with the full LLM input text before each model invocation. */
         public Builder onLlm(Consumer<String> consumer) {
             this.llmConsumer = consumer;
             return this;
         }
 
-        /** Hook called with each Thought+Action block before tool execution. */
         public Builder onThought(Consumer<String> consumer) {
             this.thoughtConsumer = consumer;
             return this;
         }
 
-        /** Hook called with each Observation result after tool execution. */
         public Builder onObservation(Consumer<String> consumer) {
             this.observationConsumer = consumer;
             return this;
@@ -288,7 +195,20 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             PromptTemplate prompt = PromptTemplate.fromTemplate(template);
             prompt.withTools(tools);
 
+            AgentContext contextFinal = this.context != null ? this.context : FullContext.build();
+            ConversationMemoryStorerBase conversationStorerFinal = this.conversationStorer;
             Consumer<String> llmConsumer = this.llmConsumer;
+
+            // First node: create per-invocation AgentTaskContext and put in ContextBus
+            TranslateHandler<Object, Object> initContext = new TranslateHandler<>(input -> {
+                String question = (input instanceof Map<?, ?> m && m.get("input") != null)
+                        ? m.get("input").toString()
+                        : input.toString();
+                AgentTaskContext ctx = contextFinal.create(question, null);
+                ContextBus.get().putTransmit(CallInfo.AGENT_TASK_CTX.name(), ctx);
+                ContextBus.get().putTransmit(CallInfo.QUESTION.name(), question);
+                return input;
+            });
 
             TranslateHandler<StringPromptValue, StringPromptValue> emitBeforeLlm = new TranslateHandler<>(promptValue -> {
                 if (llmConsumer != null && promptValue != null) {
@@ -297,6 +217,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 return promptValue;
             });
 
+            Consumer<String> thoughtConsumer = this.thoughtConsumer;
             TranslateHandler<AIMessage, AIMessage> cutAtObservation = new TranslateHandler<>(llmResult -> {
                 if (llmResult == null || StringUtils.isEmpty(llmResult.getContent())) {
                     return llmResult;
@@ -326,16 +247,11 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
             List<Tool> toolList = this.tools;
             Consumer<String> observationConsumer = this.observationConsumer;
-            BaseChatModel summarizerFinal = this.summarizer;
-            AgentTaskStorage agentTaskStorageFinal = this.agentTaskStorage;
-
-            // Shared context holder: created here, set/cleared in invoke() per call.
-            ThreadLocal<AgentTaskContext> contextHolder = new ThreadLocal<>();
 
             TranslateHandler<Object, Map<String, String>> executeTool = new TranslateHandler<>(map -> {
                 StringPromptValue promptValue = ContextBus.get().getResult(prompt.getNodeId());
                 AIMessage cutResult = ContextBus.get().getResult(cutAtObservation.getNodeId());
-                AgentTaskContext ctx = contextHolder.get();
+                AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
 
                 Tool useTool = toolList.stream()
                     .filter(t -> t.getName().equalsIgnoreCase(((Map<String, String>) map).get("Action")))
@@ -343,8 +259,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
                 if (useTool == null) {
                     log.warn("Unknown tool requested: {}", ((Map<String, String>) map).get("Action"));
-                    // Record base before the "tool not found" note so future steps still have the right base
-                    if (ctx != null) ctx.initReactBasePromptText(promptValue.getText());
+                    ctx.initReactBasePromptText(promptValue.getText());
                     promptValue.setText(promptValue.getText().trim()
                             + "\nThought: The requested tool does not exist, please choose another.\nThought:");
                     return promptValue;
@@ -359,18 +274,9 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 String thoughtPart = thoughtIdx >= 0 ? prefix.substring(thoughtIdx + 8).trim() : prefix.trim();
                 String agentScratchpad = thoughtPart + "\nObservation: " + observation + "\nThought:";
 
-                if (ctx != null) {
-                    // Save base text on first call (before any mutation of promptValue)
-                    ctx.initReactBasePromptText(promptValue.getText());
-                    // Record step (handles window + optional storage)
-                    ctx.addStep(AgentStep.ofReAct(agentScratchpad), summarizerFinal, agentTaskStorageFinal);
-                    // Rebuild the full prompt from base + windowed scratchpad
-                    promptValue.setText(ctx.buildReactPromptText());
-                    return promptValue;
-                }
-
-                // Fallback: original accumulate-in-place behaviour
-                promptValue.setText(promptValue.getText().trim() + agentScratchpad);
+                ctx.initReactBasePromptText(promptValue.getText());
+                ctx.addStep(AgentStep.ofReAct(agentScratchpad));
+                promptValue.setText(ctx.buildReactPromptText());
                 return promptValue;
             });
 
@@ -384,7 +290,8 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 return generation;
             });
 
-            FlowInstance agentChain = chainActor.builder()
+            var chainBuilder = chainActor.builder()
+                .next(initContext)
                 .next(prompt)
                 .loop(
                     shouldContinue,
@@ -400,12 +307,13 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                         .build()
                 )
                 .next(new StrOutputParser())
-                .next(extractFinalAnswer)
-                .build();
+                .next(extractFinalAnswer);
 
-            return new AgentExecutor(chainActor, agentChain, contextHolder,
-                    windowSize, summarizer, agentTaskStorage,
-                    conversationStorage, appId, userId, sessionId, parentId);
+            FlowInstance agentChain = conversationStorerFinal != null
+                    ? chainBuilder.next(conversationStorerFinal).build()
+                    : chainBuilder.build();
+
+            return new AgentExecutor(chainActor, agentChain);
         }
     }
 }
