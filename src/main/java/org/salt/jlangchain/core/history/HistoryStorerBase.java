@@ -35,23 +35,27 @@ public abstract class HistoryStorerBase extends HistoryBase {
     public Object invoke(Object input) {
 
         if (input instanceof Generation generation) {
+            String question = getContextBus().getTransmit(CallInfo.QUESTION.name());
+            if (question == null) {
+                log.warn("HistoryStorerBase: QUESTION not found in context; history not saved. Ensure ChatPromptTemplate is upstream in the chain.");
+                return input;
+            }
             if (input instanceof ChatGenerationChunk chatGenerationChunk) {
                 chatGenerationChunk.addCallback(text -> {
                     List<BaseMessage> messages = new ArrayList<>();
-                    messages.add(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), getContextBus().getTransmit(CallInfo.QUESTION.name())));
+                    messages.add(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), question));
                     messages.add(BaseMessage.fromMessage(MessageType.AI.getCode(), text));
-                    HistoryInfos historyInfos = HistoryInfos.builder().messages(messages).build();
-                    storeHistory(historyInfos);
+                    storeHistory(HistoryInfos.builder().messages(messages).build());
                 });
             } else {
                 List<BaseMessage> messages = new ArrayList<>();
-                messages.add(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), getContextBus().getTransmit(CallInfo.QUESTION.name())));
+                messages.add(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), question));
                 messages.add(BaseMessage.fromMessage(MessageType.AI.getCode(), generation.getText()));
-                HistoryInfos historyInfos = HistoryInfos.builder().messages(messages).build();
-                storeHistory(historyInfos);
+                storeHistory(HistoryInfos.builder().messages(messages).build());
             }
         } else {
-            throw new RuntimeException("input must be StringPromptValue or ChatPromptValue or String");
+            throw new RuntimeException("HistoryStorerBase input must be a Generation, got: "
+                    + (input == null ? "null" : input.getClass().getSimpleName()));
         }
 
         return input;
