@@ -112,6 +112,10 @@ public class AiChatInput {
     private ResponseFormat responseFormat;
     private String responseSchema; // JSON Schema
 
+    // Vendor-specific extra parameters (e.g. enable_thinking for qwen3); not serialized directly
+    @JsonIgnore
+    private Map<String, Object> extraParams;
+
     @Data
     public static class Tool {
         private String type; // "function" etc.
@@ -199,6 +203,7 @@ public class AiChatInput {
         private Boolean parallelToolCalls;
         private ResponseFormat responseFormat;
         private String responseSchema;
+        private Map<String, Object> extraParams;
 
         AiChatInputBuilder() {
         }
@@ -343,8 +348,13 @@ public class AiChatInput {
             return this;
         }
 
+        public AiChatInputBuilder extraParams(final Map<String, Object> extraParams) {
+            this.extraParams = extraParams;
+            return this;
+        }
+
         public AiChatInput build() {
-            return new AiChatInput(this.id, this.parentId, this.model, this.botId, this.userId, this.messages, this.stream, this.input, this.temperature, this.topP, this.maxTokens, this.presencePenalty, this.frequencyPenalty, this.stop, this.n, this.suffix, this.logprobs, this.topLogprobs, this.echo, this.vectorSize, this.key, this.mcpConfig, this.tools, this.toolChoice, this.parallelToolCalls, this.responseFormat, this.responseSchema);
+            return new AiChatInput(this.id, this.parentId, this.model, this.botId, this.userId, this.messages, this.stream, this.input, this.temperature, this.topP, this.maxTokens, this.presencePenalty, this.frequencyPenalty, this.stop, this.n, this.suffix, this.logprobs, this.topLogprobs, this.echo, this.vectorSize, this.key, this.mcpConfig, this.tools, this.toolChoice, this.parallelToolCalls, this.responseFormat, this.responseSchema, this.extraParams);
         }
 
         @Override

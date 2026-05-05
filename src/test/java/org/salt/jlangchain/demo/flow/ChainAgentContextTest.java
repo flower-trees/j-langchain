@@ -35,6 +35,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Tests for AgentTaskContext sliding-window, AgentTaskStorage, and ConversationMemoryStorerBase
@@ -47,6 +48,16 @@ public class ChainAgentContextTest {
 
     @Autowired
     ChainActor chainActor;
+
+    // ── Shared LLM factory (thinking disabled to avoid agent-loop latency) ─────
+
+    static ChatAliyun qwenAgent() {
+        return ChatAliyun.builder()
+                .model("qwen3.6-plus")
+                .temperature(0f)
+                .modelKwargs(Map.of("enable_thinking", false))
+                .build();
+    }
 
     // ── Shared mock tools ─────────────────────────────────────────────────────
 
@@ -73,7 +84,7 @@ public class ChainAgentContextTest {
     @Test
     public void testAgentExecutorDefaultBehavior() {
         AgentExecutor agent = AgentExecutor.builder(chainActor)
-                .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
+                .llm(qwenAgent())
                 .tools(weatherTool(), timeTool())
                 .maxIterations(6)
                 .onThought(t -> System.out.print("[Thought] " + t))
@@ -91,7 +102,7 @@ public class ChainAgentContextTest {
     @Test
     public void testAgentExecutorWithSlidingWindow() {
         AgentExecutor agent = AgentExecutor.builder(chainActor)
-                .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
+                .llm(qwenAgent())
                 .tools(weatherTool(), timeTool())
                 .maxIterations(8)
                 .context(SlidingWindowContext.builder().windowSize(1).build())
@@ -112,7 +123,7 @@ public class ChainAgentContextTest {
         InMemoryAgentTaskStorage taskStorage = new InMemoryAgentTaskStorage();
 
         AgentExecutor agent = AgentExecutor.builder(chainActor)
-                .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
+                .llm(qwenAgent())
                 .tools(weatherTool(), timeTool())
                 .maxIterations(6)
                 .context(SlidingWindowContext.builder().taskStorage(taskStorage).build())
@@ -131,7 +142,7 @@ public class ChainAgentContextTest {
     @Test
     public void testMcpAgentExecutorDefaultBehavior() {
         McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
-                .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
+                .llm(qwenAgent())
                 .tools(weatherTool(), timeTool())
                 .systemPrompt("你是一名智能助手，请使用工具来回答用户问题。")
                 .maxIterations(6)
@@ -150,7 +161,7 @@ public class ChainAgentContextTest {
     @Test
     public void testMcpAgentExecutorWithSlidingWindow() {
         McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
-                .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
+                .llm(qwenAgent())
                 .tools(weatherTool(), timeTool())
                 .systemPrompt("你是一名智能助手，请使用工具来回答用户问题。")
                 .maxIterations(8)
@@ -180,7 +191,7 @@ public class ChainAgentContextTest {
                 .build();
 
         McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
-                .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
+                .llm(qwenAgent())
                 .tools(weatherTool())
                 .systemPrompt("你是一名智能助手。")
                 .maxIterations(6)
@@ -220,7 +231,7 @@ public class ChainAgentContextTest {
                 .build();
 
         McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
-                .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
+                .llm(qwenAgent())
                 .tools(weatherTool(), timeTool())
                 .systemPrompt("你是一名智能助手，请使用工具回答用户问题。")
                 .maxIterations(8)

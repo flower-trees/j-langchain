@@ -14,8 +14,11 @@
 
 package org.salt.jlangchain.ai.chat.openai.param;
 
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -60,6 +63,15 @@ public class OpenAIRequest {
     private Integer seed; // Random seed
     private Map<String, Object> logitBias; // Token bias
     private String serviceTier; // Service tier
+
+    // Vendor-specific extra fields (e.g. enable_thinking, thinking for qwen3)
+    @JsonIgnore
+    private Map<String, Object> extraFields;
+
+    @JsonAnyGetter
+    public Map<String, Object> getExtraFieldsForSerialization() {
+        return extraFields != null ? extraFields : Collections.emptyMap();
+    }
 
     @Data
     public static class Message {

@@ -67,6 +67,7 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
         AiChatInput aiChatInput = AiChatInput.builder().messages(messages).stream(false).build();
 
         otherInformation(aiChatInput);
+        if (modelKwargs != null) aiChatInput.setExtraParams(modelKwargs);
 
         AiChatOutput aiChatOutput = SpringContextUtil.getApplicationContext().getBean(getActuator()).invoke(aiChatInput);
 
@@ -89,6 +90,7 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
         AiChatInput aiChatInput = AiChatInput.builder().messages(messages).stream(true).build();
 
         otherInformation(aiChatInput);
+        if (modelKwargs != null) aiChatInput.setExtraParams(modelKwargs);
 
         eventAction.eventStart(input, config, getMetadata());
 

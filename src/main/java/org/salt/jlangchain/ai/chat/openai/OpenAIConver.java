@@ -70,6 +70,11 @@ public class OpenAIConver {
         openAIRequest.setResponseFormat(convertResponseFormat(aiChatInput.getResponseFormat()));
         openAIRequest.setResponseSchema(aiChatInput.getResponseSchema());
 
+        // Vendor-specific extra parameters (e.g. enable_thinking for qwen3)
+        if (aiChatInput.getExtraParams() != null && !aiChatInput.getExtraParams().isEmpty()) {
+            openAIRequest.setExtraFields(aiChatInput.getExtraParams());
+        }
+
         return openAIRequest;
     }
 

@@ -28,6 +28,8 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.util.Map;
+
 /**
  * 文章 13：McpAgentExecutor + McpClient（NPX / 进程 MCP 服务器）
  *
@@ -50,7 +52,7 @@ public class Article13McpClientAgent {
     @Test
     public void mcpClientAgent() {
         McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
-            .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).build())
+            .llm(ChatAliyun.builder().model("qwen3.6-plus").temperature(0f).modelKwargs(Map.of("enable_thinking", false)).build())
             .tools(mcpClient, "filesystem")
             .systemPrompt("你是一个文件管理助手，可以浏览和读取 /tmp 目录中的文件。")
             .maxIterations(5)
