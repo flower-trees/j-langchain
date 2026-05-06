@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.core.history.storage;
+package org.salt.jlangchain.core.agent.storage;
 
 import org.salt.jlangchain.core.history.HistoryInfos;
 

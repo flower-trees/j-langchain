@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.core.agent;
+package org.salt.jlangchain.core.agent.memory;
 
 import org.apache.commons.lang3.StringUtils;
 import org.salt.jlangchain.core.message.BaseMessage;

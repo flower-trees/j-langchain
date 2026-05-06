@@ -12,9 +12,11 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.core.agent;
+package org.salt.jlangchain.core.agent.memory;
 
 import lombok.Data;
+import org.salt.jlangchain.core.agent.AgentExecutor;
+import org.salt.jlangchain.core.agent.McpAgentExecutor;
 import org.salt.jlangchain.core.message.AIMessage;
 import org.salt.jlangchain.core.message.BaseMessage;
 

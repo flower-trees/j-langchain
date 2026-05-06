@@ -22,6 +22,7 @@ import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.agent.memory.*;
 import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.handler.TranslateHandler;
 import org.salt.jlangchain.core.history.memory.ConversationMemoryStorerBase;

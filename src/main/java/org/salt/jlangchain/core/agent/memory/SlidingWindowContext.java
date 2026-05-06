@@ -12,12 +12,12 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.core.agent;
+package org.salt.jlangchain.core.agent.memory;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.salt.jlangchain.core.history.HistoryInfos;
-import org.salt.jlangchain.core.history.storage.AgentTaskStorage;
+import org.salt.jlangchain.core.agent.storage.AgentTaskStorage;
 import org.salt.jlangchain.core.llm.BaseChatModel;
 import org.salt.jlangchain.core.message.BaseMessage;
 import org.salt.jlangchain.core.message.HumanMessage;
