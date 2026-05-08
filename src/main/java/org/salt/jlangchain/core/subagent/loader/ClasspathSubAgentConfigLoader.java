@@ -73,6 +73,8 @@ public class ClasspathSubAgentConfigLoader implements SubAgentConfigLoader {
         return SubAgentConfig.builder()
                 .name(parsed.name())
                 .description(parsed.description())
+                .model(parsed.model())
+                .allowedTools(parsed.allowedTools())
                 .systemPrompt(parsed.body())
                 .skills(skills)
                 .maxIterations(parsed.maxIterations())
@@ -84,7 +86,7 @@ public class ClasspathSubAgentConfigLoader implements SubAgentConfigLoader {
     private AgentMdParsed parseAgentMd(String content) {
         String[] parts = content.split("(?m)^---\\s*$", 3);
         if (parts.length < 3) {
-            return new AgentMdParsed("", "", List.of(), null, content.trim());
+            return new AgentMdParsed("", "", null, List.of(), List.of(), null, content.trim());
         }
 
         Map<String, Object> fm = parseFrontmatter(parts[1].trim());
@@ -93,6 +95,8 @@ public class ClasspathSubAgentConfigLoader implements SubAgentConfigLoader {
         return new AgentMdParsed(
                 getString(fm, "name", ""),
                 getString(fm, "description", ""),
+                getString(fm, "model", null),
+                getStringList(fm, "tools"),
                 getStringList(fm, "skills"),
                 getInteger(fm, "max-iterations"),
                 body
@@ -153,7 +157,7 @@ public class ClasspathSubAgentConfigLoader implements SubAgentConfigLoader {
 
     private String getString(Map<String, Object> map, String key, String defaultVal) {
         Object val = map.get(key);
-        return val != null ? val.toString() : defaultVal;
+        return (val != null && !val.toString().isBlank()) ? val.toString() : defaultVal;
     }
 
     private Integer getInteger(Map<String, Object> map, String key) {
@@ -182,6 +186,7 @@ public class ClasspathSubAgentConfigLoader implements SubAgentConfigLoader {
         return List.of();
     }
 
-    private record AgentMdParsed(String name, String description, List<String> skillDirs,
+    private record AgentMdParsed(String name, String description, String model,
+                                  List<String> allowedTools, List<String> skillDirs,
                                   Integer maxIterations, String body) {}
 }

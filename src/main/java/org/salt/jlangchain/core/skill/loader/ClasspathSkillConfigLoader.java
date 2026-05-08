@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.core.skill.ScriptDef;
 import org.salt.jlangchain.core.skill.ScriptTool;
 import org.salt.jlangchain.core.skill.SkillConfig;
+import org.salt.jlangchain.core.subagent.SubAgentConfig;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.yaml.snakeyaml.Yaml;
@@ -36,6 +37,7 @@ import java.util.*;
  *   SKILL.md          → frontmatter (name, description, allowed-tools) + body (systemPrompt)
  *   references/*.md   → domain knowledge injected into systemPrompt
  *   scripts/*         → executable scripts converted to ScriptDef
+ *   agents/*.md       → embedded sub-agents (no frontmatter; name from filename, body as systemPrompt)
  * </pre>
  *
  * Works inside JAR files via Spring's {@link PathMatchingResourcePatternResolver}.
@@ -70,6 +72,7 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
         SkillMdParsed parsed = parseSkillMd(skillMdContent);
         List<String> references = loadReferences(dir);
         List<ScriptDef> scripts = loadScripts(dir);
+        List<SubAgentConfig> agents = loadAgents(dir);
 
         return SkillConfig.builder()
                 .name(parsed.name())
@@ -78,6 +81,7 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
                 .systemPrompt(parsed.body())
                 .references(references)
                 .scripts(scripts)
+                .agents(agents)
                 .maxIterations(parsed.maxIterations())
                 .build();
     }
@@ -157,6 +161,62 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
             log.debug("No scripts in {}/scripts/", dir);
             return List.of();
         }
+    }
+
+    // ── agents loading ───────────────────────────────────────────────────────
+
+    private List<SubAgentConfig> loadAgents(String dir) {
+        try {
+            Resource[] resources = RESOLVER.getResources("classpath:" + dir + "/agents/*.md");
+            List<SubAgentConfig> agents = new ArrayList<>();
+            for (Resource r : resources) {
+                String filename = r.getFilename();
+                if (filename == null) continue;
+                String name = filename.endsWith(".md")
+                        ? filename.substring(0, filename.length() - 3)
+                        : filename;
+                String content = readInputStream(r.getInputStream());
+                if (content == null || content.isBlank()) continue;
+
+                // Agent files may or may not have frontmatter
+                String[] parts = content.split("(?m)^---\\s*$", 3);
+                String body;
+                String model = null;
+                String description = extractFirstHeading(content);
+                if (parts.length >= 3) {
+                    Map<String, Object> fm = parseFrontmatter(parts[1].trim());
+                    body = parts[2].trim();
+                    model = getString(fm, "model", null);
+                    String fmDesc = getString(fm, "description", null);
+                    if (fmDesc != null && !fmDesc.isBlank()) description = fmDesc;
+                    String fmName = getString(fm, "name", null);
+                    if (fmName != null && !fmName.isBlank()) name = fmName;
+                } else {
+                    body = content.trim();
+                }
+
+                agents.add(SubAgentConfig.builder()
+                        .name(name)
+                        .description(description)
+                        .model(model)
+                        .systemPrompt(body)
+                        .build());
+            }
+            return agents;
+        } catch (IOException e) {
+            log.debug("No agents in {}/agents/", dir);
+            return List.of();
+        }
+    }
+
+    /** Extract first H1/H2 heading as a short description fallback. */
+    private String extractFirstHeading(String content) {
+        for (String line : content.split("\n")) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("# "))  return trimmed.substring(2).trim();
+            if (trimmed.startsWith("## ")) return trimmed.substring(3).trim();
+        }
+        return "";
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

@@ -18,6 +18,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.salt.jlangchain.core.subagent.SubAgentConfig;
 
 import java.util.List;
 
@@ -57,6 +58,13 @@ public class SkillConfig {
 
     /** Script definitions from scripts/*, converted to Tools at runtime. */
     private List<ScriptDef> scripts;
+
+    /**
+     * Embedded sub-agents from agents/*.md, registered as callable tools in the
+     * skill's internal executor. Each agent's body becomes its systemPrompt;
+     * name is derived from the filename.
+     */
+    private List<SubAgentConfig> agents;
 
     /** Max ReAct/FC iterations for the internal sub-agent. Null means use framework default (10). */
     private Integer maxIterations;

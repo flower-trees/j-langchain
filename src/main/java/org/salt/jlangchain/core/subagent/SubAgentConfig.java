@@ -28,7 +28,7 @@ import java.util.List;
  *
  * <p>Maps to the AGENT.md format:
  * <ul>
- *   <li>frontmatter fields → name, description, skills (dirs), max-iterations</li>
+ *   <li>frontmatter fields → name, description, model, skills (dirs), max-iterations</li>
  *   <li>AGENT.md body → systemPrompt</li>
  *   <li>skills → pre-loaded {@link SkillConfig} objects, injected as knowledge into systemPrompt</li>
  * </ul>
@@ -45,8 +45,22 @@ public class SubAgentConfig {
     /** Sub-agent description shown to the master LLM for routing decisions. */
     private String description;
 
+    /**
+     * Model hint from frontmatter. Special value {@code "inherit"} means the sub-agent
+     * does not own an LLM — it expects one to be injected by the parent agent at build time.
+     * Any other value is treated as a model identifier hint passed to the LLM factory (if set).
+     */
+    private String model;
+
     /** System prompt for the internal executor (AGENT.md body). */
     private String systemPrompt;
+
+    /**
+     * Whitelist of parent agent tool names this sub-agent is allowed to borrow.
+     * Maps to the {@code tools} frontmatter field in AGENT.md.
+     * When registered with a master agent, matching tools are injected automatically.
+     */
+    private List<String> allowedTools;
 
     /**
      * Skill knowledge to bake into this sub-agent's system prompt.
@@ -57,4 +71,8 @@ public class SubAgentConfig {
 
     /** Max function-calling iterations for the internal executor. Null means use default (10). */
     private Integer maxIterations;
+
+    public boolean isInheritModel() {
+        return "inherit".equalsIgnoreCase(model);
+    }
 }

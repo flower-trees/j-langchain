@@ -101,6 +101,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private List<Tool> tools = new ArrayList<>();
         private List<Skill> skills = new ArrayList<>();
         private List<SubAgent> subAgents = new ArrayList<>();
+        private Function<String, BaseChatModel> llmFactory;
         private String systemPrompt;
         private int maxIterations = 10;
         private AgentContext context;
@@ -160,6 +161,16 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
         public Builder subAgents(SubAgent... subAgents) {
             this.subAgents.addAll(List.of(subAgents));
+            return this;
+        }
+
+        /**
+         * Provide a factory that converts a model name to a {@link BaseChatModel}.
+         * Propagated to sub-agents whose AGENT.md specifies {@code model: <name>}
+         * (any non-inherit value) and have no explicit LLM set.
+         */
+        public Builder llmFactory(Function<String, BaseChatModel> factory) {
+            this.llmFactory = factory;
             return this;
         }
 
@@ -251,8 +262,19 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 tools.add(skill.asTool());
             }
 
-            // Sub-agents own their tools; just register as a tool
+            // Sub-agents: inject LLM / factory / parent tools, then register as tool
             for (SubAgent subAgent : subAgents) {
+                if (subAgent.isInheritModel()) {
+                    subAgent.injectLlm(llm);
+                } else if (llmFactory != null) {
+                    subAgent.injectLlmFactory(llmFactory);
+                }
+                if (!subAgent.getAllowedTools().isEmpty()) {
+                    List<Tool> allowed = tools.stream()
+                            .filter(t -> subAgent.getAllowedTools().contains(t.getName()))
+                            .toList();
+                    subAgent.injectParentTools(allowed);
+                }
                 tools.add(subAgent.asTool());
             }
 

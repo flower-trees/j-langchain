@@ -18,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.agent.McpAgentExecutor;
 import org.salt.jlangchain.core.llm.BaseChatModel;
+import org.salt.jlangchain.core.subagent.SubAgent;
+import org.salt.jlangchain.core.subagent.SubAgentConfig;
 import org.salt.jlangchain.rag.tools.Tool;
 
 import java.util.ArrayList;
@@ -140,6 +142,16 @@ public class Skill {
                 .systemPrompt(buildSystemPrompt())
                 .tools(allTools)
                 .maxIterations(maxIterations);
+
+        // Register embedded sub-agents from agents/ directory
+        if (config.getAgents() != null) {
+            for (SubAgentConfig agentConfig : config.getAgents()) {
+                SubAgent subAgent = SubAgent.from(agentConfig, chainActor)
+                        .llm(llm)
+                        .build();
+                builder.subAgent(subAgent);
+            }
+        }
 
         if (onLlm != null)          builder.onLlm(onLlm);
         if (onToolCall != null)     builder.onToolCall(onToolCall);

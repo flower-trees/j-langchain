@@ -25,28 +25,27 @@ import org.salt.jlangchain.rag.tools.Tool;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * A sub-agent is a self-contained, isolated agent unit that:
  * <ol>
- *   <li><b>Owns its tools</b> — declared via {@link Builder#tools(Tool...)}, not borrowed from a parent</li>
- *   <li><b>Pre-loads skill knowledge</b> — each {@link SkillConfig} in the config is baked into the
- *       system prompt so the sub-agent understands skill workflows without calling them as tools</li>
- *   <li><b>Exposes itself as a {@link Tool}</b> — via {@link #asTool()}, for registration in a master agent</li>
+ *   <li><b>Owns its tools</b> — declared via {@link Builder#tools(Tool...)}</li>
+ *   <li><b>Borrows parent tools</b> — declared via {@code tools} in AGENT.md frontmatter,
+ *       injected by the master agent at registration time (like Skill's {@code allowedTools})</li>
+ *   <li><b>Pre-loads skill knowledge</b> — each {@link SkillConfig} baked into systemPrompt</li>
+ *   <li><b>Flexible LLM resolution</b> — priority: {@code .llm()} > {@code model=inherit} (injected)
+ *       > {@code model=<name>} (resolved via {@code llmFactory})</li>
  * </ol>
- *
- * <p>Unlike {@link Skill}, a sub-agent does not participate in parent-tool injection ({@code allowedTools}).
- * It is fully self-sufficient.
  *
  * <pre>{@code
  * SubAgentConfig config = ClasspathSubAgentConfigLoader.fromClasspath("agents/travel-researcher");
  * SubAgent researcher = SubAgent.from(config, chainActor)
  *     .llm(llm)
- *     .tools(weatherTool, flightTool, hotelTool)
+ *     .tools(weatherTool, flightTool)
  *     .verbose(true)
  *     .build();
  *
- * // Register with master agent
  * McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
  *     .llm(masterLlm)
  *     .subAgent(researcher)
@@ -59,20 +58,27 @@ public class SubAgent {
     private final SubAgentConfig config;
     private final ChainActor chainActor;
     private final BaseChatModel llm;
+    private final Function<String, BaseChatModel> llmFactory;
     private final List<Tool> ownTools;
     private final List<Skill> callableSkills;
     private final int maxIterations;
     private final Consumer<String> onLlm;
     private final Consumer<String> onToolCall;
     private final Consumer<String> onObservation;
+
+    // injected after construction by the parent agent
+    private volatile BaseChatModel injectedLlm;
+    private volatile List<Tool> inheritedTools = List.of();
     private volatile McpAgentExecutor executor;
 
     private SubAgent(SubAgentConfig config, ChainActor chainActor, BaseChatModel llm,
+                     Function<String, BaseChatModel> llmFactory,
                      List<Tool> ownTools, List<Skill> callableSkills, int maxIterations,
                      Consumer<String> onLlm, Consumer<String> onToolCall, Consumer<String> onObservation) {
         this.config = config;
         this.chainActor = chainActor;
         this.llm = llm;
+        this.llmFactory = llmFactory;
         this.ownTools = new ArrayList<>(ownTools);
         this.callableSkills = new ArrayList<>(callableSkills);
         this.maxIterations = maxIterations;
@@ -90,6 +96,35 @@ public class SubAgent {
     public String getName() { return config.getName(); }
 
     public String getDescription() { return config.getDescription(); }
+
+    public boolean isInheritModel() { return config.isInheritModel(); }
+
+    public List<String> getAllowedTools() {
+        return config.getAllowedTools() != null ? config.getAllowedTools() : List.of();
+    }
+
+    // ── injection (called by McpAgentExecutor.Builder) ───────────────────────
+
+    /** Inject master agent's LLM when {@code model=inherit}. */
+    public void injectLlm(BaseChatModel llm) {
+        this.injectedLlm = llm;
+        this.executor = null;
+    }
+
+    /** Inject a factory so this sub-agent can build its own LLM from {@code model} name. */
+    public void injectLlmFactory(Function<String, BaseChatModel> factory) {
+        // only used if no explicit llm was set in builder
+        if (this.llm == null && !config.isInheritModel()) {
+            this.injectedLlm = factory.apply(config.getModel());
+            this.executor = null;
+        }
+    }
+
+    /** Inject tools from parent filtered by {@code allowedTools}. */
+    public void injectParentTools(List<Tool> tools) {
+        this.inheritedTools = new ArrayList<>(tools);
+        this.executor = null;
+    }
 
     // ── public API ───────────────────────────────────────────────────────────
 
@@ -117,18 +152,31 @@ public class SubAgent {
     // ── internal executor construction ───────────────────────────────────────
 
     private McpAgentExecutor buildExecutor() {
-        if (ownTools.isEmpty() && callableSkills.isEmpty()) {
+        List<Tool> allTools = collectTools();
+        if (allTools.isEmpty() && callableSkills.isEmpty()) {
             throw new IllegalStateException(
-                    "SubAgent '" + getName() + "' has no tools. Add via .tools() or .skill().");
+                    "SubAgent '" + getName() + "' has no tools. " +
+                    "Add via .tools(), declare allowedTools in config, or add .skill().");
+        }
+
+        BaseChatModel resolvedLlm = resolveLlm();
+        if (resolvedLlm == null) {
+            throw new IllegalStateException(
+                    "SubAgent '" + getName() + "' has no LLM. " +
+                    (config.isInheritModel()
+                        ? "model=inherit: parent agent must register this sub-agent before invoking."
+                        : config.getModel() != null
+                            ? "model=" + config.getModel() + ": provide llmFactory in McpAgentExecutor.builder()."
+                            : "Call .llm() in the builder."));
         }
 
         log.debug("Building executor for sub-agent '{}' with {} tool(s), {} callable skill(s)",
-                getName(), ownTools.size(), callableSkills.size());
+                getName(), allTools.size(), callableSkills.size());
 
         var builder = McpAgentExecutor.builder(chainActor)
-                .llm(llm)
+                .llm(resolvedLlm)
                 .systemPrompt(buildSystemPrompt())
-                .tools(ownTools)
+                .tools(allTools)
                 .maxIterations(maxIterations);
 
         for (Skill skill : callableSkills) {
@@ -140,6 +188,21 @@ public class SubAgent {
         if (onObservation != null)  builder.onObservation(onObservation);
 
         return builder.build();
+    }
+
+    private BaseChatModel resolveLlm() {
+        if (llm != null) return llm;            // highest priority: explicit builder.llm()
+        if (injectedLlm != null) return injectedLlm;  // inherit or factory-resolved
+        if (llmFactory != null && config.getModel() != null && !config.isInheritModel()) {
+            return llmFactory.apply(config.getModel());
+        }
+        return null;
+    }
+
+    private List<Tool> collectTools() {
+        List<Tool> all = new ArrayList<>(ownTools);
+        all.addAll(inheritedTools);
+        return all;
     }
 
     private String buildSystemPrompt() {
@@ -172,6 +235,7 @@ public class SubAgent {
         private final SubAgentConfig config;
         private final ChainActor chainActor;
         private BaseChatModel llm;
+        private Function<String, BaseChatModel> llmFactory;
         private final List<Tool> ownTools = new ArrayList<>();
         private final List<Skill> callableSkills = new ArrayList<>();
         private Integer maxIterations;
@@ -186,6 +250,16 @@ public class SubAgent {
 
         public Builder llm(BaseChatModel llm) {
             this.llm = llm;
+            return this;
+        }
+
+        /**
+         * Provide a factory that converts a model name string to a {@link BaseChatModel}.
+         * Used when AGENT.md specifies {@code model: qwen-plus} (or any non-inherit value)
+         * and no explicit {@link #llm(BaseChatModel)} is set.
+         */
+        public Builder llmFactory(Function<String, BaseChatModel> factory) {
+            this.llmFactory = factory;
             return this;
         }
 
@@ -251,13 +325,19 @@ public class SubAgent {
         }
 
         public SubAgent build() {
-            if (llm == null) {
-                throw new IllegalStateException("llm must be set for sub-agent: " + config.getName());
+            // llm required unless: model=inherit (injected later) OR model is named (factory resolves later)
+            boolean llmWillBeProvided = config.isInheritModel()
+                    || (config.getModel() != null && !config.getModel().isBlank())
+                    || llmFactory != null;
+            if (llm == null && !llmWillBeProvided) {
+                throw new IllegalStateException(
+                        "llm must be set for sub-agent '" + config.getName() + "'. " +
+                        "Alternatively set model=inherit or model=<name> + llmFactory.");
             }
             int resolvedMaxIter = maxIterations != null ? maxIterations
                     : (config.getMaxIterations() != null ? config.getMaxIterations() : DEFAULT_MAX_ITERATIONS);
-            return new SubAgent(config, chainActor, llm, ownTools, callableSkills, resolvedMaxIter,
-                    onLlm, onToolCall, onObservation);
+            return new SubAgent(config, chainActor, llm, llmFactory, ownTools, callableSkills,
+                    resolvedMaxIter, onLlm, onToolCall, onObservation);
         }
     }
 }
