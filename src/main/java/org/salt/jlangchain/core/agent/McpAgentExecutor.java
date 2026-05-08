@@ -32,6 +32,7 @@ import org.salt.jlangchain.core.parser.StrOutputParser;
 import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.prompt.chat.ChatPromptTemplate;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
+import org.salt.jlangchain.core.skill.Skill;
 import org.salt.jlangchain.rag.tools.Tool;
 import org.salt.jlangchain.rag.tools.annotation.ToolScanner;
 import org.salt.jlangchain.rag.tools.mcp.McpClient;
@@ -97,6 +98,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private final ChainActor chainActor;
         private BaseChatModel llm;
         private List<Tool> tools = new ArrayList<>();
+        private List<Skill> skills = new ArrayList<>();
         private String systemPrompt;
         private int maxIterations = 10;
         private AgentContext context;
@@ -136,6 +138,16 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
         public Builder tools(McpManager mcpManager, String group) {
             this.tools.addAll(mcpManager.toTools(group));
+            return this;
+        }
+
+        public Builder skill(Skill skill) {
+            this.skills.add(skill);
+            return this;
+        }
+
+        public Builder skills(Skill... skills) {
+            this.skills.addAll(List.of(skills));
             return this;
         }
 
@@ -204,6 +216,16 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
         public McpAgentExecutor build() {
             if (llm == null) throw new IllegalStateException("llm must be set");
+
+            // Inject allowed parent tools into each skill, then register skill as a tool
+            for (Skill skill : skills) {
+                List<Tool> allowed = tools.stream()
+                        .filter(t -> skill.getAllowedTools().contains(t.getName()))
+                        .toList();
+                skill.injectParentTools(allowed);
+                tools.add(skill.asTool());
+            }
+
             if (tools == null || tools.isEmpty()) throw new IllegalStateException("at least one tool must be provided");
 
             // ── 1. Build tool lookup map and AiChatInput.Tool list for the LLM ──
