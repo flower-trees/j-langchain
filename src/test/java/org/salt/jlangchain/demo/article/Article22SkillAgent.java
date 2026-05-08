@@ -99,7 +99,7 @@ public class Article22SkillAgent {
 
         // Load skill from classpath SKILL.md
         SkillConfig config = ClasspathSkillConfigLoader.fromClasspath("skills/travel-planner");
-        Skill travelSkill = Skill.from(config, chainActor).llm(llm).build();
+        Skill travelSkill = Skill.from(config, chainActor).llm(llm).verbose(true).build();
 
         // Master agent: owns all tools, skill borrows allowed-tools via Scene B injection
         McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
@@ -162,7 +162,9 @@ public class Article22SkillAgent {
         SkillConfig config = ClasspathSkillConfigLoader.fromClasspath("skills/travel-planner");
         Skill skill = Skill.from(config, chainActor)
                 .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
-                .tools(weatherTool, flightTool, hotelTool)  // 直接传工具，不走 Scene B
+                .tools(weatherTool, flightTool, hotelTool)
+                .onToolCall(tc  -> System.out.println("[ToolCall]    " + tc))
+                .onObservation(obs -> System.out.println("[Observation] " + obs))
                 .build();
 
         String result = skill.invoke("我想去三亚旅游，出发地上海");

@@ -78,6 +78,7 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
                 .systemPrompt(parsed.body())
                 .references(references)
                 .scripts(scripts)
+                .maxIterations(parsed.maxIterations())
                 .build();
     }
 
@@ -88,7 +89,7 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
         String[] parts = content.split("(?m)^---\\s*$", 3);
         if (parts.length < 3) {
             // No frontmatter — treat the whole file as systemPrompt
-            return new SkillMdParsed("", "", List.of(), content.trim());
+            return new SkillMdParsed("", "", List.of(), null, content.trim());
         }
 
         // parts[0] = "" (before first ---), parts[1] = YAML, parts[2] = body
@@ -99,6 +100,7 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
                 getString(fm, "name", ""),
                 getString(fm, "description", ""),
                 getStringList(fm, "allowed-tools"),
+                getInteger(fm, "max-iterations"),
                 body
         );
     }
@@ -188,6 +190,17 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
         return val != null ? val.toString() : defaultVal;
     }
 
+    private Integer getInteger(Map<String, Object> map, String key) {
+        Object val = map.get(key);
+        if (val == null) return null;
+        try {
+            return Integer.parseInt(val.toString());
+        } catch (NumberFormatException e) {
+            log.warn("Invalid integer value for '{}': {}", key, val);
+            return null;
+        }
+    }
+
     private List<String> getStringList(Map<String, Object> map, String key) {
         Object val = map.get(key);
         if (val == null) return List.of();
@@ -203,5 +216,5 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
         return List.of();
     }
 
-    private record SkillMdParsed(String name, String description, List<String> allowedTools, String body) {}
+    private record SkillMdParsed(String name, String description, List<String> allowedTools, Integer maxIterations, String body) {}
 }

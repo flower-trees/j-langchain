@@ -5,6 +5,7 @@ allowed-tools:
   - get_weather
   - get_flight_price
   - get_hotel_price
+max-iterations: 15
 ---
 
 # 旅行规划工作流

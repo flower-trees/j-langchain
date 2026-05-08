@@ -22,6 +22,7 @@ import org.salt.jlangchain.rag.tools.Tool;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * A skill is a self-contained, reusable agent unit that wraps a
@@ -39,16 +40,12 @@ import java.util.List;
  *       {@link SkillConfig#getAllowedTools()}</li>
  * </ol>
  *
- * <pre>{@code
- * SkillConfig config = ClasspathSkillConfigLoader.load("skills/flight-search");
- * Skill skill = Skill.from(config, chainActor).llm(llm).build();
- *
- * McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
- *     .llm(masterLlm)
- *     .tools(dbTool, flightQueryTool)
- *     .skill(skill)
- *     .build();
- * }</pre>
+ * <p>Observability:
+ * <ul>
+ *   <li>{@link Builder#verbose(boolean)} — auto-wires console logging with skill-name prefix</li>
+ *   <li>{@link Builder#onToolCall}, {@link Builder#onObservation}, {@link Builder#onLlm}
+ *       — fine-grained callbacks for production monitoring</li>
+ * </ul>
  */
 @Slf4j
 public class Skill {
@@ -57,14 +54,24 @@ public class Skill {
     private final ChainActor chainActor;
     private final BaseChatModel llm;
     private final List<Tool> ownTools;
+    private final int maxIterations;
+    private final Consumer<String> onLlm;
+    private final Consumer<String> onToolCall;
+    private final Consumer<String> onObservation;
     private List<Tool> parentTools = new ArrayList<>();
     private volatile McpAgentExecutor executor;
 
-    private Skill(SkillConfig config, ChainActor chainActor, BaseChatModel llm, List<Tool> ownTools) {
+    private Skill(SkillConfig config, ChainActor chainActor, BaseChatModel llm,
+                  List<Tool> ownTools, int maxIterations,
+                  Consumer<String> onLlm, Consumer<String> onToolCall, Consumer<String> onObservation) {
         this.config = config;
         this.chainActor = chainActor;
         this.llm = llm;
         this.ownTools = new ArrayList<>(ownTools);
+        this.maxIterations = maxIterations;
+        this.onLlm = onLlm;
+        this.onToolCall = onToolCall;
+        this.onObservation = onObservation;
     }
 
     public static Builder from(SkillConfig config, ChainActor chainActor) {
@@ -89,7 +96,7 @@ public class Skill {
 
     public void injectParentTools(List<Tool> tools) {
         this.parentTools = new ArrayList<>(tools);
-        this.executor = null; // reset so executor rebuilds with new tools
+        this.executor = null;
     }
 
     // ── public API ───────────────────────────────────────────────────────────
@@ -128,11 +135,17 @@ public class Skill {
         log.debug("Building internal executor for skill '{}' with {} tool(s): {}",
                 getName(), allTools.size(), allTools.stream().map(Tool::getName).toList());
 
-        return McpAgentExecutor.builder(chainActor)
+        var builder = McpAgentExecutor.builder(chainActor)
                 .llm(llm)
                 .systemPrompt(buildSystemPrompt())
                 .tools(allTools)
-                .build();
+                .maxIterations(maxIterations);
+
+        if (onLlm != null)          builder.onLlm(onLlm);
+        if (onToolCall != null)     builder.onToolCall(onToolCall);
+        if (onObservation != null)  builder.onObservation(onObservation);
+
+        return builder.build();
     }
 
     private List<Tool> collectTools() {
@@ -161,10 +174,16 @@ public class Skill {
 
     public static class Builder {
 
+        private static final int DEFAULT_MAX_ITERATIONS = 10;
+
         private final SkillConfig config;
         private final ChainActor chainActor;
         private BaseChatModel llm;
         private final List<Tool> ownTools = new ArrayList<>();
+        private Integer maxIterations;
+        private Consumer<String> onLlm;
+        private Consumer<String> onToolCall;
+        private Consumer<String> onObservation;
 
         private Builder(SkillConfig config, ChainActor chainActor) {
             this.config = config;
@@ -186,11 +205,65 @@ public class Skill {
             return this;
         }
 
+        /** Override max iterations. Priority: this > SkillConfig.maxIterations > default (10). */
+        public Builder maxIterations(int maxIterations) {
+            this.maxIterations = maxIterations;
+            return this;
+        }
+
+        /**
+         * Enable verbose console logging for the internal sub-agent.
+         * Prefixes every line with {@code [skill:<name>]} so master and skill
+         * events are visually distinct.
+         *
+         * <pre>
+         * [master]              ToolCall: travel_planner {...}
+         *   [skill:travel_planner] ToolCall: get_weather {"city":"成都"}
+         *   [skill:travel_planner] Observation: 成都：多云，18~26°C
+         * [master]              Observation: （skill 最终返回）
+         * </pre>
+         */
+        public Builder verbose(boolean enabled) {
+            if (enabled) {
+                String skillName = config.getName();
+                String prefix = "[skill:" + skillName + "] ";
+                this.onLlm         = msg -> System.out.println(prefix + "LLM input:\n" + msg);
+                this.onToolCall    = tc  -> System.out.println(prefix + "ToolCall: " + tc);
+                this.onObservation = obs -> System.out.println(prefix + "Observation: " + obs);
+            } else {
+                this.onLlm = null;
+                this.onToolCall = null;
+                this.onObservation = null;
+            }
+            return this;
+        }
+
+        /** Fine-grained callback: called with the full prompt before each LLM invocation. */
+        public Builder onLlm(Consumer<String> consumer) {
+            this.onLlm = consumer;
+            return this;
+        }
+
+        /** Fine-grained callback: called with "{toolName} {argsJson}" on each tool call. */
+        public Builder onToolCall(Consumer<String> consumer) {
+            this.onToolCall = consumer;
+            return this;
+        }
+
+        /** Fine-grained callback: called with the tool result string after each tool call. */
+        public Builder onObservation(Consumer<String> consumer) {
+            this.onObservation = consumer;
+            return this;
+        }
+
         public Skill build() {
             if (llm == null) {
                 throw new IllegalStateException("llm must be set for skill: " + config.getName());
             }
-            return new Skill(config, chainActor, llm, ownTools);
+            int resolvedMaxIter = maxIterations != null ? maxIterations
+                    : (config.getMaxIterations() != null ? config.getMaxIterations() : DEFAULT_MAX_ITERATIONS);
+            return new Skill(config, chainActor, llm, ownTools, resolvedMaxIter,
+                    onLlm, onToolCall, onObservation);
         }
     }
 }

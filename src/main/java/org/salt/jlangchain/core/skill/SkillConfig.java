@@ -57,4 +57,7 @@ public class SkillConfig {
 
     /** Script definitions from scripts/*, converted to Tools at runtime. */
     private List<ScriptDef> scripts;
+
+    /** Max ReAct/FC iterations for the internal sub-agent. Null means use framework default (10). */
+    private Integer maxIterations;
 }
