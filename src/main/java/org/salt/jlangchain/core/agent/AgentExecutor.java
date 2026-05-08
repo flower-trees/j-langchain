@@ -186,6 +186,19 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
+        public Builder verbose(boolean enabled) {
+            if (enabled) {
+                this.llmConsumer         = msg -> System.out.println("[LLM]\n" + msg);
+                this.thoughtConsumer     = t   -> System.out.print("[Thought] " + t);
+                this.observationConsumer = obs -> System.out.println("[Observation] " + obs);
+            } else {
+                this.llmConsumer = null;
+                this.thoughtConsumer = null;
+                this.observationConsumer = null;
+            }
+            return this;
+        }
+
         public AgentExecutor build() {
             if (llm == null) throw new IllegalStateException("llm must be set");
             if (tools == null || tools.isEmpty()) throw new IllegalStateException("at least one tool must be provided");

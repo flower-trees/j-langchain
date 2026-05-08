@@ -209,6 +209,19 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
+        public Builder verbose(boolean enabled) {
+            if (enabled) {
+                this.llmConsumer         = msg -> System.out.println("[LLM]\n" + msg);
+                this.toolCallConsumer    = tc  -> System.out.println("[ToolCall] " + tc);
+                this.observationConsumer = obs -> System.out.println("[Observation] " + obs);
+            } else {
+                this.llmConsumer = null;
+                this.toolCallConsumer = null;
+                this.observationConsumer = null;
+            }
+            return this;
+        }
+
         public Builder authorization(java.util.function.Supplier<String> supplier) {
             this.authorizationSupplier = supplier;
             return this;
