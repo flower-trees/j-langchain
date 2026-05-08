@@ -33,6 +33,7 @@ import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.prompt.chat.ChatPromptTemplate;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
 import org.salt.jlangchain.core.skill.Skill;
+import org.salt.jlangchain.core.subagent.SubAgent;
 import org.salt.jlangchain.rag.tools.Tool;
 import org.salt.jlangchain.rag.tools.annotation.ToolScanner;
 import org.salt.jlangchain.rag.tools.mcp.McpClient;
@@ -99,6 +100,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private BaseChatModel llm;
         private List<Tool> tools = new ArrayList<>();
         private List<Skill> skills = new ArrayList<>();
+        private List<SubAgent> subAgents = new ArrayList<>();
         private String systemPrompt;
         private int maxIterations = 10;
         private AgentContext context;
@@ -148,6 +150,16 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
         public Builder skills(Skill... skills) {
             this.skills.addAll(List.of(skills));
+            return this;
+        }
+
+        public Builder subAgent(SubAgent subAgent) {
+            this.subAgents.add(subAgent);
+            return this;
+        }
+
+        public Builder subAgents(SubAgent... subAgents) {
+            this.subAgents.addAll(List.of(subAgents));
             return this;
         }
 
@@ -237,6 +249,11 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                         .toList();
                 skill.injectParentTools(allowed);
                 tools.add(skill.asTool());
+            }
+
+            // Sub-agents own their tools; just register as a tool
+            for (SubAgent subAgent : subAgents) {
+                tools.add(subAgent.asTool());
             }
 
             if (tools == null || tools.isEmpty()) throw new IllegalStateException("at least one tool must be provided");
