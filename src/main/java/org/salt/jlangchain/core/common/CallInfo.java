@@ -25,5 +25,7 @@ public enum CallInfo {
     QUESTION,
     ANSWER,
     AGENT_TASK_CTX,
+    STOP_SIGNAL,
+    PRELOADED_CTX,
     ;
 }

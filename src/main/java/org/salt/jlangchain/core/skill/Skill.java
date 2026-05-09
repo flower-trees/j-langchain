@@ -22,8 +22,12 @@ import org.salt.jlangchain.core.subagent.SubAgent;
 import org.salt.jlangchain.core.subagent.SubAgentConfig;
 import org.salt.jlangchain.rag.tools.Tool;
 
+import org.salt.function.flow.context.ContextBus;
+import org.salt.jlangchain.core.common.CallInfo;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -123,7 +127,13 @@ public class Skill {
                 }
             }
         }
-        return executor.invoke(input).getText();
+        // Propagate parent's stop signal so a master stop cascades into this skill
+        AtomicBoolean parentSignal = null;
+        if (ContextBus.get() != null) {
+            parentSignal = ((org.salt.function.flow.context.IContextBus) ContextBus.get())
+                    .getTransmit(CallInfo.STOP_SIGNAL.name());
+        }
+        return executor.invoke(input, parentSignal).getText();
     }
 
     // ── internal executor construction ───────────────────────────────────────

@@ -25,6 +25,7 @@ import org.salt.jlangchain.core.message.MessageType;
 import org.salt.jlangchain.core.message.SystemMessage;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -148,6 +149,11 @@ public class SlidingWindowContext implements AgentContext {
         @Override
         public String getTaskId() {
             return taskId;
+        }
+
+        @Override
+        public List<AgentStep> getCompletedSteps() {
+            return Collections.unmodifiableList(recentSteps);
         }
 
         private void compressEarliestStep() {

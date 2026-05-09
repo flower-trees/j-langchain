@@ -17,6 +17,7 @@ package org.salt.jlangchain.core.agent.memory;
 import org.salt.jlangchain.core.message.BaseMessage;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -46,4 +47,9 @@ public interface AgentTaskContext {
 
     /** Unique id for this task execution instance. */
     String getTaskId();
+
+    /** Returns the steps completed so far (unmodifiable). Used by stop/resume. */
+    default List<AgentStep> getCompletedSteps() {
+        return Collections.emptyList();
+    }
 }

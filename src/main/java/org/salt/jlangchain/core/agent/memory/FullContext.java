@@ -20,6 +20,7 @@ import org.salt.jlangchain.core.message.HumanMessage;
 import org.salt.jlangchain.core.message.SystemMessage;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -98,6 +99,11 @@ public class FullContext implements AgentContext {
         @Override
         public String getTaskId() {
             return taskId;
+        }
+
+        @Override
+        public List<AgentStep> getCompletedSteps() {
+            return Collections.unmodifiableList(recentSteps);
         }
     }
 }

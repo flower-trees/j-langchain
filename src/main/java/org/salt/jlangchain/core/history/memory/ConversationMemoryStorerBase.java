@@ -17,6 +17,7 @@ package org.salt.jlangchain.core.history.memory;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
+import org.salt.jlangchain.core.agent.memory.AgentTaskContext;
 import org.salt.jlangchain.core.history.HistoryStorerBase;
 import org.salt.jlangchain.core.history.storage.ConversationStorage;
 
@@ -39,4 +40,10 @@ public abstract class ConversationMemoryStorerBase extends HistoryStorerBase {
 
     protected ConversationStorage storage;
     protected Integer maxSize = 100;
+
+    /**
+     * Called when an agent is stopped mid-execution. Subclasses may persist the
+     * partial context; the default implementation is a no-op.
+     */
+    public void savePartial(AgentTaskContext partialContext) {}
 }

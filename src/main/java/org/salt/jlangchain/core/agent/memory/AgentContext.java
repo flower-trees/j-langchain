@@ -17,6 +17,8 @@ package org.salt.jlangchain.core.agent.memory;
 import org.salt.jlangchain.core.agent.AgentExecutor;
 import org.salt.jlangchain.core.agent.McpAgentExecutor;
 
+import java.util.List;
+
 /**
  * Factory for per-invocation {@link AgentTaskContext} instances.
  *
@@ -39,4 +41,18 @@ public interface AgentContext {
      * @param systemPrompt optional system prompt (may be null)
      */
     AgentTaskContext create(String question, String systemPrompt);
+
+    /**
+     * Create an {@link AgentTaskContext} pre-loaded with prior steps (warm start).
+     * The outer layer (session-task manager) is responsible for assembling {@code priorSteps};
+     * the agent itself does not distinguish resume from a fresh start.
+     */
+    default AgentTaskContext createWithSteps(String question, String systemPrompt,
+                                              List<AgentStep> priorSteps) {
+        AgentTaskContext ctx = create(question, systemPrompt);
+        if (priorSteps != null) {
+            priorSteps.forEach(ctx::addStep);
+        }
+        return ctx;
+    }
 }

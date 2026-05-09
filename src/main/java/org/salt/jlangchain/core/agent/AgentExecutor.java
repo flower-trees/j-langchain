@@ -36,8 +36,10 @@ import org.salt.jlangchain.rag.tools.annotation.ToolScanner;
 import org.salt.jlangchain.utils.PromptUtil;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -89,19 +91,51 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
     private final FlowInstance agentChain;
     private final ChainActor chainActor;
+    private volatile AtomicBoolean stopSignal = new AtomicBoolean(false);
+    private final ConversationMemoryStorerBase conversationStorer;
 
-    private AgentExecutor(ChainActor chainActor, FlowInstance agentChain) {
+    private AgentExecutor(ChainActor chainActor, FlowInstance agentChain,
+                           ConversationMemoryStorerBase conversationStorer) {
         this.chainActor = chainActor;
         this.agentChain = agentChain;
+        this.conversationStorer = conversationStorer;
     }
+
+    /** Stop the currently running invocation. Safe to call from any thread. */
+    public void stop() {
+        stopSignal.set(true);
+    }
+
+    // ── invoke overloads ─────────────────────────────────────────────────────
 
     @Override
     public ChatGeneration invoke(Object input) {
-        return (ChatGeneration) chainActor.invoke(agentChain, Map.of("input", input.toString()));
+        return invoke(input.toString(), null, null);
     }
 
     public ChatGeneration invoke(String input) {
-        return invoke((Object) input);
+        return invoke(input, null, null);
+    }
+
+    public ChatGeneration invoke(String input, AtomicBoolean externalSignal) {
+        return invoke(input, externalSignal, null);
+    }
+
+    public ChatGeneration invoke(String input, AgentTaskContext preloadedCtx) {
+        return invoke(input, null, preloadedCtx);
+    }
+
+    public ChatGeneration invoke(String input, AtomicBoolean externalSignal, AgentTaskContext preloadedCtx) {
+        this.stopSignal = externalSignal != null ? externalSignal : new AtomicBoolean(false);
+        Map<String, Object> transmitMap = new HashMap<>();
+        transmitMap.put(CallInfo.STOP_SIGNAL.name(), stopSignal);
+        if (preloadedCtx != null) transmitMap.put(CallInfo.PRELOADED_CTX.name(), preloadedCtx);
+        try {
+            return (ChatGeneration) chainActor.invoke(agentChain, Map.of("input", input), transmitMap);
+        } catch (AgentStoppedException e) {
+            if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
+            throw e;
+        }
     }
 
     public static Builder builder(ChainActor chainActor) {
@@ -218,7 +252,10 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 String question = (input instanceof Map<?, ?> m && m.get("input") != null)
                         ? m.get("input").toString()
                         : input.toString();
-                AgentTaskContext ctx = contextFinal.create(question, null);
+                AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.PRELOADED_CTX.name());
+                if (ctx == null) {
+                    ctx = contextFinal.create(question, null);
+                }
                 ContextBus.get().putTransmit(CallInfo.AGENT_TASK_CTX.name(), ctx);
                 ContextBus.get().putTransmit(CallInfo.QUESTION.name(), question);
                 return input;
@@ -251,6 +288,11 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
             int maxIter = this.maxIterations;
             Function<Integer, Boolean> shouldContinue = i -> {
+                AtomicBoolean signal = ContextBus.get().getTransmit(CallInfo.STOP_SIGNAL.name());
+                if (signal != null && signal.get()) {
+                    AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                    throw new AgentStoppedException("Agent stopped by external request", ctx);
+                }
                 Map<String, String> parsed = ContextBus.get().getResult(parseAction.getNodeId());
                 return i < maxIter
                     && (parsed == null || (parsed.containsKey("Action") && parsed.containsKey("Action Input")));
@@ -327,7 +369,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     ? chainBuilder.next(conversationStorerFinal).build()
                     : chainBuilder.build();
 
-            return new AgentExecutor(chainActor, agentChain);
+            return new AgentExecutor(chainActor, agentChain, conversationStorerFinal);
         }
     }
 }
