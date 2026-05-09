@@ -20,6 +20,9 @@ import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.agent.McpAgentExecutor;
 import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
+import org.salt.jlangchain.core.skill.Skill;
+import org.salt.jlangchain.core.skill.SkillConfig;
+import org.salt.jlangchain.core.skill.loader.ClasspathSkillConfigLoader;
 import org.salt.jlangchain.core.subagent.SubAgent;
 import org.salt.jlangchain.core.subagent.SubAgentConfig;
 import org.salt.jlangchain.core.subagent.loader.ClasspathSubAgentConfigLoader;
@@ -40,11 +43,15 @@ import java.util.function.Function;
  *   <li>SubAgent 将 SkillConfig 的工作流知识预注入 systemPrompt，而非作为可调用 tool</li>
  * </ul>
  *
- * <p>三种演示场景：
+ * <p>演示场景：
  * <ol>
  *   <li>独立运行 SubAgent（不挂 Master Agent）</li>
  *   <li>classpath AGENT.md 加载 + Master Agent 注册</li>
  *   <li>代码直接构造 SubAgentConfig（无文件依赖）</li>
+ *   <li>model=inherit：SubAgent 继承 Master 的 LLM</li>
+ *   <li>model + llmFactory：Master 通过工厂为 SubAgent 按名构建 LLM</li>
+ *   <li>allowedTools：SubAgent 通过 tools 字段从 Master 借用工具</li>
+ *   <li>SKILL 内嵌 SubAgent：agents/ 目录下的 agent 自动注册为 skill 内部工具</li>
  * </ol>
  */
 @RunWith(SpringRunner.class)
@@ -171,6 +178,153 @@ public class Article23SubAgent {
                 .build();
 
         String result = agent.invoke("我打算去桂林，帮我查一下");
+        System.out.println(result);
+    }
+
+    // ── 测试 4：model=inherit —— SubAgent 继承 Master 的 LLM ─────────────────
+
+    @Test
+    public void testInheritModel() {
+        TravelTools tools = new TravelTools();
+        var masterLlm = ChatAliyun.builder().model("qwen-plus").temperature(0f).build();
+
+        // AGENT.md: model: inherit，不需要在 builder 里指定 llm
+        SubAgentConfig config = ClasspathSubAgentConfigLoader.fromClasspath("agents/weather-checker");
+        // model=inherit → llm 由 master 在 build() 时注入，builder 里不设置 llm
+        SubAgent weatherAgent = SubAgent.from(config, chainActor)
+                .tools(buildTool("get_weather", "查询城市天气", "city: String", tools::getWeather))
+                .onToolCall(tc  -> System.out.println("[weather_checker] ToolCall: " + tc))
+                .onObservation(obs -> System.out.println("[weather_checker] Observation: " + obs))
+                .build();
+
+        McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
+                .llm(masterLlm)           // 这个 llm 会被注入到 model=inherit 的 SubAgent
+                .subAgent(weatherAgent)
+                .systemPrompt("你是旅行助手，天气查询任务请使用 weather_checker。")
+                .onToolCall(tc  -> System.out.println("[master] ToolCall: " + tc))
+                .onObservation(obs -> System.out.println("[master] Observation: " + obs))
+                .build();
+
+        String result = master.invoke("成都现在天气怎么样？").getText();
+        System.out.println("\n========== model=inherit 结果 ==========");
+        System.out.println(result);
+    }
+
+    // ── 测试 5：model + llmFactory —— Master 按模型名构建 LLM ────────────────
+
+    @Test
+    public void testLlmFactory() {
+        TravelTools tools = new TravelTools();
+
+        // SubAgent 在 config 里指定 model，不在 builder 里传 llm
+        SubAgentConfig config = SubAgentConfig.builder()
+                .name("flight_checker")
+                .description("机票价格查询专员。当需要查询机票信息时使用。")
+                .model("qwen-turbo")   // 由 master 的 llmFactory 解析
+                .systemPrompt("你是机票查询专员，收到城市名后调用 get_flight_price，返回机票价格。")
+                .build();
+
+        SubAgent flightAgent = SubAgent.from(config, chainActor)
+                // 不调用 .llm()，由 llmFactory 在 master build() 时解析
+                .tools(buildTool("get_flight_price", "查询机票价格", "city: String", tools::getFlightPrice))
+                .onToolCall(tc  -> System.out.println("[flight_checker] ToolCall: " + tc))
+                .onObservation(obs -> System.out.println("[flight_checker] Observation: " + obs))
+                .build();
+
+        McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
+                .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
+                .llmFactory(modelName ->
+                    ChatAliyun.builder().model(modelName).temperature(0f).build()
+                )
+                .subAgent(flightAgent)
+                .systemPrompt("你是旅行助手，机票查询任务请使用 flight_checker。")
+                .onToolCall(tc  -> System.out.println("[master] ToolCall: " + tc))
+                .build();
+
+        String result = master.invoke("帮我查一下上海到西安的机票").getText();
+        System.out.println("\n========== llmFactory 结果 ==========");
+        System.out.println(result);
+    }
+
+    // ── 测试 6：allowedTools —— SubAgent 从 Master 借用工具 ──────────────────
+
+    @Test
+    public void testAllowedToolsFromParent() {
+        TravelTools tools = new TravelTools();
+        var llm = ChatAliyun.builder().model("qwen-plus").temperature(0f).build();
+
+        Tool weatherTool = buildTool("get_weather",      "查询城市天气", "city: String", tools::getWeather);
+        Tool flightTool  = buildTool("get_flight_price", "查询机票价格", "city: String", tools::getFlightPrice);
+        Tool hotelTool   = buildTool("get_hotel_price",  "查询酒店均价", "city: String", tools::getHotelPrice);
+
+        // SubAgent 声明只借 get_weather 和 get_hotel_price，不需要 get_flight_price
+        SubAgentConfig config = SubAgentConfig.builder()
+                .name("accommodation_advisor")
+                .description("住宿建议专员。查询天气和酒店价格，给出住宿建议。当需要住宿信息时使用。")
+                .allowedTools(java.util.List.of("get_weather", "get_hotel_price"))
+                .systemPrompt("""
+                        你是住宿建议专员。
+                        收到城市名后，依次调用 get_weather 和 get_hotel_price，
+                        结合天气和酒店价格给出住宿选择建议。
+                        """)
+                .build();
+
+        // SubAgent 自己没有 tools，全部来自 allowedTools 注入
+        SubAgent advisor = SubAgent.from(config, chainActor)
+                .llm(llm)
+                .onToolCall(tc  -> System.out.println("[accommodation_advisor] ToolCall: " + tc))
+                .onObservation(obs -> System.out.println("[accommodation_advisor] Observation: " + obs))
+                .build();
+
+        // Master 拥有全部 3 个工具，SubAgent 只会得到 allowedTools 里声明的两个
+        McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
+                .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
+                .tools(weatherTool, flightTool, hotelTool)
+                .subAgent(advisor)
+                .systemPrompt("你是旅行总助手，住宿建议任务请使用 accommodation_advisor。")
+                .onToolCall(tc  -> System.out.println("[master] ToolCall: " + tc))
+                .build();
+
+        String result = master.invoke("我想去桂林，帮我看看住哪里合适").getText();
+        System.out.println("\n========== allowedTools 结果 ==========");
+        System.out.println(result);
+    }
+
+    // ── 测试 7：SKILL 内嵌 SubAgent (agents/ 目录) ───────────────────────────
+
+    @Test
+    public void testSkillWithEmbeddedAgent() {
+        TravelTools tools = new TravelTools();
+        var llm = ChatAliyun.builder().model("qwen-plus").temperature(0f).build();
+
+        Tool weatherTool = buildTool("get_weather",      "查询城市天气", "city: String", tools::getWeather);
+        Tool flightTool  = buildTool("get_flight_price", "查询机票价格", "city: String", tools::getFlightPrice);
+        Tool hotelTool   = buildTool("get_hotel_price",  "查询酒店均价", "city: String", tools::getHotelPrice);
+
+        // travel-planner SKILL 现在包含 agents/budget-advisor.md
+        // budget-advisor 声明 allowed-tools: [get_hotel_price]，会从 skill 内部 executor 借用
+        SkillConfig config = ClasspathSkillConfigLoader.fromClasspath("skills/travel-planner");
+        System.out.println("内嵌 agents 数量: " + (config.getAgents() != null ? config.getAgents().size() : 0));
+        config.getAgents().forEach(a ->
+            System.out.println("  - " + a.getName() + " allowedTools=" + a.getAllowedTools()));
+
+        Skill travelSkill = Skill.from(config, chainActor)
+                .llm(llm)
+                .tools(weatherTool, flightTool, hotelTool)
+                .verbose(true)
+//                .onToolCall(tc  -> System.out.println("[travel_planner] ToolCall: " + tc))
+//                .onObservation(obs -> System.out.println("[travel_planner] Observation: " + obs))
+                .build();
+
+        McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
+                .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
+                .skill(travelSkill)
+                .systemPrompt("你是旅行总助手，旅行规划任务请使用 travel_planner 技能。")
+                .onToolCall(tc  -> System.out.println("[master] ToolCall: " + tc))
+                .build();
+
+        String result = master.invoke("我想去三亚旅游3晚，帮我估算一下住宿预算").getText();
+        System.out.println("\n========== SKILL 内嵌 SubAgent 结果 ==========");
         System.out.println(result);
     }
 

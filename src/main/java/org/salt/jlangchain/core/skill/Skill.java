@@ -57,6 +57,7 @@ public class Skill {
     private final BaseChatModel llm;
     private final List<Tool> ownTools;
     private final int maxIterations;
+    private final boolean verbose;
     private final Consumer<String> onLlm;
     private final Consumer<String> onToolCall;
     private final Consumer<String> onObservation;
@@ -64,13 +65,14 @@ public class Skill {
     private volatile McpAgentExecutor executor;
 
     private Skill(SkillConfig config, ChainActor chainActor, BaseChatModel llm,
-                  List<Tool> ownTools, int maxIterations,
+                  List<Tool> ownTools, int maxIterations, boolean verbose,
                   Consumer<String> onLlm, Consumer<String> onToolCall, Consumer<String> onObservation) {
         this.config = config;
         this.chainActor = chainActor;
         this.llm = llm;
         this.ownTools = new ArrayList<>(ownTools);
         this.maxIterations = maxIterations;
+        this.verbose = verbose;
         this.onLlm = onLlm;
         this.onToolCall = onToolCall;
         this.onObservation = onObservation;
@@ -146,10 +148,21 @@ public class Skill {
         // Register embedded sub-agents from agents/ directory
         if (config.getAgents() != null) {
             for (SubAgentConfig agentConfig : config.getAgents()) {
-                SubAgent subAgent = SubAgent.from(agentConfig, chainActor)
-                        .llm(llm)
-                        .build();
-                builder.subAgent(subAgent);
+                var subAgentBuilder = SubAgent.from(agentConfig, chainActor).llm(llm);
+                if (verbose) {
+                    // verbose 模式：生成独立子前缀 [skill:travel_planner>budget_advisor]
+                    String subPrefix = "[skill:" + config.getName() + ">" + agentConfig.getName() + "] ";
+                    subAgentBuilder
+                        .onLlm(msg -> System.out.println(subPrefix + "LLM input:\n" + msg))
+                        .onToolCall(tc  -> System.out.println(subPrefix + "ToolCall: " + tc))
+                        .onObservation(obs -> System.out.println(subPrefix + "Observation: " + obs));
+                } else {
+                    // 自定义回调：直接透传
+                    if (onLlm != null)          subAgentBuilder.onLlm(onLlm);
+                    if (onToolCall != null)      subAgentBuilder.onToolCall(onToolCall);
+                    if (onObservation != null)   subAgentBuilder.onObservation(onObservation);
+                }
+                builder.subAgent(subAgentBuilder.build());
             }
         }
 
@@ -193,6 +206,7 @@ public class Skill {
         private BaseChatModel llm;
         private final List<Tool> ownTools = new ArrayList<>();
         private Integer maxIterations;
+        private boolean verbose = false;
         private Consumer<String> onLlm;
         private Consumer<String> onToolCall;
         private Consumer<String> onObservation;
@@ -236,6 +250,7 @@ public class Skill {
          * </pre>
          */
         public Builder verbose(boolean enabled) {
+            this.verbose = enabled;
             if (enabled) {
                 String skillName = config.getName();
                 String prefix = "[skill:" + skillName + "] ";
@@ -274,7 +289,7 @@ public class Skill {
             }
             int resolvedMaxIter = maxIterations != null ? maxIterations
                     : (config.getMaxIterations() != null ? config.getMaxIterations() : DEFAULT_MAX_ITERATIONS);
-            return new Skill(config, chainActor, llm, ownTools, resolvedMaxIter,
+            return new Skill(config, chainActor, llm, ownTools, resolvedMaxIter, verbose,
                     onLlm, onToolCall, onObservation);
         }
     }

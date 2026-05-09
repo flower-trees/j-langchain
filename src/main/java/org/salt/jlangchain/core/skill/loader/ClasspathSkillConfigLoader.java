@@ -183,10 +183,12 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
                 String body;
                 String model = null;
                 String description = extractFirstHeading(content);
+                List<String> allowedTools = List.of();
                 if (parts.length >= 3) {
                     Map<String, Object> fm = parseFrontmatter(parts[1].trim());
                     body = parts[2].trim();
                     model = getString(fm, "model", null);
+                    allowedTools = getStringList(fm, "allowed-tools");
                     String fmDesc = getString(fm, "description", null);
                     if (fmDesc != null && !fmDesc.isBlank()) description = fmDesc;
                     String fmName = getString(fm, "name", null);
@@ -199,6 +201,7 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
                         .name(name)
                         .description(description)
                         .model(model)
+                        .allowedTools(allowedTools)
                         .systemPrompt(body)
                         .build());
             }
