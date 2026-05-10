@@ -543,6 +543,18 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             }
             return promptValue.getMessages().stream()
                 .map(message -> {
+                    if (message instanceof ToolMessage tm && !CollectionUtils.isEmpty(tm.getToolCalls())) {
+                        String calls = tm.getToolCalls().stream()
+                            .map(tc -> tc.getFunction() != null
+                                ? tc.getFunction().getName() + " " + tc.getFunction().getArguments()
+                                : tc.getId())
+                            .collect(Collectors.joining(", "));
+                        return "assistant(tool_calls): " + calls;
+                    }
+                    if (message instanceof ToolMessage tm && tm.getName() != null) {
+                        String content = tm.getContent() != null ? tm.getContent() : "";
+                        return "tool[" + tm.getName() + "]: " + content;
+                    }
                     String role = message.getRole() != null ? message.getRole() : "unknown";
                     String content = message.getContent() != null ? message.getContent() : "";
                     return role + ": " + content;
