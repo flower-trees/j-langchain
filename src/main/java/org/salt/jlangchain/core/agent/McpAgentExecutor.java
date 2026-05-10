@@ -365,7 +365,17 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 return promptValue;
             });
 
-            // ── 3. Loop condition: continue while LLM returns tool calls ──
+            // ── 3. If resuming with prior steps, replace the plain prompt output so the first
+            //       LLM call sees the full accumulated context (human + prior tool calls + results)
+            TranslateHandler<Object, Object> applyPreloadedSteps = new TranslateHandler<>(promptValue -> {
+                AgentTaskContext resumeCtx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                if (resumeCtx != null && !resumeCtx.getCompletedSteps().isEmpty()) {
+                    return resumeCtx.buildChatPromptValue();
+                }
+                return promptValue;
+            });
+
+            // ── 4. Loop condition: continue while LLM returns tool calls ──
             int maxIter = this.maxIterations;
             Function<Integer, Boolean> shouldContinue = i -> {
                 AtomicBoolean signal = ContextBus.get().getTransmit(CallInfo.STOP_SIGNAL.name());
@@ -382,7 +392,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 return false;
             };
 
-            // ── 4. Tool executor ──
+            // ── 5. Tool executor ──
             Function<Object, Boolean> isToolCall = msg ->
                 msg instanceof ToolMessage tm && !CollectionUtils.isEmpty(tm.getToolCalls());
 
@@ -415,6 +425,9 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                             Map<String, Object> argsMap = JsonUtil.fromJson(argsJson, Map.class);
                             Object raw = tool.getFunc().apply(argsMap != null ? argsMap : Map.of());
                             observation = raw != null ? raw.toString() : "";
+                        } catch (AgentStoppedException e) {
+                            log.debug("Tool '{}' interrupted by stop signal", toolName);
+                            throw e;
                         } catch (Exception e) {
                             observation = "Tool execution error: " + e.getMessage();
                             log.error("Tool execution failed: {}", toolName, e);
@@ -432,10 +445,11 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 return ctx.buildChatPromptValue();
             });
 
-            // ── 5. Assemble the chain ──
+            // ── 6. Assemble the chain ──
             var chainBuilder = chainActor.builder()
                 .next(initContext)
                 .next(prompt)
+                .next(applyPreloadedSteps)
                 .loop(
                     shouldContinue,
                     emitBeforeLlm,

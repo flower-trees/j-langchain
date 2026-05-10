@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 @Slf4j
 @EqualsAndHashCode(callSuper = true)
@@ -138,7 +139,26 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
                         messages.add(new AiChatInput.Message(RoleType.SYSTEM.getCode(), baseMessage.getContent()));
                         break;
                     case TOOL:
-                        messages.add(new AiChatInput.Message(RoleType.TOOL.getCode(), baseMessage.getContent(), ((ToolMessage)baseMessage).getName(), ((ToolMessage)baseMessage).getToolCallId()));
+                        if (baseMessage instanceof ToolMessage tm && !CollectionUtils.isEmpty(tm.getToolCalls())) {
+                            // LLM's tool_call response: reconstruct as assistant message with tool_calls
+                            AiChatInput.Message assistantMsg = new AiChatInput.Message(RoleType.ASSISTANT.getCode(), tm.getContent() != null ? tm.getContent() : "");
+                            assistantMsg.setToolCalls(tm.getToolCalls().stream().map(tc -> {
+                                AiChatInput.ToolCall itc = new AiChatInput.ToolCall();
+                                itc.setId(tc.getId());
+                                itc.setType(tc.getType());
+                                if (tc.getFunction() != null) {
+                                    AiChatInput.ToolCall.FunctionCall fc = new AiChatInput.ToolCall.FunctionCall();
+                                    fc.setName(tc.getFunction().getName());
+                                    fc.setArguments(tc.getFunction().getArguments());
+                                    itc.setFunction(fc);
+                                }
+                                return itc;
+                            }).collect(Collectors.toList()));
+                            messages.add(assistantMsg);
+                        } else {
+                            // Tool result message
+                            messages.add(new AiChatInput.Message(RoleType.TOOL.getCode(), baseMessage.getContent(), ((ToolMessage) baseMessage).getName(), ((ToolMessage) baseMessage).getToolCallId()));
+                        }
                         break;
                     default:
                         throw new RuntimeException("baseMessage.getRole() is not support");

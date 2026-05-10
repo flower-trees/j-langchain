@@ -14,6 +14,7 @@
 
 package org.salt.jlangchain.core.agent;
 
+import org.salt.function.flow.FlowControlException;
 import org.salt.jlangchain.core.agent.memory.AgentStep;
 import org.salt.jlangchain.core.agent.memory.AgentTaskContext;
 
@@ -25,8 +26,11 @@ import java.util.List;
  * accumulated before the stop, allowing callers to inspect completed steps or
  * resume execution via
  * {@link McpAgentExecutor#invoke(String, java.util.concurrent.atomic.AtomicBoolean, AgentTaskContext)}.
+ *
+ * <p>Implements {@link FlowControlException} so the flow engine logs it at DEBUG
+ * level rather than WARN — it is an intentional signal, not an error.
  */
-public class AgentStoppedException extends RuntimeException {
+public class AgentStoppedException extends RuntimeException implements FlowControlException {
 
     private final AgentTaskContext partialContext;
 

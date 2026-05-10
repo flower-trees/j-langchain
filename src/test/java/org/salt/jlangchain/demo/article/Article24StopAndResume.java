@@ -293,6 +293,7 @@ public class Article24StopAndResume {
                     slowTool("search_city", "查询城市旅游信息", toolStarted, 400),
                     fastTool("get_hotel",   "查询酒店价格")
                 )
+                .verbose(true)
                 .build();
 
         // ── 先 stop，拿到已完成步骤 ─────────────────────────────────────
