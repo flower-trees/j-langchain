@@ -56,6 +56,11 @@ public class AIMessage extends BaseMessage {
         }
     }
 
+    @Override
+    public String toString() {
+        return "AIMessage{role='" + role + "', content='" + content + "'}";
+    }
+
     private static final class AIMessageBuilderImpl extends AIMessageBuilder<AIMessage, AIMessageBuilderImpl> {
         private AIMessageBuilderImpl() {
         }

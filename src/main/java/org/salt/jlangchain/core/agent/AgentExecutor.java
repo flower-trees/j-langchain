@@ -21,7 +21,10 @@ import org.salt.function.flow.Info;
 import org.salt.function.flow.context.ContextBus;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.agent.memory.*;
+import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.handler.TranslateHandler;
+import org.salt.jlangchain.core.history.memory.ConversationMemoryStorerBase;
 import org.salt.jlangchain.core.llm.BaseChatModel;
 import org.salt.jlangchain.core.message.AIMessage;
 import org.salt.jlangchain.core.parser.StrOutputParser;
@@ -33,21 +36,27 @@ import org.salt.jlangchain.rag.tools.annotation.ToolScanner;
 import org.salt.jlangchain.utils.PromptUtil;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
  * ReAct Agent executor.
  *
- * Encapsulates the full Thought → Action → Observation → Final Answer loop.
- * Use {@link #builder(ChainActor)} to construct an instance.
+ * <p>Encapsulates the full Thought → Action → Observation → Final Answer loop.
+ *
+ * <p>Context management is delegated to {@link AgentTaskContext}. Inject a
+ * {@link SlidingWindowContext} for sliding-window compression, or omit {@code context()}
+ * to use the default {@link FullContext} (no compression).
  *
  * <pre>{@code
  * ChatGeneration result = AgentExecutor.builder(chainActor)
  *     .llm(ChatOllama.builder().model("llama3:8b").temperature(0f).build())
  *     .tools(getWeather, getTime)
+ *     .context(SlidingWindowContext.builder().windowSize(5).build())
  *     .build()
  *     .invoke("What's the weather like in Shanghai now?");
  * }</pre>
@@ -82,28 +91,51 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
     private final FlowInstance agentChain;
     private final ChainActor chainActor;
+    private volatile AtomicBoolean stopSignal = new AtomicBoolean(false);
+    private final ConversationMemoryStorerBase conversationStorer;
 
-    private AgentExecutor(ChainActor chainActor, FlowInstance agentChain) {
+    private AgentExecutor(ChainActor chainActor, FlowInstance agentChain,
+                           ConversationMemoryStorerBase conversationStorer) {
         this.chainActor = chainActor;
         this.agentChain = agentChain;
+        this.conversationStorer = conversationStorer;
     }
 
-    /**
-     * Execute the agent with the given user input (node-compatible entry point).
-     */
+    /** Stop the currently running invocation. Safe to call from any thread. */
+    public void stop() {
+        stopSignal.set(true);
+    }
+
+    // ── invoke overloads ─────────────────────────────────────────────────────
+
     @Override
     public ChatGeneration invoke(Object input) {
-        return chainActor.invoke(agentChain, Map.of("input", input.toString()));
+        return invoke(input.toString(), null, null);
     }
 
-    /**
-     * Execute the agent with the given user input.
-     *
-     * @param input the user question
-     * @return the final answer
-     */
     public ChatGeneration invoke(String input) {
-        return invoke((Object) input);
+        return invoke(input, null, null);
+    }
+
+    public ChatGeneration invoke(String input, AtomicBoolean externalSignal) {
+        return invoke(input, externalSignal, null);
+    }
+
+    public ChatGeneration invoke(String input, AgentTaskContext preloadedCtx) {
+        return invoke(input, null, preloadedCtx);
+    }
+
+    public ChatGeneration invoke(String input, AtomicBoolean externalSignal, AgentTaskContext preloadedCtx) {
+        this.stopSignal = externalSignal != null ? externalSignal : new AtomicBoolean(false);
+        Map<String, Object> transmitMap = new HashMap<>();
+        transmitMap.put(CallInfo.STOP_SIGNAL.name(), stopSignal);
+        if (preloadedCtx != null) transmitMap.put(CallInfo.PRELOADED_CTX.name(), preloadedCtx);
+        try {
+            return (ChatGeneration) chainActor.invoke(agentChain, Map.of("input", input), transmitMap);
+        } catch (AgentStoppedException e) {
+            if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
+            throw e;
+        }
     }
 
     public static Builder builder(ChainActor chainActor) {
@@ -116,6 +148,8 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private BaseChatModel llm;
         private List<Tool> tools = new ArrayList<>();
         private int maxIterations = 10;
+        private AgentContext context;
+        private ConversationMemoryStorerBase conversationStorer;
         private String promptTemplate;
         private Consumer<String> llmConsumer;
         private Consumer<String> thoughtConsumer;
@@ -140,9 +174,12 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
-        /** Scan {@code toolsProvider} for {@link org.salt.jlangchain.rag.tools.annotation.AgentTool}-annotated methods. */
         public Builder tools(Object toolsProvider) {
-            this.tools.addAll(ToolScanner.scan(toolsProvider));
+            if (toolsProvider instanceof Tool tool) {
+                this.tools.add(tool);
+            } else {
+                this.tools.addAll(ToolScanner.scan(toolsProvider));
+            }
             return this;
         }
 
@@ -151,27 +188,48 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
-        /** Override the default ReAct prompt template. Must contain ${tools}, ${toolNames}, ${maxIterations}, ${input}. */
+        /** Inject a context strategy. Defaults to {@link FullContext} if not set. */
+        public Builder context(AgentContext context) {
+            this.context = context;
+            return this;
+        }
+
+        /** Optional: save the final (question, answer) turn to conversation history after the loop. */
+        public Builder conversationStorer(ConversationMemoryStorerBase conversationStorer) {
+            this.conversationStorer = conversationStorer;
+            return this;
+        }
+
         public Builder promptTemplate(String promptTemplate) {
             this.promptTemplate = promptTemplate;
             return this;
         }
 
-        /** Hook called with the full LLM input text before each model invocation. */
         public Builder onLlm(Consumer<String> consumer) {
             this.llmConsumer = consumer;
             return this;
         }
 
-        /** Hook called with each Thought+Action block before tool execution. */
         public Builder onThought(Consumer<String> consumer) {
             this.thoughtConsumer = consumer;
             return this;
         }
 
-        /** Hook called with each Observation result after tool execution. */
         public Builder onObservation(Consumer<String> consumer) {
             this.observationConsumer = consumer;
+            return this;
+        }
+
+        public Builder verbose(boolean enabled) {
+            if (enabled) {
+                this.llmConsumer         = msg -> System.out.println("[LLM]\n" + msg);
+                this.thoughtConsumer     = t   -> System.out.print("[Thought] " + t);
+                this.observationConsumer = obs -> System.out.println("[Observation] " + obs);
+            } else {
+                this.llmConsumer = null;
+                this.thoughtConsumer = null;
+                this.observationConsumer = null;
+            }
             return this;
         }
 
@@ -185,7 +243,23 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             PromptTemplate prompt = PromptTemplate.fromTemplate(template);
             prompt.withTools(tools);
 
+            AgentContext contextFinal = this.context != null ? this.context : FullContext.build();
+            ConversationMemoryStorerBase conversationStorerFinal = this.conversationStorer;
             Consumer<String> llmConsumer = this.llmConsumer;
+
+            // First node: create per-invocation AgentTaskContext and put in ContextBus
+            TranslateHandler<Object, Object> initContext = new TranslateHandler<>(input -> {
+                String question = (input instanceof Map<?, ?> m && m.get("input") != null)
+                        ? m.get("input").toString()
+                        : input.toString();
+                AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.PRELOADED_CTX.name());
+                if (ctx == null) {
+                    ctx = contextFinal.create(question, null);
+                }
+                ContextBus.get().putTransmit(CallInfo.AGENT_TASK_CTX.name(), ctx);
+                ContextBus.get().putTransmit(CallInfo.QUESTION.name(), question);
+                return input;
+            });
 
             TranslateHandler<StringPromptValue, StringPromptValue> emitBeforeLlm = new TranslateHandler<>(promptValue -> {
                 if (llmConsumer != null && promptValue != null) {
@@ -194,12 +268,12 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 return promptValue;
             });
 
+            Consumer<String> thoughtConsumer = this.thoughtConsumer;
             TranslateHandler<AIMessage, AIMessage> cutAtObservation = new TranslateHandler<>(llmResult -> {
                 if (llmResult == null || StringUtils.isEmpty(llmResult.getContent())) {
                     return llmResult;
                 }
                 String content = llmResult.getContent();
-                // Cut at the first Observation: (LLM hallucination); if absent, take the full content
                 String prefix = content.contains("Observation:")
                     ? content.substring(0, content.indexOf("Observation:"))
                     : content;
@@ -214,6 +288,11 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
             int maxIter = this.maxIterations;
             Function<Integer, Boolean> shouldContinue = i -> {
+                AtomicBoolean signal = ContextBus.get().getTransmit(CallInfo.STOP_SIGNAL.name());
+                if (signal != null && signal.get()) {
+                    AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                    throw new AgentStoppedException("Agent stopped by external request", ctx);
+                }
                 Map<String, String> parsed = ContextBus.get().getResult(parseAction.getNodeId());
                 return i < maxIter
                     && (parsed == null || (parsed.containsKey("Action") && parsed.containsKey("Action Input")));
@@ -228,6 +307,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             TranslateHandler<Object, Map<String, String>> executeTool = new TranslateHandler<>(map -> {
                 StringPromptValue promptValue = ContextBus.get().getResult(prompt.getNodeId());
                 AIMessage cutResult = ContextBus.get().getResult(cutAtObservation.getNodeId());
+                AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
 
                 Tool useTool = toolList.stream()
                     .filter(t -> t.getName().equalsIgnoreCase(((Map<String, String>) map).get("Action")))
@@ -235,7 +315,9 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
                 if (useTool == null) {
                     log.warn("Unknown tool requested: {}", ((Map<String, String>) map).get("Action"));
-                    promptValue.setText(promptValue.getText().trim() + "\nThought: The requested tool does not exist, please choose another.\nThought:");
+                    ctx.initReactBasePromptText(promptValue.getText());
+                    promptValue.setText(promptValue.getText().trim()
+                            + "\nThought: The requested tool does not exist, please choose another.\nThought:");
                     return promptValue;
                 }
 
@@ -247,8 +329,10 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 int thoughtIdx = prefix.lastIndexOf("Thought:");
                 String thoughtPart = thoughtIdx >= 0 ? prefix.substring(thoughtIdx + 8).trim() : prefix.trim();
                 String agentScratchpad = thoughtPart + "\nObservation: " + observation + "\nThought:";
-                promptValue.setText(promptValue.getText().trim() + agentScratchpad);
 
+                ctx.initReactBasePromptText(promptValue.getText());
+                ctx.addStep(AgentStep.ofReAct(agentScratchpad));
+                promptValue.setText(ctx.buildReactPromptText());
                 return promptValue;
             });
 
@@ -262,7 +346,8 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 return generation;
             });
 
-            FlowInstance agentChain = chainActor.builder()
+            var chainBuilder = chainActor.builder()
+                .next(initContext)
                 .next(prompt)
                 .loop(
                     shouldContinue,
@@ -278,10 +363,13 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                         .build()
                 )
                 .next(new StrOutputParser())
-                .next(extractFinalAnswer)
-                .build();
+                .next(extractFinalAnswer);
 
-            return new AgentExecutor(chainActor, agentChain);
+            FlowInstance agentChain = conversationStorerFinal != null
+                    ? chainBuilder.next(conversationStorerFinal).build()
+                    : chainBuilder.build();
+
+            return new AgentExecutor(chainActor, agentChain, conversationStorerFinal);
         }
     }
 }

@@ -22,16 +22,18 @@ import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.agent.memory.*;
+import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.handler.TranslateHandler;
+import org.salt.jlangchain.core.history.memory.ConversationMemoryStorerBase;
 import org.salt.jlangchain.core.llm.BaseChatModel;
-import org.salt.jlangchain.core.message.AIMessage;
-import org.salt.jlangchain.core.message.BaseMessage;
-import org.salt.jlangchain.core.message.MessageType;
-import org.salt.jlangchain.core.message.ToolMessage;
+import org.salt.jlangchain.core.message.*;
 import org.salt.jlangchain.core.parser.StrOutputParser;
 import org.salt.jlangchain.core.parser.generation.ChatGeneration;
 import org.salt.jlangchain.core.prompt.chat.ChatPromptTemplate;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
+import org.salt.jlangchain.core.skill.Skill;
+import org.salt.jlangchain.core.subagent.SubAgent;
 import org.salt.jlangchain.rag.tools.Tool;
 import org.salt.jlangchain.rag.tools.annotation.ToolScanner;
 import org.salt.jlangchain.rag.tools.mcp.McpClient;
@@ -41,8 +43,10 @@ import org.salt.jlangchain.utils.JsonUtil;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -54,13 +58,16 @@ import java.util.stream.Collectors;
  * rather than ReAct text parsing. Suitable for MCP tools and any model that supports
  * the {@code tools} parameter (OpenAI, Doubao, Qwen, etc.).
  *
- * <p>Loop: LLM → ToolCall? → execute tool → append ToolMessage → LLM → ... → final answer
+ * <p>Context management is delegated to {@link AgentTaskContext}. Inject a
+ * {@link SlidingWindowContext} for sliding-window compression, or omit {@code context()}
+ * to use the default {@link FullContext} (no compression).
  *
  * <pre>{@code
  * ChatGeneration result = McpAgentExecutor.builder(chainActor)
  *     .llm(ChatAliyun.builder().model("qwen-plus").temperature(0f).build())
- *     .tools(mcpManager, "default")    // load tools from McpManager group
+ *     .tools(mcpManager, "default")
  *     .systemPrompt("You are an intelligent assistant")
+ *     .context(SlidingWindowContext.builder().windowSize(5).build())
  *     .build()
  *     .invoke("Can you help me check the public IP address");
  * }</pre>
@@ -70,25 +77,58 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
     private final FlowInstance agentChain;
     private final ChainActor chainActor;
+    private volatile AtomicBoolean stopSignal = new AtomicBoolean(false);
+    private final ConversationMemoryStorerBase conversationStorer;
 
-    private McpAgentExecutor(ChainActor chainActor, FlowInstance agentChain) {
+    private McpAgentExecutor(ChainActor chainActor, FlowInstance agentChain,
+                              ConversationMemoryStorerBase conversationStorer) {
         this.chainActor = chainActor;
         this.agentChain = agentChain;
+        this.conversationStorer = conversationStorer;
     }
 
-    /**
-     * Execute the agent with the given user question (node-compatible entry point).
-     */
+    /** Stop the currently running invocation. Safe to call from any thread. */
+    public void stop() {
+        stopSignal.set(true);
+    }
+
+    // ── invoke overloads (all delegate to the core method) ───────────────────
+
     @Override
     public ChatGeneration invoke(Object input) {
-        return chainActor.invoke(agentChain, Map.of("input", input.toString()));
+        return invoke(input.toString(), null, null);
+    }
+
+    public ChatGeneration invoke(String input) {
+        return invoke(input, null, null);
+    }
+
+    /** For Skill/SubAgent: reuse the parent's stop signal so a parent stop propagates down. */
+    public ChatGeneration invoke(String input, AtomicBoolean externalSignal) {
+        return invoke(input, externalSignal, null);
+    }
+
+    /** For resume: outer layer supplies a pre-loaded context; the agent uses it without knowing why. */
+    public ChatGeneration invoke(String input, AgentTaskContext preloadedCtx) {
+        return invoke(input, null, preloadedCtx);
     }
 
     /**
-     * Execute the agent with the given user question.
+     * Core invoke method. {@code externalSignal} and {@code preloadedCtx} are both optional.
+     * When {@code externalSignal} is provided the caller controls stopping (Skill/SubAgent propagation
+     * or session-task management); otherwise a fresh signal is created and {@link #stop()} controls it.
      */
-    public ChatGeneration invoke(String input) {
-        return invoke((Object) input);
+    public ChatGeneration invoke(String input, AtomicBoolean externalSignal, AgentTaskContext preloadedCtx) {
+        this.stopSignal = externalSignal != null ? externalSignal : new AtomicBoolean(false);
+        Map<String, Object> transmitMap = new HashMap<>();
+        transmitMap.put(CallInfo.STOP_SIGNAL.name(), stopSignal);
+        if (preloadedCtx != null) transmitMap.put(CallInfo.PRELOADED_CTX.name(), preloadedCtx);
+        try {
+            return (ChatGeneration) chainActor.invoke(agentChain, Map.of("input", input), transmitMap);
+        } catch (AgentStoppedException e) {
+            if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
+            throw e;
+        }
     }
 
     public static Builder builder(ChainActor chainActor) {
@@ -100,12 +140,16 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private final ChainActor chainActor;
         private BaseChatModel llm;
         private List<Tool> tools = new ArrayList<>();
+        private List<Skill> skills = new ArrayList<>();
+        private List<SubAgent> subAgents = new ArrayList<>();
+        private Function<String, BaseChatModel> llmFactory;
         private String systemPrompt;
         private int maxIterations = 10;
+        private AgentContext context;
+        private ConversationMemoryStorerBase conversationStorer;
         private Consumer<String> llmConsumer;
         private Consumer<String> toolCallConsumer;
         private Consumer<String> observationConsumer;
-        // optional per-request authorization supplier (e.g. for MCP HTTP calls)
         private java.util.function.Supplier<String> authorizationSupplier;
 
         private Builder(ChainActor chainActor) {
@@ -127,32 +171,50 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
-        /** Scan {@code toolsProvider} for {@link org.salt.jlangchain.rag.tools.annotation.AgentTool}-annotated methods. */
         public Builder tools(Object toolsProvider) {
-            this.tools.addAll(ToolScanner.scan(toolsProvider));
+            if (toolsProvider instanceof Tool tool) {
+                this.tools.add(tool);
+            } else {
+                this.tools.addAll(ToolScanner.scan(toolsProvider));
+            }
             return this;
         }
 
-        /**
-         * Load tools from a McpManager group (HTTP API mode).
-         *
-         * @param mcpManager the MCP manager instance
-         * @param group      the tool group name (key in mcp.config.json)
-         */
         public Builder tools(McpManager mcpManager, String group) {
             this.tools.addAll(mcpManager.toTools(group));
             return this;
         }
 
+        public Builder skill(Skill skill) {
+            this.skills.add(skill);
+            return this;
+        }
+
+        public Builder skills(Skill... skills) {
+            this.skills.addAll(List.of(skills));
+            return this;
+        }
+
+        public Builder subAgent(SubAgent subAgent) {
+            this.subAgents.add(subAgent);
+            return this;
+        }
+
+        public Builder subAgents(SubAgent... subAgents) {
+            this.subAgents.addAll(List.of(subAgents));
+            return this;
+        }
+
         /**
-         * Load tools from a McpClient server (NPX / SSE process mode).
-         *
-         * <p>Calls {@link McpClient#listAllTools()} for the given server name to obtain the
-         * tool schema, and wraps {@link McpClient#callTool} as each tool's execution function.
-         *
-         * @param mcpClient  the MCP client instance
-         * @param serverName the server name (key in mcp.server.config.json)
+         * Provide a factory that converts a model name to a {@link BaseChatModel}.
+         * Propagated to sub-agents whose AGENT.md specifies {@code model: <name>}
+         * (any non-inherit value) and have no explicit LLM set.
          */
+        public Builder llmFactory(Function<String, BaseChatModel> factory) {
+            this.llmFactory = factory;
+            return this;
+        }
+
         public Builder tools(McpClient mcpClient, String serverName) {
             List<ToolDesc> descs = mcpClient.listAllTools().getOrDefault(serverName, List.of());
             this.tools.addAll(descs.stream()
@@ -174,10 +236,278 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
-        /**
-         * Extract a "paramA: typeA, paramB: typeB" string from a JSON Schema object.
-         * Handles the standard {@code {"type":"object","properties":{...}}} shape.
-         */
+        public Builder systemPrompt(String systemPrompt) {
+            this.systemPrompt = systemPrompt;
+            return this;
+        }
+
+        public Builder maxIterations(int maxIterations) {
+            this.maxIterations = maxIterations;
+            return this;
+        }
+
+        /** Inject a context strategy. Defaults to {@link FullContext} if not set. */
+        public Builder context(AgentContext context) {
+            this.context = context;
+            return this;
+        }
+
+        /** Optional: save the final (question, answer) turn to conversation history after the loop. */
+        public Builder conversationStorer(ConversationMemoryStorerBase conversationStorer) {
+            this.conversationStorer = conversationStorer;
+            return this;
+        }
+
+        public Builder onLlm(Consumer<String> consumer) {
+            this.llmConsumer = consumer;
+            return this;
+        }
+
+        public Builder onToolCall(Consumer<String> consumer) {
+            this.toolCallConsumer = consumer;
+            return this;
+        }
+
+        public Builder onObservation(Consumer<String> consumer) {
+            this.observationConsumer = consumer;
+            return this;
+        }
+
+        public Builder verbose(boolean enabled) {
+            if (enabled) {
+                this.llmConsumer         = msg -> System.out.println("[LLM]\n" + msg);
+                this.toolCallConsumer    = tc  -> System.out.println("[ToolCall] " + tc);
+                this.observationConsumer = obs -> System.out.println("[Observation] " + obs);
+            } else {
+                this.llmConsumer = null;
+                this.toolCallConsumer = null;
+                this.observationConsumer = null;
+            }
+            return this;
+        }
+
+        public Builder authorization(java.util.function.Supplier<String> supplier) {
+            this.authorizationSupplier = supplier;
+            return this;
+        }
+
+        public McpAgentExecutor build() {
+            if (llm == null) throw new IllegalStateException("llm must be set");
+
+            // Inject allowed parent tools into each skill, then register skill as a tool
+            for (Skill skill : skills) {
+                List<Tool> allowed = tools.stream()
+                        .filter(t -> skill.getAllowedTools().contains(t.getName()))
+                        .toList();
+                skill.injectParentTools(allowed);
+                tools.add(skill.asTool());
+            }
+
+            // Sub-agents: inject LLM / factory / parent tools, then register as tool
+            for (SubAgent subAgent : subAgents) {
+                if (subAgent.isInheritModel()) {
+                    subAgent.injectLlm(llm);
+                } else if (llmFactory != null) {
+                    subAgent.injectLlmFactory(llmFactory);
+                }
+                if (!subAgent.getAllowedTools().isEmpty()) {
+                    List<Tool> allowed = tools.stream()
+                            .filter(t -> subAgent.getAllowedTools().contains(t.getName()))
+                            .toList();
+                    subAgent.injectParentTools(allowed);
+                }
+                tools.add(subAgent.asTool());
+            }
+
+            if (tools == null || tools.isEmpty()) throw new IllegalStateException("at least one tool must be provided");
+
+            // ── 1. Build tool lookup map and AiChatInput.Tool list for the LLM ──
+            Map<String, Tool> toolMap = new java.util.HashMap<>();
+            List<AiChatInput.Tool> aiTools = new ArrayList<>();
+            for (Tool t : tools) {
+                toolMap.put(t.getName(), t);
+                aiTools.add(toAiTool(t));
+            }
+            llm.setTools(aiTools);
+
+            // ── 2. Build initial prompt template (system + user placeholder) ──
+            List<BaseMessage> messages = new ArrayList<>();
+            if (systemPrompt != null && !systemPrompt.isBlank()) {
+                messages.add(BaseMessage.fromMessage(MessageType.SYSTEM.getCode(), systemPrompt));
+            }
+            messages.add(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), "${input}"));
+            var prompt = ChatPromptTemplate.fromMessages(messages);
+
+            AgentContext contextFinal = this.context != null ? this.context : FullContext.build();
+            String systemPromptFinal = this.systemPrompt;
+            ConversationMemoryStorerBase conversationStorerFinal = this.conversationStorer;
+            Consumer<String> llmConsumer = this.llmConsumer;
+
+            // First node: create per-invocation AgentTaskContext and put in ContextBus
+            TranslateHandler<Object, Object> initContext = new TranslateHandler<>(input -> {
+                String question = (input instanceof Map<?, ?> m && m.get("input") != null)
+                        ? m.get("input").toString()
+                        : input.toString();
+                // Use pre-loaded context if provided (resume scenario), otherwise create fresh
+                AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.PRELOADED_CTX.name());
+                if (ctx == null) {
+                    ctx = contextFinal.create(question, systemPromptFinal);
+                }
+                ContextBus.get().putTransmit(CallInfo.AGENT_TASK_CTX.name(), ctx);
+                ContextBus.get().putTransmit(CallInfo.QUESTION.name(), question);
+                return input;
+            });
+
+            TranslateHandler<ChatPromptValue, ChatPromptValue> emitBeforeLlm = new TranslateHandler<>(promptValue -> {
+                if (llmConsumer != null && promptValue != null) {
+                    llmConsumer.accept(formatChatPromptValue(promptValue));
+                }
+                return promptValue;
+            });
+
+            // ── 3. If resuming with prior steps, replace the plain prompt output so the first
+            //       LLM call sees the full accumulated context (human + prior tool calls + results)
+            TranslateHandler<Object, Object> applyPreloadedSteps = new TranslateHandler<>(promptValue -> {
+                AgentTaskContext resumeCtx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                if (resumeCtx != null && !resumeCtx.getCompletedSteps().isEmpty()) {
+                    return resumeCtx.buildChatPromptValue();
+                }
+                return promptValue;
+            });
+
+            // ── 4. Loop condition: continue while LLM returns tool calls ──
+            int maxIter = this.maxIterations;
+            Function<Integer, Boolean> shouldContinue = i -> {
+                AtomicBoolean signal = ContextBus.get().getTransmit(CallInfo.STOP_SIGNAL.name());
+                if (signal != null && signal.get()) {
+                    AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                    throw new AgentStoppedException("Agent stopped by external request", ctx);
+                }
+                if (i >= maxIter) return false;
+                if (i == 0) return true;
+                AIMessage aiMessage = ContextBus.get().getResult(llm.getNodeId());
+                if (aiMessage instanceof ToolMessage toolMessage) {
+                    return !CollectionUtils.isEmpty(toolMessage.getToolCalls());
+                }
+                return false;
+            };
+
+            // ── 5. Tool executor ──
+            Function<Object, Boolean> isToolCall = msg ->
+                msg instanceof ToolMessage tm && !CollectionUtils.isEmpty(tm.getToolCalls());
+
+            Map<String, Tool> toolMapFinal = toolMap;
+            Consumer<String> toolCallConsumer = this.toolCallConsumer;
+            Consumer<String> observationConsumer = this.observationConsumer;
+            @SuppressWarnings("unused")
+            java.util.function.Supplier<String> authSupplier = this.authorizationSupplier;
+
+            TranslateHandler<Object, AIMessage> executeTool = new TranslateHandler<>(msg -> {
+                ToolMessage toolMessage = (ToolMessage) msg;
+                AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+
+                List<BaseMessage> toolResults = new ArrayList<>();
+                for (AiChatOutput.ToolCall toolCall : toolMessage.getToolCalls()) {
+                    String toolName = toolCall.getFunction().getName();
+                    String argsJson = toolCall.getFunction().getArguments();
+
+                    if (toolCallConsumer != null) toolCallConsumer.accept(toolName + " " + argsJson);
+                    else log.debug("Tool call: {} args={}", toolName, argsJson);
+
+                    Tool tool = toolMapFinal.get(toolName);
+                    String observation;
+                    if (tool == null) {
+                        observation = "Tool '" + toolName + "' not found.";
+                        log.warn("Tool not found: {}", toolName);
+                    } else {
+                        try {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> argsMap = JsonUtil.fromJson(argsJson, Map.class);
+                            Object raw = tool.getFunc().apply(argsMap != null ? argsMap : Map.of());
+                            observation = raw != null ? raw.toString() : "";
+                        } catch (AgentStoppedException e) {
+                            log.debug("Tool '{}' interrupted by stop signal", toolName);
+                            throw e;
+                        } catch (Exception e) {
+                            observation = "Tool execution error: " + e.getMessage();
+                            log.error("Tool execution failed: {}", toolName, e);
+                        }
+                    }
+
+                    if (observationConsumer != null) observationConsumer.accept(observation);
+                    else log.debug("Observation: {}", observation);
+
+                    toolResults.add(BaseMessage.fromMessage(MessageType.TOOL.getCode(), observation,
+                            toolName, toolCall.getId()));
+                }
+
+                ctx.addStep(AgentStep.ofFunctionCall(toolMessage, toolResults));
+                return ctx.buildChatPromptValue();
+            });
+
+            // ── 6. Assemble the chain ──
+            var chainBuilder = chainActor.builder()
+                .next(initContext)
+                .next(prompt)
+                .next(applyPreloadedSteps)
+                .loop(
+                    shouldContinue,
+                    emitBeforeLlm,
+                    llm,
+                    chainActor.builder()
+                        .next(
+                            Info.c(isToolCall, executeTool),
+                            Info.c(msg -> ContextBus.get().getResult(llm.getNodeId()))
+                        )
+                        .build()
+                )
+                .next(
+                    Info.c(output -> output instanceof ChatPromptValue, output -> {
+                        throw new RuntimeException("Max iterations (" + maxIter + ") reached without a final answer.");
+                    }),
+                    Info.c(new StrOutputParser())
+                );
+
+            FlowInstance agentChain = conversationStorerFinal != null
+                    ? chainBuilder.next(conversationStorerFinal).build()
+                    : chainBuilder.build();
+
+            return new McpAgentExecutor(chainActor, agentChain, conversationStorerFinal);
+        }
+
+        private static AiChatInput.Tool toAiTool(Tool tool) {
+            AiChatInput.Tool aiTool = new AiChatInput.Tool();
+            aiTool.setType("function");
+            aiTool.setFunction(new AiChatInput.Tool.FunctionTool());
+            aiTool.getFunction().setName(tool.getName());
+            aiTool.getFunction().setDescription(tool.getDescription());
+            aiTool.getFunction().setParameters(buildSchema(tool.getParams()));
+            return aiTool;
+        }
+
+        private static Map<String, Object> buildSchema(String params) {
+            Map<String, Object> properties = new java.util.LinkedHashMap<>();
+            List<String> required = new ArrayList<>();
+            if (params != null && !params.isBlank()) {
+                for (String part : params.split(",")) {
+                    String[] kv = part.trim().split(":", 2);
+                    if (kv.length == 2) {
+                        String name = kv[0].trim();
+                        String type = kv[1].trim().toLowerCase();
+                        String jsonType = switch (type) {
+                            case "int", "integer", "long" -> "integer";
+                            case "double", "float", "number" -> "number";
+                            case "boolean", "bool" -> "boolean";
+                            default -> "string";
+                        };
+                        properties.put(name, Map.of("type", jsonType));
+                        required.add(name);
+                    }
+                }
+            }
+            return Map.of("type", "object", "properties", properties, "required", required);
+        }
+
         @SuppressWarnings("unchecked")
         private static String schemaToParams(Object inputSchema) {
             if (inputSchema == null) return "";
@@ -207,215 +537,24 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             }
         }
 
-        public Builder systemPrompt(String systemPrompt) {
-            this.systemPrompt = systemPrompt;
-            return this;
-        }
-
-        public Builder maxIterations(int maxIterations) {
-            this.maxIterations = maxIterations;
-            return this;
-        }
-
-        /** Hook called with the full LLM input payload before each model invocation. */
-        public Builder onLlm(Consumer<String> consumer) {
-            this.llmConsumer = consumer;
-            return this;
-        }
-
-        /** Hook called with the tool name + arguments JSON before execution. */
-        public Builder onToolCall(Consumer<String> consumer) {
-            this.toolCallConsumer = consumer;
-            return this;
-        }
-
-        /** Hook called with the observation string after tool execution. */
-        public Builder onObservation(Consumer<String> consumer) {
-            this.observationConsumer = consumer;
-            return this;
-        }
-
-        /**
-         * Supplier for a per-request authorization token (e.g. Bearer token for MCP HTTP calls).
-         * Called once per tool execution.
-         */
-        public Builder authorization(java.util.function.Supplier<String> supplier) {
-            this.authorizationSupplier = supplier;
-            return this;
-        }
-
-        public McpAgentExecutor build() {
-            if (llm == null) throw new IllegalStateException("llm must be set");
-            if (tools == null || tools.isEmpty()) throw new IllegalStateException("at least one tool must be provided");
-
-            // ── 1. Build tool lookup map and AiChatInput.Tool list for the LLM ──
-            Map<String, Tool> toolMap = new java.util.HashMap<>();
-            List<AiChatInput.Tool> aiTools = new ArrayList<>();
-            for (Tool t : tools) {
-                toolMap.put(t.getName(), t);
-                aiTools.add(toAiTool(t));
-            }
-            llm.setTools(aiTools);
-
-            // ── 2. Build prompt (system + user placeholder) ──
-            List<BaseMessage> messages = new ArrayList<>();
-            if (systemPrompt != null && !systemPrompt.isBlank()) {
-                messages.add(BaseMessage.fromMessage(MessageType.SYSTEM.getCode(), systemPrompt));
-            }
-            messages.add(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), "${input}"));
-            var prompt = ChatPromptTemplate.fromMessages(messages);
-
-            Consumer<String> llmConsumer = this.llmConsumer;
-            TranslateHandler<ChatPromptValue, ChatPromptValue> emitBeforeLlm = new TranslateHandler<>(promptValue -> {
-                if (llmConsumer != null && promptValue != null) {
-                    llmConsumer.accept(formatChatPromptValue(promptValue));
-                }
-                return promptValue;
-            });
-
-            // ── 3. Loop condition: continue while LLM returns tool calls ──
-            int maxIter = this.maxIterations;
-            Function<Integer, Boolean> shouldContinue = i -> {
-                if (i >= maxIter) return false;
-                if (i == 0) return true;
-                AIMessage aiMessage = ContextBus.get().getResult(llm.getNodeId());
-                if (aiMessage instanceof ToolMessage toolMessage) {
-                    return !CollectionUtils.isEmpty(toolMessage.getToolCalls());
-                }
-                return false;
-            };
-
-            // ── 4. Tool executor: parse ToolCall JSON → execute Tool → append ToolMessage ──
-            Function<Object, Boolean> isToolCall = msg ->
-                msg instanceof ToolMessage tm && !CollectionUtils.isEmpty(tm.getToolCalls());
-
-            Map<String, Tool> toolMapFinal = toolMap;
-            Consumer<String> toolCallConsumer = this.toolCallConsumer;
-            Consumer<String> observationConsumer = this.observationConsumer;
-            // reserved for future per-call MCP authorization token injection
-            @SuppressWarnings("unused")
-            java.util.function.Supplier<String> authSupplier = this.authorizationSupplier;
-
-            TranslateHandler<Object, AIMessage> executeTool = new TranslateHandler<>(msg -> {
-                ToolMessage toolMessage = (ToolMessage) msg;
-                ChatPromptValue chatPromptValue = ContextBus.get().getResult(prompt.getNodeId());
-
-                // Append the assistant's tool-call message so the model can see its own prior requests
-                chatPromptValue.getMessages().add(toolMessage);
-
-                for (AiChatOutput.ToolCall toolCall : toolMessage.getToolCalls()) {
-                    String toolName = toolCall.getFunction().getName();
-                    String argsJson = toolCall.getFunction().getArguments();
-
-                    if (toolCallConsumer != null) toolCallConsumer.accept(toolName + " " + argsJson);
-                    else log.debug("Tool call: {} args={}", toolName, argsJson);
-
-                    Tool tool = toolMapFinal.get(toolName);
-                    String observation;
-                    if (tool == null) {
-                        observation = "Tool '" + toolName + "' not found.";
-                        log.warn("Tool not found: {}", toolName);
-                    } else {
-                        try {
-                            // parse arguments JSON → Map, then pass to func
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> argsMap = JsonUtil.fromJson(argsJson, Map.class);
-                            Object raw = tool.getFunc().apply(argsMap != null ? argsMap : Map.of());
-                            observation = raw != null ? raw.toString() : "";
-                        } catch (Exception e) {
-                            observation = "Tool execution error: " + e.getMessage();
-                            log.error("Tool execution failed: {}", toolName, e);
-                        }
-                    }
-
-                    if (observationConsumer != null) observationConsumer.accept(observation);
-                    else log.debug("Observation: {}", observation);
-
-                    chatPromptValue.getMessages().add(
-                        BaseMessage.fromMessage(MessageType.TOOL.getCode(), observation,
-                            toolName, toolCall.getId())
-                    );
-                }
-                return chatPromptValue;
-            });
-
-            // ── 5. Assemble the chain ──
-            FlowInstance agentChain = chainActor.builder()
-                .next(prompt)
-                .loop(
-                    shouldContinue,
-                    emitBeforeLlm,
-                    llm,
-                    chainActor.builder()
-                        .next(
-                            Info.c(isToolCall, executeTool),
-                            Info.c(msg -> ContextBus.get().getResult(llm.getNodeId()))
-                        )
-                        .build()
-                )
-                .next(
-                    Info.c(output -> output instanceof ChatPromptValue, output -> {
-                        throw new RuntimeException("Max iterations (" + maxIter + ") reached without a final answer.");
-                    }),
-                    Info.c(new StrOutputParser())
-                )
-                .build();
-
-            return new McpAgentExecutor(chainActor, agentChain);
-        }
-
-        /** Convert a j-langchain Tool to the AiChatInput.Tool format the LLM expects. */
-        private static AiChatInput.Tool toAiTool(Tool tool) {
-            AiChatInput.Tool aiTool = new AiChatInput.Tool();
-            aiTool.setType("function");
-            aiTool.setFunction(new AiChatInput.Tool.FunctionTool());
-            aiTool.getFunction().setName(tool.getName());
-            aiTool.getFunction().setDescription(tool.getDescription());
-            // Build a minimal JSON Schema from the params string
-            aiTool.getFunction().setParameters(buildSchema(tool.getParams()));
-            return aiTool;
-        }
-
-        /**
-         * Build a minimal OpenAI-compatible JSON Schema from the Tool params string.
-         * Params format: "paramA: TypeA, paramB: TypeB"
-         */
-        private static Map<String, Object> buildSchema(String params) {
-            Map<String, Object> properties = new java.util.LinkedHashMap<>();
-            List<String> required = new ArrayList<>();
-
-            if (params != null && !params.isBlank()) {
-                for (String part : params.split(",")) {
-                    String[] kv = part.trim().split(":", 2);
-                    if (kv.length == 2) {
-                        String name = kv[0].trim();
-                        String type = kv[1].trim().toLowerCase();
-                        String jsonType = switch (type) {
-                            case "int", "integer", "long" -> "integer";
-                            case "double", "float", "number" -> "number";
-                            case "boolean", "bool" -> "boolean";
-                            default -> "string";
-                        };
-                        properties.put(name, Map.of("type", jsonType));
-                        required.add(name);
-                    }
-                }
-            }
-
-            return Map.of(
-                "type", "object",
-                "properties", properties,
-                "required", required
-            );
-        }
-
         private static String formatChatPromptValue(ChatPromptValue promptValue) {
             if (promptValue == null || CollectionUtils.isEmpty(promptValue.getMessages())) {
                 return "";
             }
-
             return promptValue.getMessages().stream()
                 .map(message -> {
+                    if (message instanceof ToolMessage tm && !CollectionUtils.isEmpty(tm.getToolCalls())) {
+                        String calls = tm.getToolCalls().stream()
+                            .map(tc -> tc.getFunction() != null
+                                ? tc.getFunction().getName() + " " + tc.getFunction().getArguments()
+                                : tc.getId())
+                            .collect(Collectors.joining(", "));
+                        return "assistant(tool_calls): " + calls;
+                    }
+                    if (message instanceof ToolMessage tm && tm.getName() != null) {
+                        String content = tm.getContent() != null ? tm.getContent() : "";
+                        return "tool[" + tm.getName() + "]: " + content;
+                    }
                     String role = message.getRole() != null ? message.getRole() : "unknown";
                     String content = message.getContent() != null ? message.getContent() : "";
                     return role + ": " + content;

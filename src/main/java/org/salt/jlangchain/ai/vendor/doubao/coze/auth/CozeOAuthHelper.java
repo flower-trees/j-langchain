@@ -21,6 +21,7 @@ import com.coze.openapi.service.auth.JWTPayload;
 import io.jsonwebtoken.Jwts;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -44,10 +45,10 @@ public class CozeOAuthHelper {
     @PostConstruct
     public void init() {
         if (properties != null
-                && properties.getApiBase() != null
-                && properties.getClientId() != null
-                && properties.getPrivateKeyPath() != null
-                && properties.getPublicKeyId() != null) {
+                && StringUtils.isNoneBlank(properties.getApiBase())
+                && StringUtils.isNoneBlank(properties.getClientId())
+                && StringUtils.isNoneBlank(properties.getPrivateKeyPath())
+                && StringUtils.isNoneBlank(properties.getPublicKeyId())) {
 
             try {
                 String privateKeyPem = Files.readString(Paths.get(properties.getPrivateKeyPath()), StandardCharsets.UTF_8);

@@ -18,10 +18,16 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
+import org.springframework.util.CollectionUtils;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class AliyunEmbeddings extends Embeddings {
+
+    private static final int MAX_BATCH_SIZE = 10;
 
     public AliyunEmbeddings() {
         super();
@@ -82,6 +88,23 @@ public class AliyunEmbeddings extends Embeddings {
         public AliyunEmbeddings build() {
             return new AliyunEmbeddings(this);
         }
+    }
+
+    @Override
+    public List<List<Float>> embedDocuments(List<String> texts) {
+        if (CollectionUtils.isEmpty(texts)) {
+            return List.of();
+        }
+        if (texts.size() <= MAX_BATCH_SIZE) {
+            return super.embedDocuments(texts);
+        }
+
+        List<List<Float>> result = new ArrayList<>();
+        for (int start = 0; start < texts.size(); start += MAX_BATCH_SIZE) {
+            int end = Math.min(start + MAX_BATCH_SIZE, texts.size());
+            result.addAll(super.embedDocuments(texts.subList(start, end)));
+        }
+        return result;
     }
 
     @Override

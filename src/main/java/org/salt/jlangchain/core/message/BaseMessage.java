@@ -14,12 +14,27 @@
 
 package org.salt.jlangchain.core.message;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.salt.jlangchain.core.Serializable;
 
 import java.util.Map;
 
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.EXISTING_PROPERTY,
+        property = "role",
+        visible = true,
+        defaultImpl = BaseMessage.class
+)
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = HumanMessage.class, name = "human"),
+        @JsonSubTypes.Type(value = AIMessage.class,    name = "ai"),
+        @JsonSubTypes.Type(value = SystemMessage.class, name = "system"),
+        @JsonSubTypes.Type(value = ToolMessage.class,  name = "tool")
+})
 @EqualsAndHashCode(callSuper = false)
 @Data
 public class BaseMessage extends Serializable {

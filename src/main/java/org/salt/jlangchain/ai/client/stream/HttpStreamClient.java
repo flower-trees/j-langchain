@@ -56,7 +56,7 @@ public class HttpStreamClient implements InitializingBean {
     private long connectTimeout = 30000;
     private long readTimeout = 30000;
     private long writeTimeout = 30000;
-    private TimeUnit connectTimeUnit = TimeUnit.SECONDS;
+    private TimeUnit connectTimeUnit = TimeUnit.MILLISECONDS;
     private String proxyHost;
     private int proxyPort;
 

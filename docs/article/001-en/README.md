@@ -26,6 +26,11 @@
 | [Parallel Agent Research: Fan-out / Fan-in with `concurrent`](18-parallel-agent-concurrent.md) | Concurrent AgentExecutor nodes, `cAlias`, merge lambda, fan-out / fan-in | ⭐⭐⭐ | `Article18ParallelTravelResearch` |
 | [Turn Enterprise RPC into AI Tools with Two Annotations](19-rpc-vo-param.md) | `@Param` on VO fields, `@AgentTool` wrapping RPC, zero-intrusion Dubbo / Feign wiring | ⭐⭐ | `Article19RpcMcpTools` |
 | [Dual-Agent Self-Correcting Code Generation: Write Agent + Test Agent Driving `loop()`](20-two-agent-self-correct.md) | Dual McpAgentExecutor coordination, MCP filesystem file I/O, real `javac` + JUnit execution, role separation | ⭐⭐⭐ | `Article20TwoAgentSelfCorrect` |
+| [Proposer-Critic Multi-Round Debate: Two LLM Agents Converging on Consensus with `loop()`](21-proposer-critic-debate.md) | Pure LLM dual agents, `[APPROVED]`/`[CRITIQUE]` structured consensus signal, temperature differentiation, lightest-weight no-tool form | ⭐⭐ | `Article21ProposerCriticDebate` |
+| [Skill Agent: Wrapping Sub-Workflows into Reusable Tools](22-skill-agent.md) | SKILL.md directory convention, allowedTools borrowing, three modes (classpath + Master / code-constructed / standalone) | ⭐⭐⭐ | `Article22SkillAgent` |
+| [SubAgent Basics: An Autonomous Agent with Its Own Tools](23-subagent-basic.md) | Skill vs SubAgent comparison, AGENT.md format, three basic usage patterns (standalone / Master / code-constructed) | ⭐⭐⭐ | `Article23SubAgent` |
+| [SubAgent Advanced: LLM Strategies, Tool Borrowing, and Skill Nesting](23-subagent-advanced.md) | 3-tier LLM resolution chain, model=inherit, llmFactory, allowedTools least privilege, Skill embedding SubAgent | ⭐⭐⭐ | `Article23SubAgent` |
+| [Agent Stop and Resume: Interruptible Long-Running Tasks](24-stop-and-resume.md) | stop() safe checkpoint, AgentStoppedException + partialContext, cascading stop signal, three resumption strategies | ⭐⭐⭐ | `Article24StopAndResume` |
 
 ## Suggested Reading Order
 
@@ -33,7 +38,8 @@
 Getting started (01-hello-ai) → Multi-model (07-multi-model) → Streaming (06-streaming) → Orchestration (02-chain-patterns) → Domestic vendors sequential chain (17-domestic-vendors-chain, optional)
 → RAG (03-rag-pipeline) → ReAct (04-react-agent) → AgentExecutor (09-agent-executor)
 → Airline comparison (10-flight-compare-agent) → TTS (05-llm-tts) → MCP basics (08-mcp)
-→ MCP Function-Calling ReAct (11-mcp-react-agent) → McpAgentExecutor (12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent) → Nested AgentExecutor (15-travel-agent) → Dual agents (16-multi-agent-executor) → Parallel agents (18-parallel-agent-concurrent) → RPC as AI tools (19-rpc-vo-param) → Dual-agent correction (20-two-agent-self-correct)
+→ MCP Function-Calling ReAct (11-mcp-react-agent) → McpAgentExecutor (12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent) → Nested AgentExecutor (15-travel-agent) → Dual agents (16-multi-agent-executor) → Parallel agents (18-parallel-agent-concurrent) → RPC as AI tools (19-rpc-vo-param) → Dual-agent correction (20-two-agent-self-correct) → Proposer-Critic debate (21-proposer-critic-debate)
+→ Skill Agent (22-skill-agent) → SubAgent basics (23-subagent-basic) → SubAgent advanced (23-subagent-advanced) → Agent stop and resume (24-stop-and-resume)
 ```
 
 ## Code Location
@@ -61,7 +67,11 @@ src/test/java/org/salt/jlangchain/demo/article/
 ├── Article17DomesticVendorsChain.java ← 17-domestic-vendors-chain.md
 ├── Article18ParallelTravelResearch.java ← 18-parallel-agent-concurrent.md
 ├── Article19RpcMcpTools.java            ← 19-rpc-vo-param.md
-└── Article20TwoAgentSelfCorrect.java    ← 20-two-agent-self-correct.md
+├── Article20TwoAgentSelfCorrect.java    ← 20-two-agent-self-correct.md
+├── Article21ProposerCriticDebate.java   ← 21-proposer-critic-debate.md
+├── Article22SkillAgent.java             ← 22-skill-agent.md
+├── Article23SubAgent.java               ← 23-subagent-basic.md / 23-subagent-advanced.md
+└── Article24StopAndResume.java          ← 24-stop-and-resume.md
 ```
 
 ## Runtime Requirements
@@ -81,3 +91,7 @@ src/test/java/org/salt/jlangchain/demo/article/
 | `18-parallel-agent-concurrent.md` / `Article18ParallelTravelResearch` | `ALIYUN_KEY` (`qwen-plus`) |
 | `19-rpc-vo-param.md` / `Article19RpcMcpTools` | `ALIYUN_KEY` (`qwen-plus`) |
 | `20-two-agent-self-correct.md` / `Article20TwoAgentSelfCorrect` | JDK 17+, Node.js, `ALIYUN_KEY` (`qwen3.6-plus`) |
+| `21-proposer-critic-debate.md` / `Article21ProposerCriticDebate` | `ALIYUN_KEY` (`qwen-plus`) |
+| `22-skill-agent.md` / `Article22SkillAgent` | `ALIYUN_KEY` (`qwen-plus`) |
+| `23-subagent-basic.md` / `23-subagent-advanced.md` / `Article23SubAgent` | `ALIYUN_KEY` (`qwen-plus` / `qwen-turbo`) |
+| `24-stop-and-resume.md` / `Article24StopAndResume` | `ALIYUN_KEY` (`qwen-plus`) |

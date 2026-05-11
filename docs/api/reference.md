@@ -155,16 +155,198 @@ String result = agent.invoke("Find flights from Beijing to Shanghai");
 
 **Package**: `org.salt.jlangchain.core.agent.McpAgentExecutor`
 
-Model-side Function Calling with MCP tool orchestration. Uses native tool-call messages instead of ReAct prompting.
+Model-side Function Calling with MCP tool orchestration. Uses native tool-call messages instead of ReAct prompting. Supports registering Skills and SubAgents.
+
+| Builder Param | Type | Description |
+|---------------|------|-------------|
+| `llm` | `BaseChatModel` | Master Agent's LLM |
+| `tools(...)` | `Tool...` | Plain tools |
+| `skill(skill)` | `Skill` | Register a Skill (exposed as Tool to master) |
+| `subAgent(agent)` | `SubAgent` | Register a SubAgent (exposed as Tool to master) |
+| `llmFactory` | `Function<String,BaseChatModel>` | Build LLM by model name (for `model=<name>` SubAgents) |
+| `context` | `FullContext` | Inject context object (used for stop/resume) |
+| `onToolCall` | `Consumer<String>` | Tool call callback |
+| `onObservation` | `Consumer<String>` | Tool result callback |
+| `onLlm` | `Consumer<String>` | Pre-LLM-call callback |
 
 ```java
-McpAgentExecutor agent = McpAgentExecutor.builder()
+McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
     .llm(ChatAliyun.builder().model("qwen-plus").build())
-    .mcpManager(mcpManager)
+    .tools(weatherTool, flightTool)
+    .skill(travelSkill)
+    .subAgent(researcher)
     .build();
 ```
 
-### 5.3 @AgentTool / @Param / @ParamDesc / ToolScanner
+### 5.3 Skill Encapsulation
+
+**Package**: `org.salt.jlangchain.core.skill`
+
+Packages a sub-workflow into a self-contained unit exposed to the master Agent as a plain `Tool`. Internally runs a full Function-Calling loop.
+
+#### SkillConfig
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | String | Skill identifier — also the Tool name |
+| `description` | String | Tool description seen by the master LLM (routing basis) |
+| `allowedTools` | `List<String>` | Whitelist of tool names to borrow from the parent Agent |
+| `systemPrompt` | String | SKILL.md body (system prompt) |
+| `maxIterations` | Integer | Max iterations for inner executor |
+
+#### SKILL.md Directory Convention
+
+```
+skills/<name>/
+  SKILL.md           ← frontmatter (name/description/allowed-tools) + system prompt
+  references/        ← knowledge injection (appended to system prompt)
+  scripts/           ← script tools (.py / .sh / .js auto-converted to Tool)
+  agents/            ← embedded SubAgents
+```
+
+#### Usage
+
+```java
+// Load from classpath
+SkillConfig config = ClasspathSkillConfigLoader.fromClasspath("skills/travel-planner");
+Skill skill = Skill.from(config, chainActor)
+    .llm(llm)
+    .verbose(true)
+    .build();
+
+// Code-constructed
+SkillConfig config = SkillConfig.builder()
+    .name("weather_query")
+    .description("Query city weather")
+    .allowedTools(List.of("get_weather"))
+    .systemPrompt("You are a weather expert...")
+    .build();
+
+// Standalone invocation
+String result = skill.invoke("Check weather in Sanya");
+
+// Register with master Agent (allowedTools borrowing handled automatically)
+McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
+    .tools(weatherTool)
+    .skill(skill)
+    .build();
+```
+
+| Builder Method | Description |
+|----------------|-------------|
+| `Skill.from(config, chainActor)` | Create Skill Builder |
+| `.llm(llm)` | Specify inner executor LLM |
+| `.tools(...)` | Register tools directly (standalone mode) |
+| `.verbose(true)` | Enable `[skill:<name>]` prefixed logging |
+| `.onToolCall(consumer)` | Fine-grained tool call callback |
+| `.onObservation(consumer)` | Fine-grained tool result callback |
+
+### 5.4 SubAgent
+
+**Package**: `org.salt.jlangchain.core.subagent`
+
+Sub-agent with its own tools, exposed to the master Agent as a plain `Tool`. Core difference from Skill: SubAgent owns its tools; it doesn't depend on the parent to hold them.
+
+#### SubAgentConfig
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | String | SubAgent identifier — also the Tool name |
+| `description` | String | Tool description seen by the master LLM |
+| `model` | String | `inherit` (master's LLM) / model name / empty (explicit injection) |
+| `allowedTools` | `List<String>` | Whitelist of tool names to borrow from parent Agent |
+| `systemPrompt` | String | AGENT.md body |
+| `maxIterations` | Integer | Max iterations for inner executor |
+
+#### 3-Tier LLM Resolution Chain
+
+```
+Priority  Configuration                   Trigger
+1         SubAgent.Builder.llm(llm)       Explicit injection — highest priority
+2         model: inherit                  master build() auto-calls injectLlm(masterLlm)
+3         model: qwen-plus                master build() injects llmFactory; factory runs before first invoke()
+```
+
+#### AGENT.md Format
+
+```markdown
+---
+name: travel_researcher
+description: Travel info expert. Use when travel information is needed.
+model: inherit
+tools:
+  - get_weather
+max-iterations: 15
+---
+
+You are a travel information expert...
+```
+
+#### Usage
+
+```java
+// Load from classpath
+SubAgentConfig config = ClasspathSubAgentConfigLoader.fromClasspath("agents/travel-researcher");
+SubAgent agent = SubAgent.from(config, chainActor)
+    .llm(llm)
+    .tools(weatherTool, flightTool)
+    .verbose(true)
+    .build();
+
+// Code-constructed with llmFactory
+SubAgentConfig config = SubAgentConfig.builder()
+    .name("flight_checker")
+    .description("Flight price specialist")
+    .model("qwen-turbo")    // resolved by llmFactory
+    .systemPrompt("You are a flight specialist...")
+    .build();
+
+// Register with master Agent (model=inherit / llmFactory / allowedTools auto-handled at build())
+McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
+    .llm(masterLlm)
+    .llmFactory(modelName -> ChatAliyun.builder().model(modelName).build())
+    .tools(weatherTool, flightTool, hotelTool)
+    .subAgent(agent)
+    .build();
+```
+
+### 5.5 Agent Stop & Resume
+
+**Package**: `org.salt.jlangchain.core.agent`
+
+Controlled stop and progress-resume mechanism for long-running Agents — user cancellation, timeout degradation, checkpoint resume.
+
+| API | Description |
+|-----|-------------|
+| `agent.stop()` | Send stop signal; Agent halts after current tool returns (never mid-tool) |
+| `AgentStoppedException.getPartialContext()` | Get execution context with completed steps |
+| `AgentStoppedException.getCompletedSteps()` | Get list of completed `AgentStep`s |
+| `agent.invoke(question, partialCtx)` | Resume from checkpoint (skips completed steps) |
+| `FullContext.build()` | Create a full context object |
+| `context.createWithSteps(question, null, steps)` | Inject prior steps into a new instruction |
+
+```java
+// Async execution + stop
+CompletableFuture<ChatGeneration> future = CompletableFuture.supplyAsync(
+    () -> agent.invoke("Query travel info for Chengdu and Xi'an"));
+toolStarted.await(10, TimeUnit.SECONDS);
+agent.stop();
+
+try {
+    future.get(15, TimeUnit.SECONDS);
+} catch (ExecutionException e) {
+    AgentStoppedException stopped = (AgentStoppedException) e.getCause();
+    // Resume from checkpoint
+    ChatGeneration result = agent.invoke(question, stopped.getPartialContext());
+    // Change direction with prior steps
+    AgentTaskContext newCtx = context.createWithSteps(newQuestion, null, stopped.getCompletedSteps());
+    ChatGeneration result2 = agent.invoke(newQuestion, newCtx);
+}
+```
+
+The stop signal cascades through `ContextBus` from master Agent into SubAgents and Skill inner executors — the entire call chain halts synchronously.
+
+### 5.6 @AgentTool / @Param / @ParamDesc / ToolScanner
 
 **Package**: `org.salt.jlangchain.rag.tools.annotation`
 

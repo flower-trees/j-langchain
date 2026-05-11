@@ -210,6 +210,12 @@ public class Milvus extends VectorStore {
                 .dataType(DataType.Int64)
                 .build());
 
+        schema.addField(AddFieldReq.builder()
+                .fieldName("metadata")
+                .dataType(DataType.VarChar)
+                .maxLength(65535)
+                .build());
+
         IndexParam indexParamForIdField = IndexParam.builder()
                 .fieldName("id")
                 .indexType(IndexParam.IndexType.STL_SORT)
@@ -246,11 +252,8 @@ public class Milvus extends VectorStore {
             jsonObject.add("vector", gson.toJsonTree(embeddings.get(i)));
             jsonObject.addProperty("text", tests.get(i));
             jsonObject.addProperty("file_id", fileId == null ? 0 : fileId);
-            if (!CollectionUtils.isEmpty(metadatas)) {
-                for (Map.Entry<String, Object> entry : metadatas.get(i).entrySet()) {
-                    jsonObject.addProperty(entry.getKey(), entry.getValue().toString());
-                }
-            }
+            Map<String, Object> meta = (!CollectionUtils.isEmpty(metadatas)) ? metadatas.get(i) : Map.of();
+            jsonObject.addProperty("metadata", CollectionUtils.isEmpty(meta) ? "{}" : JsonUtil.toJson(meta));
             data.add(jsonObject);
         }
 
@@ -267,6 +270,7 @@ public class Milvus extends VectorStore {
         return getResp.getGetResults().stream().map(getResult -> Document.builder()
                 .id((Long) getResult.getEntity().get("id"))
                 .pageContent((String) getResult.getEntity().get("text"))
+                .metadata(parseMetadata((String) getResult.getEntity().get("metadata")))
                 .build()).collect(Collectors.toList());
     }
 
@@ -278,10 +282,23 @@ public class Milvus extends VectorStore {
                 .id((Long) searchResult.getEntity().get("id"))
                 .pageContent((String) searchResult.getEntity().get("text"))
                 .fileId((Long) searchResult.getEntity().get("file_id"))
+                .metadata(parseMetadata((String) searchResult.getEntity().get("metadata")))
                 .build()).collect(Collectors.toList());
     }
 
     protected List<String> getOutputFields() {
-        return List.of("id", "text", "file_id");
+        return List.of("id", "text", "file_id", "metadata");
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseMetadata(String json) {
+        if (json == null || json.isBlank() || "{}".equals(json)) return Map.of();
+        try {
+            Map<String, Object> map = JsonUtil.fromJson(json, Map.class);
+            return map != null ? map : Map.of();
+        } catch (Exception e) {
+            log.warn("Failed to parse metadata JSON: {}", json);
+            return Map.of();
+        }
     }
 }

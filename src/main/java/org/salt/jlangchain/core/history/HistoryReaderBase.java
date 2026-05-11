@@ -51,21 +51,43 @@ public abstract class HistoryReaderBase extends HistoryBase {
         List<HistoryInfos> historyInfosList = readHistory();
         if (CollectionUtils.isNotEmpty(historyInfosList)) {
             List<BaseMessage> messages = new ArrayList<>();
+            // 1. main system prompt
             chatPromptValueAll.getMessages().forEach(message -> {
                 if (message instanceof SystemMessage systemMessage) {
                     messages.add(systemMessage);
                 }
             });
+            // 2. history: summary merged into system message, normal turns as Human+AI
             for (HistoryInfos historyInfos : historyInfosList) {
-                historyInfos.getMessages().forEach(message -> {
-                    if (message instanceof HumanMessage humanMessage) {
-                        messages.add(humanMessage);
+                if (historyInfos.getType() == HistoryInfos.Type.SUMMARY) {
+                    String summaryText = historyInfos.getMessages().get(0).getContent();
+                    int lastSystemIdx = -1;
+                    for (int i = messages.size() - 1; i >= 0; i--) {
+                        if (messages.get(i) instanceof SystemMessage) {
+                            lastSystemIdx = i;
+                            break;
+                        }
                     }
-                    if (message instanceof AIMessage aiMessage) {
-                        messages.add(aiMessage);
+                    if (lastSystemIdx >= 0) {
+                        SystemMessage existing = (SystemMessage) messages.get(lastSystemIdx);
+                        messages.set(lastSystemIdx, SystemMessage.builder()
+                                .content(existing.getContent() + "\n\n" + summaryText)
+                                .build());
+                    } else {
+                        messages.add(SystemMessage.builder().content(summaryText).build());
                     }
-                });
+                } else {
+                    historyInfos.getMessages().forEach(message -> {
+                        if (message instanceof HumanMessage humanMessage) {
+                            messages.add(humanMessage);
+                        }
+                        if (message instanceof AIMessage aiMessage) {
+                            messages.add(aiMessage);
+                        }
+                    });
+                }
             }
+            // 3. current human message
             chatPromptValueAll.getMessages().forEach(message -> {
                 if (message instanceof HumanMessage humanMessage) {
                     messages.add(humanMessage);
