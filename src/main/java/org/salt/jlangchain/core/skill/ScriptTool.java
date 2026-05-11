@@ -16,6 +16,7 @@ package org.salt.jlangchain.core.skill;
 
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.rag.tools.Tool;
+import org.salt.jlangchain.utils.JsonUtil;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -64,8 +65,26 @@ public class ScriptTool {
                 .name(def.getName())
                 .description("Execute script: " + def.getName())
                 .params("args: String")
-                .func(args -> execute(executor, tempScript, args != null ? args.toString() : ""))
+                .func(args -> execute(executor, tempScript, resolveArgs(args)))
                 .build();
+    }
+
+    /**
+     * Converts the tool func input (always a Map from McpAgentExecutor) to a command-line string.
+     * - Single key "args": extract the value directly — script receives a plain string.
+     * - Any other shape: serialize the whole map as JSON — script receives a JSON string.
+     */
+    @SuppressWarnings("unchecked")
+    static String resolveArgs(Object args) {
+        if (args == null) return "";
+        if (args instanceof Map<?, ?> map) {
+            if (map.size() == 1 && map.containsKey("args")) {
+                Object val = map.get("args");
+                return val != null ? val.toString() : "";
+            }
+            return JsonUtil.toJson(args);
+        }
+        return args.toString();
     }
 
     private static Path writeTempScript(ScriptDef def) {
