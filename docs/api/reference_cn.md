@@ -155,16 +155,198 @@ String result = agent.invoke("帮我查北京到上海的机票");
 
 **包路径**: `org.salt.jlangchain.core.agent.McpAgentExecutor`
 
-模型侧 Function Calling + MCP 工具编排，使用原生工具调用消息而非 ReAct 提示词。
+模型侧 Function Calling + MCP 工具编排，使用原生工具调用消息而非 ReAct 提示词。支持注册 Skill 和 SubAgent。
+
+| Builder 参数 | 类型 | 说明 |
+|--------------|------|------|
+| `llm` | `BaseChatModel` | 主 Agent 的大模型 |
+| `tools(...)` | `Tool...` | 普通工具 |
+| `skill(skill)` | `Skill` | 注册 Skill（对主 Agent 暴露为 Tool） |
+| `subAgent(agent)` | `SubAgent` | 注册 SubAgent（对主 Agent 暴露为 Tool） |
+| `llmFactory` | `Function<String,BaseChatModel>` | 按模型名构建 LLM（供 model=<name> 的 SubAgent 使用） |
+| `context` | `FullContext` | 注入上下文对象（stop/resume 时使用） |
+| `onToolCall` | `Consumer<String>` | 工具调用回调 |
+| `onObservation` | `Consumer<String>` | 工具结果回调 |
+| `onLlm` | `Consumer<String>` | 模型调用前回调 |
 
 ```java
-McpAgentExecutor agent = McpAgentExecutor.builder()
+McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
     .llm(ChatAliyun.builder().model("qwen-plus").build())
-    .mcpManager(mcpManager)
+    .tools(weatherTool, flightTool)
+    .skill(travelSkill)
+    .subAgent(researcher)
     .build();
 ```
 
-### 5.3 @AgentTool / @Param / @ParamDesc / ToolScanner
+### 5.3 Skill 技能封装
+
+**包路径**: `org.salt.jlangchain.core.skill`
+
+将子工作流封装为独立单元，对主 Agent 暴露为普通 `Tool`，内部运行完整的 Function-Calling 循环。
+
+#### SkillConfig
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `name` | String | Skill 标识符，也是 Tool 名称 |
+| `description` | String | 主 LLM 看到的工具描述（路由依据） |
+| `allowedTools` | `List<String>` | 允许从父 Agent 借用的工具名白名单 |
+| `systemPrompt` | String | SKILL.md 正文（系统提示） |
+| `maxIterations` | Integer | 内部执行器最大迭代次数 |
+
+#### SKILL.md 目录约定
+
+```
+skills/<name>/
+  SKILL.md           ← 前言（name/description/allowed-tools）+ 系统提示
+  references/        ← 知识注入（拼入 system prompt）
+  scripts/           ← 脚本工具（.py / .sh / .js 自动转为 Tool）
+  agents/            ← 嵌入式 SubAgent
+```
+
+#### 用法示例
+
+```java
+// 从 classpath 加载
+SkillConfig config = ClasspathSkillConfigLoader.fromClasspath("skills/travel-planner");
+Skill skill = Skill.from(config, chainActor)
+    .llm(llm)
+    .verbose(true)
+    .build();
+
+// 代码构造
+SkillConfig config = SkillConfig.builder()
+    .name("weather_query")
+    .description("查询城市天气")
+    .allowedTools(List.of("get_weather"))
+    .systemPrompt("你是天气查询专家...")
+    .build();
+
+// 独立运行
+String result = skill.invoke("查询三亚天气");
+
+// 注册到主 Agent（allowedTools 工具借用自动处理）
+McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
+    .tools(weatherTool)
+    .skill(skill)
+    .build();
+```
+
+| Builder 方法 | 说明 |
+|--------------|------|
+| `Skill.from(config, chainActor)` | 创建 Skill Builder |
+| `.llm(llm)` | 指定内部执行器 LLM |
+| `.tools(...)` | 直接注册工具（独立运行模式） |
+| `.verbose(true)` | 开启 `[skill:<name>]` 前缀日志 |
+| `.onToolCall(consumer)` | 工具调用精细回调 |
+| `.onObservation(consumer)` | 工具结果精细回调 |
+
+### 5.4 SubAgent 自主子代理
+
+**包路径**: `org.salt.jlangchain.core.subagent`
+
+拥有自有工具的子代理，对主 Agent 暴露为普通 `Tool`。与 Skill 的核心区别：SubAgent 自带工具，不依赖父 Agent 持有。
+
+#### SubAgentConfig
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `name` | String | SubAgent 标识符，也是 Tool 名称 |
+| `description` | String | 主 LLM 看到的工具描述 |
+| `model` | String | `inherit`（继承主 LLM）/ 模型名 / 空（显式注入） |
+| `allowedTools` | `List<String>` | 允许从父 Agent 借用的工具名白名单 |
+| `systemPrompt` | String | AGENT.md 正文 |
+| `maxIterations` | Integer | 内部执行器最大迭代次数 |
+
+#### LLM 三级解析优先链
+
+```
+优先级  配置方式                     触发条件
+1      SubAgent.Builder.llm(llm)    显式注入，最高优先
+2      model: inherit               主 Agent build() 时自动调用 injectLlm(masterLlm)
+3      model: qwen-plus             主 Agent build() 时注入 llmFactory，首次 invoke() 按名构建
+```
+
+#### AGENT.md 格式
+
+```markdown
+---
+name: travel_researcher
+description: 旅行信息研究专家。当需要旅行信息时使用。
+model: inherit
+tools:
+  - get_weather
+max-iterations: 15
+---
+
+你是旅行信息研究专家...
+```
+
+#### 用法示例
+
+```java
+// 从 classpath 加载
+SubAgentConfig config = ClasspathSubAgentConfigLoader.fromClasspath("agents/travel-researcher");
+SubAgent agent = SubAgent.from(config, chainActor)
+    .llm(llm)
+    .tools(weatherTool, flightTool)
+    .verbose(true)
+    .build();
+
+// 代码构造
+SubAgentConfig config = SubAgentConfig.builder()
+    .name("flight_checker")
+    .description("机票价格查询专员")
+    .model("qwen-turbo")    // 由 llmFactory 解析
+    .systemPrompt("你是机票查询专员...")
+    .build();
+
+// 注册到主 Agent（model=inherit / llmFactory / allowedTools 均由 master build() 自动处理）
+McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
+    .llm(masterLlm)
+    .llmFactory(modelName -> ChatAliyun.builder().model(modelName).build())
+    .tools(weatherTool, flightTool, hotelTool)
+    .subAgent(agent)
+    .build();
+```
+
+### 5.5 Agent 停止与恢复
+
+**包路径**: `org.salt.jlangchain.core.agent`
+
+受控停止与进度恢复机制，适用于长任务 Agent 的用户取消、超时降级、断点续传等场景。
+
+| API | 说明 |
+|-----|------|
+| `agent.stop()` | 发出停止信号；Agent 在当前工具返回后中止，不强制中断 |
+| `AgentStoppedException.getPartialContext()` | 获取已完成步骤的执行上下文 |
+| `AgentStoppedException.getCompletedSteps()` | 获取已完成的 `AgentStep` 列表 |
+| `agent.invoke(question, partialCtx)` | 带上下文恢复执行（跳过已完成步骤） |
+| `FullContext.build()` | 创建完整上下文对象 |
+| `context.createWithSteps(question, null, steps)` | 将旧步骤注入新指令 |
+
+```java
+// 异步执行 + stop
+CompletableFuture<ChatGeneration> future = CompletableFuture.supplyAsync(
+    () -> agent.invoke("查询成都和西安的旅行信息"));
+toolStarted.await(10, TimeUnit.SECONDS);
+agent.stop();
+
+try {
+    future.get(15, TimeUnit.SECONDS);
+} catch (ExecutionException e) {
+    AgentStoppedException stopped = (AgentStoppedException) e.getCause();
+    // 断点续传：带 partialContext 恢复
+    ChatGeneration result = agent.invoke(question, stopped.getPartialContext());
+    // 换方向：旧步骤注入新指令
+    AgentTaskContext newCtx = context.createWithSteps(newQuestion, null, stopped.getCompletedSteps());
+    ChatGeneration result2 = agent.invoke(newQuestion, newCtx);
+}
+```
+
+停止信号通过 `ContextBus` 从主 Agent 级联透传至 SubAgent 和 Skill，整个调用链同步停止。
+
+### 5.6 @AgentTool / @Param / @ParamDesc / ToolScanner
 
 **包路径**: `org.salt.jlangchain.rag.tools.annotation`
 

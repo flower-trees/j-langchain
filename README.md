@@ -21,18 +21,31 @@
 
 ---
 
-## 🆚 Why J-LangChain over LangChain4j / Spring AI?
+## 🏛️ Architecture Advantages
 
-| Feature | J-LangChain | LangChain4j | Spring AI |
-|---------|-------------|-------------|-----------|
-| **Multi-Vendor LLM** | ✅ 13+ mainstream (OpenAI / DeepSeek / Qwen / Kimi…) | ✅ 5+ | ⚠️ Limited |
-| **Flow Orchestration** | ✅ Sequential / Parallel / Nested / Conditional | ⚠️ Chained calls | ⚠️ Basic |
-| **RAG** | ✅ End-to-end (Load → Split → Embed → Vector) | ✅ Complete | ⚠️ Partial |
-| **MCP Protocol** | ✅ 3 modes + Function Calling + Agents | ❌ | ❌ |
-| **AgentExecutor** | ✅ One-line ReAct agent with `@AgentTool` | ⚠️ Manual | ⚠️ Basic |
-| **TTS Support** | ✅ Smart stream + auto-filter | ❌ | ❌ |
-| **Event Monitoring** | ✅ Full lifecycle | ⚠️ Basic | ❌ |
-| **Spring Boot** | ✅ Native auto-config | ✅ | ✅ |
+J-LangChain is built around three design principles that make complex AI applications tractable in Java:
+
+**1. Flow Orchestration as First-Class Citizen**
+
+Powered by [salt-function-flow](https://github.com/flower-trees/salt-function-flow), every component — LLM calls, agents, tools, RAG — is a composable flow node. Sequential, parallel, conditional, and loop orchestration work uniformly, with full event lifecycle and streaming output baked in. You compose AI workflows the same way you write Spring beans.
+
+**2. Layered Agent Architecture**
+
+Rather than one monolithic agent, j-langchain provides a clear hierarchy:
+
+```
+McpAgentExecutor (master)
+  ├─ Tool              ← plain function call
+  ├─ Skill             ← encapsulated sub-workflow (SKILL.md convention)
+  │     └─ SubAgent    ← lightweight specialized agent embedded in Skill
+  └─ SubAgent          ← autonomous sub-agent with its own tools + LLM strategy
+```
+
+Each layer exposes the same `Tool` interface to its parent — the master Agent never needs to know whether a "tool call" runs a function, an inner agent loop, or a two-level nesting. Skill and SubAgent can be loaded from a config file (`SKILL.md` / `AGENT.md`), constructed in code, or run standalone — all three modes are equivalent.
+
+**3. Controllable Long-Running Execution**
+
+Long-running agents are `stop()`-able at any safe checkpoint. `AgentStoppedException` carries a `partialContext` of completed steps, enabling three resumption strategies: restart, checkpoint resume, or inject prior steps into a new instruction. Stop signals cascade from master Agent through SubAgents and into Skill inner executors — the entire call chain halts synchronously.
 
 ---
 
@@ -44,7 +57,7 @@
 <dependency>
     <groupId>io.github.flower-trees</groupId>
     <artifactId>j-langchain</artifactId>
-    <version>1.0.14</version>
+    <version>1.0.15</version>
 </dependency>
 ```
 
@@ -169,7 +182,7 @@ TtsCardChunk audio = aliyunTts.stream(llmStream);
 
 ---
 
-## 📖 19 Tutorials: From Hello World to Multi-Agent Systems
+## 📖 24 Tutorials: From Hello World to Multi-Agent Systems
 
 Every tutorial has a runnable demo class — no setup beyond a single API key.
 
@@ -190,6 +203,12 @@ Every tutorial has a runnable demo class — no setup beyond a single API key.
 | [16 · Dual-Agent Service](./docs/article/001-en/16-multi-agent-executor.md) | ReAct + MCP serial pipeline, file output | ⭐⭐⭐ |
 | [18 · Parallel Agents](./docs/article/001-en/18-parallel-agent-concurrent.md) | 3 concurrent agents, fan-out/fan-in | ⭐⭐⭐ |
 | [19 · RPC Zero-Intrusion](./docs/article/001-en/19-rpc-vo-param.md) | Dubbo/Feign → AI tool, 2 annotations | ⭐⭐ |
+| [20 · Dual-Agent Self-Correction](./docs/article/001-en/20-two-agent-self-correct.md) | Write Agent + Test Agent loop, real javac execution | ⭐⭐⭐ |
+| [21 · Proposer-Critic Debate](./docs/article/001-en/21-proposer-critic-debate.md) | Two LLM agents iterate to consensus, no tools | ⭐⭐ |
+| [22 · Skill Agent ✨](./docs/article/001-en/22-skill-agent.md) | SKILL.md encapsulation, allowedTools borrowing | ⭐⭐⭐ |
+| [23 · SubAgent Basics ✨](./docs/article/001-en/23-subagent-basic.md) | Autonomous sub-agent with own tools, AGENT.md | ⭐⭐⭐ |
+| [23 · SubAgent Advanced ✨](./docs/article/001-en/23-subagent-advanced.md) | model=inherit, llmFactory, allowedTools, nesting | ⭐⭐⭐ |
+| [24 · Stop & Resume ✨](./docs/article/001-en/24-stop-and-resume.md) | stop(), partialContext, 3 resumption strategies | ⭐⭐⭐ |
 
 ➡️ [Full tutorial index with reading order →](./docs/article/001-en/README.md)
 
@@ -207,7 +226,7 @@ Sequential · Parallel · Nested · Conditional routing · Streaming output · F
 PDF / Word / OCR loaders · Smart text splitting · OpenAI / Ollama / Alibaba embeddings · Milvus vector store
 
 ### 🤖 Agent & MCP
-`AgentExecutor` (ReAct) · `McpAgentExecutor` (Function Calling) · `@AgentTool` / `ToolScanner` · MCP Stdio / SSE / HTTP · Multi-app history with thread safety
+`AgentExecutor` (ReAct) · `McpAgentExecutor` (Function Calling) · `@AgentTool` / `ToolScanner` · MCP Stdio / SSE / HTTP · Multi-app history with thread safety · **Skill** (sub-workflow encapsulation, SKILL.md) · **SubAgent** (autonomous agents with own tools, 3-tier LLM strategy) · **Stop & Resume** (safe checkpoint, partialContext, signal cascading)
 
 ### 🎤 TTS
 Alibaba Cloud · Doubao · Smart sentence splitting · Bracket auto-filter · Real-time audio streaming
@@ -217,18 +236,29 @@ Alibaba Cloud · Doubao · Smart sentence splitting · Bracket auto-filter · Re
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│              Your Spring Boot Application               │
-└────────────────────────┬────────────────────────────────┘
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│                    J-LangChain Core                     │
-│   ChainActor · PromptTemplate · OutputParser · History  │
-└──────────┬───────────┬───────────┬──────────┬──────────┘
-           ▼           ▼           ▼          ▼
-      LLM (13+)      RAG         TTS         MCP
-   Multi-vendor   Load/Split  Smart stream  Stdio/SSE
-   chat + tools  Embed/Vector  Auto-filter   HTTP/FC
+┌──────────────────────────────────────────────────────────────────┐
+│                  Your Spring Boot Application                    │
+└─────────────────────────────┬────────────────────────────────────┘
+                              ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                       J-LangChain Core                           │
+│       ChainActor · PromptTemplate · OutputParser · History       │
+└──────┬────────────┬────────────┬──────────┬──────────────────────┘
+       ▼            ▼            ▼          ▼
+  LLM (13+)       RAG           TTS        MCP
+Multi-vendor   Load/Split   Smart stream  Stdio/SSE
+chat + tools  Embed/Vector   Auto-filter   HTTP/FC
+       │
+       ▼  Agent Layer
+┌──────────────────────────────────────────────────────────────────┐
+│  McpAgentExecutor (master)                                       │
+│   ├─ Tool          ← plain function                              │
+│   ├─ Skill         ← sub-workflow (SKILL.md, 3-mode load)        │
+│   │    └─ SubAgent ← embedded lightweight agent                  │
+│   └─ SubAgent      ← autonomous agent (own tools, 3-tier LLM)   │
+│                                                                  │
+│  stop() → AgentStoppedException → partialContext → resume        │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
