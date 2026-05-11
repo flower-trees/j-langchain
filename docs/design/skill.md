@@ -18,13 +18,13 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         主 Agent (Master)                        │
+│                         主 Agent (Master)                       │
 │                                                                 │
 │   McpAgentExecutor                                              │
 │   ├─ LLM                                                        │
 │   ├─ Tool: search_web                                           │
 │   ├─ Tool: send_email                                           │
-│   └─ Tool: travel_planner  ←── Skill 注册为普通 Tool             │
+│   └─ Tool: travel_planner  ←── Skill 注册为普通 Tool              │
 │              │                                                  │
 │              │ asTool()                                         │
 │              ▼                                                  │
@@ -35,13 +35,13 @@
 │        │  parentTools (allowedTools 注入) │                      │
 │        │         │                       │                      │
 │        │         ▼  invoke()             │                      │
-│        │  McpAgentExecutor（内部执行器）  │                      │
-│        │  ├─ LLM（继承自主 Agent）        │                      │
+│        │  McpAgentExecutor（内部执行器）   │                      │
+│        │  ├─ LLM（继承自主 Agent）         │                      │
 │        │  ├─ systemPrompt（SKILL.md 内容）│                      │
 │        │  ├─ ScriptTools（scripts/*）     │                      │
 │        │  ├─ ownTools                    │                      │
 │        │  ├─ parentTools（borrowed）      │                      │
-│        │  └─ SubAgents（agents/* 嵌入）  │                      │
+│        │  └─ SubAgents（agents/* 嵌入）    │                      │
 │        └─────────────────────────────────┘                      │
 └─────────────────────────────────────────────────────────────────┘
 ```

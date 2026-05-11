@@ -27,6 +27,10 @@
 | [两行注解把企业 RPC 接口变成 AI 工具](19-rpc-vo-param.md) | @Param 标注 VO 字段、@AgentTool 包装 RPC、Dubbo / Feign 零侵入接入 | ⭐⭐ | `Article19RpcMcpTools` |
 | [双 Agent 自我纠错代码生成：Write Agent + Test Agent 驱动 loop() 循环](20-two-agent-self-correct.md) | McpAgentExecutor 双 Agent 协作、MCP filesystem 真实文件读写、javac + JUnit 实时执行、职责分离 | ⭐⭐⭐ | `Article20TwoAgentSelfCorrect` |
 | [Proposer-Critic 多轮辩论：两个 LLM Agent 用 loop() 逼近共识](21-proposer-critic-debate.md) | 纯 LLM 双 Agent、[APPROVED]/[CRITIQUE] 结构化共识信号、temperature 差异化、无工具最轻量形态 | ⭐⭐ | `Article21ProposerCriticDebate` |
+| [Skill Agent：把子工作流封装成可复用的 Tool](22-skill-agent.md) | SKILL.md 目录约定、allowedTools 借用机制、三种运行模式（classpath + Master / 代码构造 / 独立运行） | ⭐⭐⭐ | `Article22SkillAgent` |
+| [SubAgent 基础：拥有自主工具的子代理](23a-subagent-basic.md) | Skill vs SubAgent 对比、AGENT.md 格式、三种基础用法（独立运行 / 挂 Master / 代码构造） | ⭐⭐⭐ | `Article23SubAgent` |
+| [SubAgent 进阶：LLM 策略、工具借用与 Skill 嵌套](23b-subagent-advanced.md) | LLM 三级解析优先链、model=inherit、llmFactory、allowedTools 最小权限、SKILL 内嵌 SubAgent | ⭐⭐⭐ | `Article23SubAgent` |
+| [Agent 停止与恢复：可中断的长任务](24-stop-and-resume.md) | stop() 安全检查点、AgentStoppedException + partialContext、stop 信号级联透传、三种恢复策略 | ⭐⭐⭐ | `Article24StopAndResume` |
 
 ## 建议阅读顺序
 
@@ -35,6 +39,7 @@
 → RAG（03-rag-pipeline）→ ReAct（04-react-agent）→ AgentExecutor（09-agent-executor）
 → 航司比价（10-flight-compare-agent）→ TTS（05-llm-tts）→ MCP 基础（08-mcp）
 → MCP Function-Calling ReAct（11-mcp-react-agent）→ McpAgentExecutor（12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent）→ AgentExecutor 嵌套（15-travel-agent）→ 双 Agent 串联（16-multi-agent-executor）→ 并行 Agent（18-parallel-agent-concurrent）→ RPC 接入 AI 工具（19-rpc-vo-param）→ 双Agent纠错（20-two-agent-self-correct）→ Proposer-Critic 辩论（21-proposer-critic-debate）
+→ Skill Agent（22-skill-agent）→ SubAgent 基础（23a-subagent-basic）→ SubAgent 进阶（23b-subagent-advanced）→ Agent 停止与恢复（24-stop-and-resume）
 ```
 
 ## 代码位置
@@ -63,7 +68,10 @@ src/test/java/org/salt/jlangchain/demo/article/
 ├── Article18ParallelTravelResearch.java ← 18-parallel-agent-concurrent.md
 ├── Article19RpcMcpTools.java            ← 19-rpc-vo-param.md
 ├── Article20TwoAgentSelfCorrect.java    ← 20-two-agent-self-correct.md
-└── Article21ProposerCriticDebate.java   ← 21-proposer-critic-debate.md
+├── Article21ProposerCriticDebate.java   ← 21-proposer-critic-debate.md
+├── Article22SkillAgent.java             ← 22-skill-agent.md / 22-skill-agent-en.md
+├── Article23SubAgent.java               ← 23a-subagent-basic.md / 23b-subagent-advanced.md
+└── Article24StopAndResume.java          ← 24-stop-and-resume.md / 24-stop-and-resume-en.md
 ```
 
 ## 运行环境要求
@@ -84,3 +92,6 @@ src/test/java/org/salt/jlangchain/demo/article/
 | `19-rpc-vo-param.md` / `Article19RpcMcpTools` | `ALIYUN_KEY`（`qwen-plus`） |
 | `20-two-agent-self-correct.md` / `Article20TwoAgentSelfCorrect` | JDK 17+、Node.js、`ALIYUN_KEY`（`qwen3.6-plus`） |
 | `21-proposer-critic-debate.md` / `Article21ProposerCriticDebate` | `ALIYUN_KEY`（`qwen-plus`） |
+| `22-skill-agent.md` / `Article22SkillAgent` | `ALIYUN_KEY`（`qwen-plus`） |
+| `23a-subagent-basic.md` / `23b-subagent-advanced.md` / `Article23SubAgent` | `ALIYUN_KEY`（`qwen-plus` / `qwen-turbo`） |
+| `24-stop-and-resume.md` / `Article24StopAndResume` | `ALIYUN_KEY`（`qwen-plus`） |

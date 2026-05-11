@@ -26,29 +26,29 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         主 Agent (Master)                        │
+│                         主 Agent (Master)                       │
 │                                                                 │
 │   McpAgentExecutor                                              │
-│   ├─ LLM (master LLM)                                          │
+│   ├─ LLM (master LLM)                                           │
 │   ├─ Tool: book_flight                                          │
-│   └─ Tool: travel_researcher  ←── SubAgent 注册为普通 Tool       │
+│   └─ Tool: travel_researcher  ←── SubAgent 注册为普通 Tool        │
 │              │                                                  │
 │              │ asTool()                                         │
 │              ▼                                                  │
 │   ┌──────────────────────────────────────────────────┐          │
-│   │                    SubAgent                       │          │
+│   │                    SubAgent                      │          │
 │   │  config (AGENT.md)                               │          │
-│   │  ownTools (显式注册)                               │          │
+│   │  ownTools (显式注册)                              │          │
 │   │  inheritedTools (allowedTools 注入)               │          │
 │   │  callableSkills (Skills 作为内部 Tool)            │          │
 │   │           │                                      │          │
 │   │           ▼  invoke()                            │          │
-│   │  McpAgentExecutor（内部执行器）                   │          │
-│   │  ├─ LLM（resolveLlm 三级优先）                   │          │
-│   │  ├─ systemPrompt（AGENT.md + Skill 知识）        │          │
+│   │  McpAgentExecutor（内部执行器）                    │          │
+│   │  ├─ LLM（resolveLlm 三级优先）                     │          │
+│   │  ├─ systemPrompt（AGENT.md + Skill 知识）         │          │
 │   │  ├─ ownTools                                     │          │
-│   │  ├─ inheritedTools（borrowed）                   │          │
-│   │  └─ Skill Tools（callableSkills）                │          │
+│   │  ├─ inheritedTools（borrowed）                    │          │
+│   │  └─ Skill Tools（callableSkills）                 │          │
 │   └──────────────────────────────────────────────────┘          │
 └─────────────────────────────────────────────────────────────────┘
 ```
