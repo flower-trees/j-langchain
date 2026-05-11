@@ -37,7 +37,7 @@ import java.util.*;
  * </pre>
  *
  * The {@code skills} frontmatter field is a list of classpath directories; each is loaded
- * via {@link ClasspathSkillConfigLoader} and stored inline in {@link SubAgentConfig#getSkills()}.
+ * via {@link ClasspathSkillConfigLoader} and stored inline in {@link SubAgentConfig} (field: skills).
  *
  * <p>Works inside JAR files via Spring's {@link PathMatchingResourcePatternResolver}.
  */

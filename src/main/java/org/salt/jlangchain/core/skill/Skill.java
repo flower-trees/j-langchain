@@ -36,14 +36,14 @@ import java.util.function.Consumer;
  *
  * <p>From the master agent's perspective, a skill is just a {@link Tool}.
  * Internally it runs a full Function Calling loop guided by the system prompt
- * loaded from {@link SkillConfig#getSystemPrompt()}.
+ * loaded from {@link SkillConfig} (field: systemPrompt).
  *
  * <p>Tools available to the internal sub-agent come from three sources:
  * <ol>
- *   <li>Script tools — auto-converted from {@link SkillConfig#getScripts()}</li>
+ *   <li>Script tools — auto-converted from {@link SkillConfig} (field: scripts)</li>
  *   <li>Own tools — explicitly added via {@link Builder#tools(Tool...)}</li>
  *   <li>Parent tools — injected by the master agent builder based on
- *       {@link SkillConfig#getAllowedTools()}</li>
+ *       {@link SkillConfig} (field: allowedTools)</li>
  * </ol>
  *
  * <p>Observability:
