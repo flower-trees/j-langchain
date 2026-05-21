@@ -348,7 +348,8 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 tools.add(subAgent.asTool());
             }
 
-            if (tools == null || tools.isEmpty()) throw new IllegalStateException("at least one tool must be provided");
+            // tools may be empty when the planner decides no capability is needed;
+            // the LLM will answer directly without tool calls in that case.
 
             // ── 1. Build tool lookup map and AiChatInput.Tool list for the LLM ──
             Map<String, Tool> toolMap = new java.util.HashMap<>();
