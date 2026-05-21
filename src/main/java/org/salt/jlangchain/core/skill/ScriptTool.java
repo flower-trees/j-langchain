@@ -44,6 +44,7 @@ public class ScriptTool {
         EXECUTORS.put("sh", new String[]{"bash"});
         EXECUTORS.put("js", new String[]{"node"});
         EXECUTORS.put("rb", new String[]{"ruby"});
+        EXECUTORS.put("groovy", new String[]{"groovy"});
     }
 
     public static void register(String ext, String... command) {
