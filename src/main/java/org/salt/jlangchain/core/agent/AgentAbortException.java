@@ -20,27 +20,32 @@ import org.salt.jlangchain.core.agent.memory.AgentTaskContext;
 import java.util.List;
 
 /**
- * Thrown when an agent loop is stopped via {@link McpAgentExecutor#stop()} or
- * {@link AgentExecutor#stop()}. Carries the partial {@link AgentTaskContext}
- * accumulated before the stop, allowing callers to inspect completed steps or
- * resume execution via
- * {@link McpAgentExecutor#invoke(String, java.util.concurrent.atomic.AtomicBoolean, AgentTaskContext)}.
+ * Thrown when the agent loop is forcibly terminated by a system limit.
+ *
+ * <p>Carries the {@link AgentAbortReason} and the partial {@link AgentTaskContext}
+ * accumulated before the abort, allowing callers to inspect completed steps.
+ *
+ * @see AgentAbortReason
  */
-public class AgentStoppedException extends AgentException {
+public class AgentAbortException extends AgentException {
 
+    private final AgentAbortReason reason;
     private final AgentTaskContext partialContext;
 
-    public AgentStoppedException(String message, AgentTaskContext partialContext) {
+    public AgentAbortException(AgentAbortReason reason, String message, AgentTaskContext partialContext) {
         super(message);
+        this.reason = reason;
         this.partialContext = partialContext;
     }
 
-    /** The partial context at the moment of stop (may be null if stop fired before initContext). */
+    public AgentAbortReason getReason() {
+        return reason;
+    }
+
     public AgentTaskContext getPartialContext() {
         return partialContext;
     }
 
-    /** Convenience: returns completed steps, or an empty list if context is null. */
     public List<AgentStep> getCompletedSteps() {
         return partialContext != null ? partialContext.getCompletedSteps() : List.of();
     }

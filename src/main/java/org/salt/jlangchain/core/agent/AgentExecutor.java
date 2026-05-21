@@ -135,6 +135,12 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         } catch (AgentStoppedException e) {
             if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
             throw e;
+        } catch (AgentPauseException e) {
+            if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
+            throw e;
+        } catch (AgentAbortException e) {
+            if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
+            throw e;
         }
     }
 

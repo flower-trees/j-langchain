@@ -47,6 +47,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -128,6 +130,12 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         } catch (AgentStoppedException e) {
             if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
             throw e;
+        } catch (AgentPauseException e) {
+            if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
+            throw e;
+        } catch (AgentAbortException e) {
+            if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
+            throw e;
         }
     }
 
@@ -145,6 +153,9 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private Function<String, BaseChatModel> llmFactory;
         private String systemPrompt;
         private int maxIterations = 10;
+        private int maxDurationSeconds = 0;
+        private int maxConsecutiveToolFailures = 0;
+        private int toolRetry = 0;
         private AgentContext context;
         private ConversationMemoryStorerBase conversationStorer;
         private Consumer<String> llmConsumer;
@@ -243,6 +254,24 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
         public Builder maxIterations(int maxIterations) {
             this.maxIterations = maxIterations;
+            return this;
+        }
+
+        /** Maximum wall-clock time for the entire loop. 0 means no limit. */
+        public Builder maxDurationSeconds(int maxDurationSeconds) {
+            this.maxDurationSeconds = maxDurationSeconds;
+            return this;
+        }
+
+        /** Abort after this many consecutive rounds where every tool call failed. 0 means no limit. */
+        public Builder maxConsecutiveToolFailures(int maxConsecutiveToolFailures) {
+            this.maxConsecutiveToolFailures = maxConsecutiveToolFailures;
+            return this;
+        }
+
+        /** Auto-retry a failing tool up to this many extra attempts before returning an error observation. 0 means no retry. */
+        public Builder toolRetry(int toolRetry) {
+            this.toolRetry = toolRetry;
             return this;
         }
 
@@ -377,14 +406,29 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
             // ── 4. Loop condition: continue while LLM returns tool calls ──
             int maxIter = this.maxIterations;
+            long maxDurationMs = this.maxDurationSeconds > 0 ? (long) this.maxDurationSeconds * 1000 : 0;
+            int maxConsecFail = this.maxConsecutiveToolFailures;
+            int toolRetryCount = this.toolRetry;
+            AtomicLong startTimeMs = new AtomicLong(0);
+            AtomicInteger consecutiveFailures = new AtomicInteger(0);
+
             Function<Integer, Boolean> shouldContinue = i -> {
                 AtomicBoolean signal = ContextBus.get().getTransmit(CallInfo.STOP_SIGNAL.name());
                 if (signal != null && signal.get()) {
                     AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
                     throw new AgentStoppedException("Agent stopped by external request", ctx);
                 }
+                if (i == 0) {
+                    startTimeMs.set(System.currentTimeMillis());
+                    consecutiveFailures.set(0);
+                    return true;
+                }
+                if (maxDurationMs > 0 && System.currentTimeMillis() - startTimeMs.get() > maxDurationMs) {
+                    AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                    throw new AgentAbortException(AgentAbortReason.TIMEOUT,
+                            "Agent timed out after " + (maxDurationMs / 1000) + "s", ctx);
+                }
                 if (i >= maxIter) return false;
-                if (i == 0) return true;
                 AIMessage aiMessage = ContextBus.get().getResult(llm.getNodeId());
                 if (aiMessage instanceof ToolMessage toolMessage) {
                     return !CollectionUtils.isEmpty(toolMessage.getToolCalls());
@@ -419,18 +463,47 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     if (tool == null) {
                         observation = "Tool '" + toolName + "' not found.";
                         log.warn("Tool not found: {}", toolName);
+                        if (maxConsecFail > 0 && consecutiveFailures.incrementAndGet() >= maxConsecFail) {
+                            throw new AgentAbortException(AgentAbortReason.CONSECUTIVE_TOOL_FAILURES,
+                                    "Consecutive tool failures reached " + maxConsecFail, ctx);
+                        }
                     } else {
-                        try {
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> argsMap = JsonUtil.fromJson(argsJson, Map.class);
-                            Object raw = tool.getFunc().apply(argsMap != null ? argsMap : Map.of());
-                            observation = raw != null ? raw.toString() : "";
-                        } catch (AgentStoppedException e) {
-                            log.debug("Tool '{}' interrupted by stop signal", toolName);
-                            throw e;
-                        } catch (Exception e) {
-                            observation = "Tool execution error: " + e.getMessage();
-                            log.error("Tool execution failed: {}", toolName, e);
+                        // ── Framework-level auto-retry (transparent to LLM) ──
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> argsMap = JsonUtil.fromJson(argsJson, Map.class);
+                        Map<String, Object> args = argsMap != null ? argsMap : Map.of();
+                        String toolObservation = null;
+                        Exception lastError = null;
+                        int attempts = 0;
+                        while (attempts <= toolRetryCount) {
+                            try {
+                                Object raw = tool.getFunc().apply(args);
+                                toolObservation = raw != null ? raw.toString() : "";
+                                lastError = null;
+                                break;
+                            } catch (AgentException e) {
+                                log.debug("Tool '{}' raised agent signal: {}", toolName, e.getMessage());
+                                throw e;
+                            } catch (Exception e) {
+                                lastError = e;
+                                attempts++;
+                                if (attempts <= toolRetryCount) {
+                                    log.warn("Tool '{}' failed (attempt {}/{}), retrying: {}",
+                                            toolName, attempts, toolRetryCount + 1, e.getMessage());
+                                } else {
+                                    log.error("Tool '{}' failed after {} attempt(s)", toolName, attempts, e);
+                                }
+                            }
+                        }
+                        if (lastError != null) {
+                            observation = "Tool execution error: " + lastError.getMessage();
+                            if (maxConsecFail > 0 && consecutiveFailures.incrementAndGet() >= maxConsecFail) {
+                                throw new AgentAbortException(AgentAbortReason.CONSECUTIVE_TOOL_FAILURES,
+                                        "Consecutive tool failures reached " + maxConsecFail, ctx);
+                            }
+                        } else {
+                            observation = toolObservation;
+                            consecutiveFailures.set(0);
                         }
                     }
 
@@ -463,7 +536,9 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 )
                 .next(
                     Info.c(output -> output instanceof ChatPromptValue, output -> {
-                        throw new RuntimeException("Max iterations (" + maxIter + ") reached without a final answer.");
+                        AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                        throw new AgentAbortException(AgentAbortReason.MAX_STEPS,
+                                "Max iterations (" + maxIter + ") reached without a final answer.", ctx);
                     }),
                     Info.c(new StrOutputParser())
                 );
