@@ -528,3 +528,92 @@ master.stop();               // 信号自动传入 SubAgent 的循环
 | **控制流与错误分离** | FlowControlException 标记接口让框架区分"预期中断"与"真实错误"，避免误报日志 |
 | **步骤完整性** | 检查点在工具完成后，不在工具内部，已执行完成的步骤不会被截断 |
 | **可再次停止** | resume 时创建新 stopSignal，恢复后的执行可再次被 stop()，满足多次中断场景 |
+
+---
+
+## 13. 运行时停止类型扩展
+
+本节记录在原有停止/继续机制之上新增的异常层次结构与三种运行时停止机制。
+
+### 13.1 异常层次结构
+
+```
+AgentException（抽象类，实现 FlowControlException）
+├── AgentStoppedException   — 不变，外部用户取消，携带 partialContext
+├── AgentAbortException     — 系统强制终止
+│     reason: AgentAbortReason 枚举 { MAX_STEPS, TIMEOUT, CONSECUTIVE_TOOL_FAILURES, BUDGET_EXCEEDED }
+│     字段: AgentAbortReason reason, AgentTaskContext partialContext
+└── AgentPauseException     — Agent 主动暂停（上层语义）
+      字段: String reason, Map<String,Object> payload, AgentTaskContext partialContext
+```
+
+**设计理由**：
+
+- `AgentStoppedException`：外部中断（用户调用 `stop()`），可恢复
+- `AgentAbortException`：触发系统限制，由框架决策；`MAX_STEPS` 替代了原先在第 466 行抛出的裸 `RuntimeException`；所有情况均携带 `partialContext` 以供诊断
+- `AgentPauseException`：Agent 语义层面的暂停（例如需要用户输入或审批）；`reason` 和 `payload` 由应用层定义，框架只提供机制；保存 `partialContext` 以供恢复
+
+三种新异常类型均通过 `AgentException` 实现 `FlowControlException`，因此流程引擎以 DEBUG 级别记录，而非 WARN。
+
+### 13.2 三种新运行时停止机制
+
+#### 13.2.1 TIMEOUT（超时）
+
+在 `shouldContinue` 中检查。当 `i==0` 时记录 `startTimeMs`。后续每次检查时，若已耗时 > `maxDurationMs`，则抛出 `AgentAbortException(TIMEOUT)`。
+
+Builder 参数：`.maxDurationSeconds(int)`，0 表示禁用。
+
+#### 13.2.2 CONSECUTIVE_TOOL_FAILURES（连续工具失败）
+
+在 `executeTool` 闭包中维护 `AtomicInteger consecutiveFailures`：
+- 任意工具调用失败（抛出异常或工具未找到）时递增
+- 调用成功时重置为 0
+- 达到 `maxConsecFail` 时抛出 `AgentAbortException(CONSECUTIVE_TOOL_FAILURES)`
+
+**重要**：此计数统计的是 LLM 驱动的重试轮次（LLM 连续调用失败工具的次数），而非框架级重试。
+
+Builder 参数：`.maxConsecutiveToolFailures(int)`，0 表示禁用。
+
+#### 13.2.3 Framework Tool Retry（框架工具重试，toolRetry）
+
+在将错误观测值返回给 LLM 之前，框架最多静默重试工具调用 `toolRetryCount` 次。只有全部尝试均失败后，错误信息才会作为 observation 传给 LLM。此过程对 LLM 透明。
+
+Builder 参数：`.toolRetry(int)`，0 表示不重试。
+
+### 13.3 关键设计原则
+
+- **CONSECUTIVE_TOOL_FAILURES ≠ toolRetry**：前者计量 LLM 行为（LLM 连续多少轮调用失败工具）；后者是框架在 LLM 感知之前静默重试。两者相互独立，分别控制。
+- **AgentPauseException 有意保持精简**：框架定义机制（保存上下文、向上传播），不定义语义（"wait_user" 的含义由应用层决定）。
+- 三种新异常类型均通过 `AgentException` 实现 `FlowControlException`，框架以 DEBUG 级别记录，不产生误报告警。
+
+### 13.4 invoke() 捕获块
+
+`McpAgentExecutor` 和 `AgentExecutor` 现在同时捕获三种异常：
+
+```java
+catch (AgentStoppedException e) { savePartial() + rethrow }
+catch (AgentPauseException e)   { savePartial() + rethrow }
+catch (AgentAbortException e)   { savePartial() + rethrow }
+```
+
+### 13.5 新增 Builder 方法
+
+```java
+.maxDurationSeconds(int)          // 0 = 禁用超时检查
+.maxConsecutiveToolFailures(int)  // 0 = 禁用连续失败检查
+.toolRetry(int)                   // 0 = 不重试
+```
+
+### 13.6 涉及改动的文件
+
+```
+core/agent/
+  AgentException.java               # 新增：抽象基类，实现 FlowControlException
+  AgentAbortReason.java             # 新增：枚举 { MAX_STEPS, TIMEOUT, CONSECUTIVE_TOOL_FAILURES, BUDGET_EXCEEDED }
+  AgentAbortException.java          # 新增：系统强制终止异常
+  AgentPauseException.java          # 新增：Agent 主动暂停异常
+  AgentStoppedException.java        # 修改：改为继承 AgentException
+  McpAgentExecutor.java             # 修改：新增 Builder 参数、shouldContinue 超时检查、
+                                    #       executeTool 重试+连续失败计数、invoke 捕获块
+  AgentExecutor.java                # 修改：invoke 新增捕获 AgentPauseException/AgentAbortException
+```

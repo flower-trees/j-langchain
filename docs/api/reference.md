@@ -168,6 +168,9 @@ Model-side Function Calling with MCP tool orchestration. Uses native tool-call m
 | `onToolCall` | `Consumer<String>` | Tool call callback |
 | `onObservation` | `Consumer<String>` | Tool result callback |
 | `onLlm` | `Consumer<String>` | Pre-LLM-call callback |
+| `maxDurationSeconds` | `int` | Max wall-clock duration in seconds; 0 = no limit |
+| `maxConsecutiveToolFailures` | `int` | Max consecutive rounds where every tool call failed; 0 = no limit |
+| `toolRetry` | `int` | Framework-level auto-retry count per tool call (transparent to LLM); 0 = no retry |
 
 ```java
 McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
@@ -346,7 +349,68 @@ try {
 
 The stop signal cascades through `ContextBus` from master Agent into SubAgents and Skill inner executors — the entire call chain halts synchronously.
 
-### 5.6 @AgentTool / @Param / @ParamDesc / ToolScanner
+### 5.6 Agent Stop Types
+
+**Exception Hierarchy**
+
+```
+AgentException (abstract base, implements FlowControlException)
+├── AgentStoppedException   External stop() call — user_cancel
+├── AgentAbortException     System-forced termination (MAX_STEPS / TIMEOUT / CONSECUTIVE_TOOL_FAILURES / BUDGET_EXCEEDED)
+└── AgentPauseException     Agent semantic pause (business-defined reason from upper-layer tool)
+```
+
+**AgentAbortException**
+
+| AgentAbortReason | Trigger Condition | Builder Config |
+|---|---|---|
+| `MAX_STEPS` | Loop exceeded maxIterations without finishing | `.maxIterations(n)` |
+| `TIMEOUT` | Execution wall time exceeded the limit | `.maxDurationSeconds(n)` |
+| `CONSECUTIVE_TOOL_FAILURES` | LLM called failing tools for consecutive rounds | `.maxConsecutiveToolFailures(n)` |
+| `BUDGET_EXCEEDED` | Token budget exceeded (reserved) | — |
+
+**AgentPauseException**
+
+Thrown by an upper-layer tool to request a semantic pause. Carries a business-defined `reason`, a `payload` map, and a `partialContext` saved by the framework for later resumption.
+
+```java
+// Inside an upper-layer tool
+AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+throw new AgentPauseException("need_approval",
+    Map.of("action", "Transfer $50,000", "reason", "Exceeds auto-approval limit"), ctx);
+```
+
+**Framework Tool Retry (toolRetry)**
+
+When a tool fails, the framework silently retries before sending an error observation back to the LLM:
+
+```java
+McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
+    .toolRetry(3)                        // retry each tool call up to 3 times
+    .maxConsecutiveToolFailures(5)        // abort if LLM calls failing tools 5 rounds in a row
+    .maxDurationSeconds(30)              // whole task timeout: 30 seconds
+    .build();
+```
+
+**Catch Example**
+
+```java
+try {
+    ChatGeneration result = agent.invoke("...");
+} catch (AgentStoppedException e) {
+    // User cancelled; use e.getPartialContext() to resume
+} catch (AgentAbortException e) {
+    System.out.println("System aborted, reason: " + e.getReason()); // MAX_STEPS / TIMEOUT / ...
+    // Use e.getPartialContext() to inspect completed steps
+} catch (AgentPauseException e) {
+    System.out.println("Agent paused, reason=" + e.getReason());
+    System.out.println("payload=" + e.getPayload());
+    // Handle business logic, then resume with partialContext
+    ChatGeneration result = agent.invoke(question, e.getPartialContext());
+}
+```
+
+### 5.7 @AgentTool / @Param / @ParamDesc / ToolScanner
 
 **Package**: `org.salt.jlangchain.rag.tools.annotation`
 

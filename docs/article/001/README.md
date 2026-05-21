@@ -31,6 +31,7 @@
 | [SubAgent 基础：拥有自主工具的子代理](23a-subagent-basic.md) | Skill vs SubAgent 对比、AGENT.md 格式、三种基础用法（独立运行 / 挂 Master / 代码构造） | ⭐⭐⭐ | `Article23SubAgent` |
 | [SubAgent 进阶：LLM 策略、工具借用与 Skill 嵌套](23b-subagent-advanced.md) | LLM 三级解析优先链、model=inherit、llmFactory、allowedTools 最小权限、SKILL 内嵌 SubAgent | ⭐⭐⭐ | `Article23SubAgent` |
 | [Agent 停止与恢复：可中断的长任务](24-stop-and-resume.md) | stop() 安全检查点、AgentStoppedException + partialContext、stop 信号级联透传、三种恢复策略 | ⭐⭐⭐ | `Article24StopAndResume` |
+| [Agent 运行时停止类型：MAX_STEPS、TIMEOUT、CONSECUTIVE_TOOL_FAILURES 与 AgentPauseException](26-agent-stop-types.md) | Runtime Stop 异常体系、框架工具重试、AgentPauseException 业务暂停与恢复 | ⭐⭐⭐ | `Article26AgentStopTypes` |
 
 ## 建议阅读顺序
 
@@ -39,7 +40,7 @@
 → RAG（03-rag-pipeline）→ ReAct（04-react-agent）→ AgentExecutor（09-agent-executor）
 → 航司比价（10-flight-compare-agent）→ TTS（05-llm-tts）→ MCP 基础（08-mcp）
 → MCP Function-Calling ReAct（11-mcp-react-agent）→ McpAgentExecutor（12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent）→ AgentExecutor 嵌套（15-travel-agent）→ 双 Agent 串联（16-multi-agent-executor）→ 并行 Agent（18-parallel-agent-concurrent）→ RPC 接入 AI 工具（19-rpc-vo-param）→ 双Agent纠错（20-two-agent-self-correct）→ Proposer-Critic 辩论（21-proposer-critic-debate）
-→ Skill Agent（22-skill-agent）→ SubAgent 基础（23a-subagent-basic）→ SubAgent 进阶（23b-subagent-advanced）→ Agent 停止与恢复（24-stop-and-resume）
+→ Skill Agent（22-skill-agent）→ SubAgent 基础（23a-subagent-basic）→ SubAgent 进阶（23b-subagent-advanced）→ Agent 停止与恢复（24-stop-and-resume）→ Agent 停止类型（26-agent-stop-types）
 ```
 
 ## 代码位置
@@ -71,7 +72,8 @@ src/test/java/org/salt/jlangchain/demo/article/
 ├── Article21ProposerCriticDebate.java   ← 21-proposer-critic-debate.md
 ├── Article22SkillAgent.java             ← 22-skill-agent.md / 22-skill-agent-en.md
 ├── Article23SubAgent.java               ← 23a-subagent-basic.md / 23b-subagent-advanced.md
-└── Article24StopAndResume.java          ← 24-stop-and-resume.md / 24-stop-and-resume-en.md
+├── Article24StopAndResume.java          ← 24-stop-and-resume.md / 24-stop-and-resume-en.md
+└── Article26AgentStopTypes.java         ← 26-agent-stop-types.md
 ```
 
 ## 运行环境要求
@@ -95,3 +97,4 @@ src/test/java/org/salt/jlangchain/demo/article/
 | `22-skill-agent.md` / `Article22SkillAgent` | `ALIYUN_KEY`（`qwen-plus`） |
 | `23a-subagent-basic.md` / `23b-subagent-advanced.md` / `Article23SubAgent` | `ALIYUN_KEY`（`qwen-plus` / `qwen-turbo`） |
 | `24-stop-and-resume.md` / `Article24StopAndResume` | `ALIYUN_KEY`（`qwen-plus`） |
+| `26-agent-stop-types.md` / `Article26AgentStopTypes` | `ALIYUN_KEY`（`qwen-plus`） |

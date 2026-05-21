@@ -168,6 +168,9 @@ String result = agent.invoke("帮我查北京到上海的机票");
 | `onToolCall` | `Consumer<String>` | 工具调用回调 |
 | `onObservation` | `Consumer<String>` | 工具结果回调 |
 | `onLlm` | `Consumer<String>` | 模型调用前回调 |
+| `maxDurationSeconds` | `int` | 最大执行时长（秒），0=不限 |
+| `maxConsecutiveToolFailures` | `int` | LLM 连续调用失败工具的最大轮数，0=不限 |
+| `toolRetry` | `int` | 框架层工具自动重试次数（对 LLM 透明），0=不重试 |
 
 ```java
 McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
@@ -346,7 +349,68 @@ try {
 
 停止信号通过 `ContextBus` 从主 Agent 级联透传至 SubAgent 和 Skill，整个调用链同步停止。
 
-### 5.6 @AgentTool / @Param / @ParamDesc / ToolScanner
+### 5.6 Agent 停止类型
+
+**异常体系**
+
+```
+AgentException（抽象基类，implements FlowControlException）
+├── AgentStoppedException   外部 stop()，user_cancel
+├── AgentAbortException     系统强制终止（MAX_STEPS / TIMEOUT / CONSECUTIVE_TOOL_FAILURES / BUDGET_EXCEEDED）
+└── AgentPauseException     Agent 主动暂停（上层业务定义 reason）
+```
+
+**AgentAbortException**
+
+| AgentAbortReason | 触发条件 | Builder 配置 |
+|---|---|---|
+| `MAX_STEPS` | 循环超出 maxIterations 仍未完成 | `.maxIterations(n)` |
+| `TIMEOUT` | 执行时长超过限制 | `.maxDurationSeconds(n)` |
+| `CONSECUTIVE_TOOL_FAILURES` | LLM 连续多轮调用失败工具 | `.maxConsecutiveToolFailures(n)` |
+| `BUDGET_EXCEEDED` | 超 token 预算（预留） | — |
+
+**AgentPauseException**
+
+上层工具主动抛出，携带业务自定义 reason 和 payload，框架保存 partialContext 供恢复。
+
+```java
+// 上层工具内
+AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+throw new AgentPauseException("need_approval",
+    Map.of("action", "转账 ¥50000", "reason", "超过自动审批限额"), ctx);
+```
+
+**框架工具重试（toolRetry）**
+
+工具失败时框架静默重试，全部失败才把错误 observation 回给 LLM：
+
+```java
+McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
+    .toolRetry(3)                        // 每次工具调用最多重试 3 次
+    .maxConsecutiveToolFailures(5)        // LLM 连续 5 轮调用失败 → 终止
+    .maxDurationSeconds(30)              // 整个任务 30 秒超时
+    .build();
+```
+
+**捕获示例**
+
+```java
+try {
+    ChatGeneration result = agent.invoke("...");
+} catch (AgentStoppedException e) {
+    // 用户取消，可用 e.getPartialContext() 恢复
+} catch (AgentAbortException e) {
+    System.out.println("系统终止，原因: " + e.getReason()); // MAX_STEPS / TIMEOUT / ...
+    // 可用 e.getPartialContext() 查看已完成步骤
+} catch (AgentPauseException e) {
+    System.out.println("Agent 暂停，reason=" + e.getReason());
+    System.out.println("payload=" + e.getPayload());
+    // 处理业务逻辑后，用 e.getPartialContext() 恢复
+    ChatGeneration result = agent.invoke(question, e.getPartialContext());
+}
+```
+
+### 5.7 @AgentTool / @Param / @ParamDesc / ToolScanner
 
 **包路径**: `org.salt.jlangchain.rag.tools.annotation`
 

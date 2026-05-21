@@ -531,3 +531,92 @@ master.stop();               // signal automatically propagates into the SubAgen
 | **Control flow vs. errors** | The `FlowControlException` marker interface lets the framework distinguish expected interrupts from real errors, preventing false-alarm log noise |
 | **Step integrity** | The check point is after tool completion, not inside the tool; steps that have finished executing are never truncated |
 | **Re-stoppable after resume** | A new `stopSignal` is created on each `invoke()`, so a resumed execution can be stopped again independently |
+
+---
+
+## 13. Runtime Stop Type Extensions
+
+This section documents the new exception hierarchy and three runtime stop mechanisms added on top of the existing stop/resume design.
+
+### 13.1 Exception Hierarchy
+
+```
+AgentException (abstract, implements FlowControlException)
+├── AgentStoppedException   — unchanged; external user cancel; carries partialContext
+├── AgentAbortException     — system-forced termination
+│     reason: AgentAbortReason enum { MAX_STEPS, TIMEOUT, CONSECUTIVE_TOOL_FAILURES, BUDGET_EXCEEDED }
+│     fields: AgentAbortReason reason, AgentTaskContext partialContext
+└── AgentPauseException     — agent-initiated pause (upper-layer semantics)
+      fields: String reason, Map<String,Object> payload, AgentTaskContext partialContext
+```
+
+**Design rationale**:
+
+- `AgentStoppedException`: external interrupt (user calls `stop()`); resumable.
+- `AgentAbortException`: a system limit was hit; the framework decides to abort. `MAX_STEPS` replaces the raw `RuntimeException` that previously existed at line 466. All variants carry `partialContext` for diagnostics.
+- `AgentPauseException`: the agent semantically pauses (e.g., needs user input or approval). `reason` and `payload` are application-defined; the framework only provides the mechanism (save context, propagate). `partialContext` is saved for resumption.
+
+All three new exception types implement `FlowControlException` via `AgentException`, so the flow engine logs them at DEBUG level rather than WARN.
+
+### 13.2 Three New Runtime Stop Mechanisms
+
+#### 13.2.1 TIMEOUT
+
+Checked inside `shouldContinue`. When `i == 0`, `startTimeMs` is recorded. On every subsequent check, if elapsed time exceeds `maxDurationMs`, an `AgentAbortException(TIMEOUT)` is thrown.
+
+Builder parameter: `.maxDurationSeconds(int)` — `0` disables the check.
+
+#### 13.2.2 CONSECUTIVE_TOOL_FAILURES
+
+An `AtomicInteger consecutiveFailures` is maintained inside the `executeTool` closure:
+- Incremented on any tool failure (exception thrown or tool not found).
+- Reset to `0` on a successful tool call.
+- When it reaches `maxConsecFail`, an `AgentAbortException(CONSECUTIVE_TOOL_FAILURES)` is thrown.
+
+**Important**: this counter tracks LLM-driven behavior — how many consecutive rounds the LLM keeps invoking failing tools — not the number of framework-level retries.
+
+Builder parameter: `.maxConsecutiveToolFailures(int)` — `0` disables the check.
+
+#### 13.2.3 Framework Tool Retry (toolRetry)
+
+Before an error observation is handed back to the LLM, the framework silently retries the tool call up to `toolRetryCount` times. Only if every attempt fails does the error reach the LLM as an observation. This process is transparent to the LLM.
+
+Builder parameter: `.toolRetry(int)` — `0` means no retry.
+
+### 13.3 Key Design Principles
+
+- **CONSECUTIVE_TOOL_FAILURES is not the same as toolRetry.** The former measures LLM behavior (how many rounds the LLM keeps calling failing tools). The latter (`toolRetry`) is the framework retrying before the LLM is even aware of the failure. They are independent and controlled separately.
+- **AgentPauseException is intentionally thin.** The framework defines the mechanism (save context, propagate the exception); it does not define the semantics (what "wait_user" means is entirely up to the application layer).
+- All three new exception types implement `FlowControlException` via `AgentException`, so the framework logs them at DEBUG level and no false-alarm warnings are generated.
+
+### 13.4 invoke() Catch Blocks
+
+Both `McpAgentExecutor` and `AgentExecutor` now catch all three exception types:
+
+```java
+catch (AgentStoppedException e) { savePartial() + rethrow }
+catch (AgentPauseException e)   { savePartial() + rethrow }
+catch (AgentAbortException e)   { savePartial() + rethrow }
+```
+
+### 13.5 New Builder Methods
+
+```java
+.maxDurationSeconds(int)          // 0 = disable timeout check
+.maxConsecutiveToolFailures(int)  // 0 = disable consecutive-failure check
+.toolRetry(int)                   // 0 = no retry
+```
+
+### 13.6 Files Changed
+
+```
+core/agent/
+  AgentException.java               # NEW: abstract base; implements FlowControlException
+  AgentAbortReason.java             # NEW: enum { MAX_STEPS, TIMEOUT, CONSECUTIVE_TOOL_FAILURES, BUDGET_EXCEEDED }
+  AgentAbortException.java          # NEW: system-forced termination exception
+  AgentPauseException.java          # NEW: agent-initiated pause exception
+  AgentStoppedException.java        # MODIFIED: now extends AgentException
+  McpAgentExecutor.java             # MODIFIED: new builder params, shouldContinue timeout check,
+                                    #   executeTool retry + consecutive-failure counter, invoke catch blocks
+  AgentExecutor.java                # MODIFIED: invoke now catches AgentPauseException and AgentAbortException
+```
