@@ -1,6 +1,6 @@
 # Human-in-the-Loop: Agent Pauses for User Confirmation
 
-> **Tags**: `Java` `AgentPauseException` `Human-in-the-Loop` `tool semantic split` `LLM routing` `partialContext` `j-langchain`  
+> **Tags**: `Java` `AgentPauseException` `Human-in-the-Loop` `tool semantic split` `LLM routing` `partialContext` `addHumanTurn` `j-langchain`  
 > **Prerequisite**: [Agent Runtime Stop Types: MAX_STEPS, TIMEOUT, CONSECUTIVE_TOOL_FAILURES and AgentPauseException](26-agent-stop-types.md)  
 > **Audience**: Java developers who need to insert human approval checkpoints into an otherwise autonomous agent execution flow
 
@@ -43,7 +43,7 @@ Together with an information-gathering tool (`check_balance`), the complete flow
 | `confirm_transfer` | No | Called by LLM after user approves; performs the real operation |
 | `cancel_transfer` | No | Called by LLM after user declines; cleans up safely |
 
-The key insight is: **the framework does not need to know the business logic of "approve or decline"**. The user's decision is appended to `question` as plain text and handed back to the LLM, which then routes to the appropriate tool on its own.
+The key insight is: **the framework does not need to know the business logic of "approve or decline"**. The user's decision is appended as a new human turn via `addHumanTurn`, and the LLM routes to the appropriate tool autonomously based on the full conversation context.
 
 ---
 
@@ -65,24 +65,31 @@ User: "Check my balance first, then transfer 50000 yuan to Zhang San if sufficie
 │           reason="need_confirmation",                            │
 │           payload={"action": "Transfer ¥50000 to Zhang San"},    │
 │           ctx=current execution context)                         │
-│    Framework propagates the exception to the caller              │
+│    Framework records step-2 with synthetic observation           │
+│    "[paused: need_confirmation]", then propagates exception      │
 └──────────────────────────────────────────────────────────────────┘
           │
           ▼  caller catches AgentPauseException
           │
           │  Display to user:
           │    Action: Transfer ¥50000 to Zhang San
-          │    Completed steps so far: 1 (balance check done)
+          │    Completed steps so far: 2
+          │      (step-1: balance check; step-2: transfer request recorded)
           │
           ▼  user inputs y or n
           │
 ┌──────────────────────────────────────────────────────────────────┐
-│  Second invoke(question + "[User decision: y/n]",                │
+│  Second invoke("y" or "n",                                       │
 │                paused.getPartialContext())                        │
 │                                                                  │
-│  [load partialContext → step-1 (balance check) is skipped]       │
-│                                                                  │
-│  LLM reasoning: sees completed balance check + user decision     │
+│  Framework appends user input as a new human turn (addHumanTurn) │
+│  LLM sees the full, chronologically-correct message chain:       │
+│    human:     original question                                  │
+│    assistant: check_balance(...)                                 │
+│    tool:      Balance: ¥80,000 — sufficient                      │
+│    assistant: request_transfer(...)                              │
+│    tool:      [paused: need_confirmation]                        │
+│    human:     y   ← user decision, after the pause point         │
 │                                                                  │
 │  User decision = "y"                  User decision = "n"        │
 │    ↓                                    ↓                        │
@@ -139,6 +146,7 @@ Key points:
 - `ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name())` captures the execution context **at this exact moment**, including all steps completed so far.
 - `payload` is a structured description presented to the user; it can contain any business data.
 - This tool **always throws** — its sole responsibility is to request a pause. It performs no actual business operation.
+- **Framework behavior**: when `AgentPauseException` is caught, the framework records this tool call with a synthetic observation `"[paused: need_confirmation]"` in `partialContext`, ensuring the LLM sees the full call history on resume.
 
 ---
 
@@ -157,7 +165,7 @@ Tool confirmTransferTool = Tool.builder()
         .build();
 ```
 
-This is the tool that performs the real operation. **The LLM will not choose it on the first invoke** — its description says "after the user has approved", which is a precondition the LLM respects. Only when `[User decision: y]` appears in `question` during resume will the LLM route here.
+This is the tool that performs the real operation. **The LLM will not choose it on the first invoke** — its description says "after the user has approved", which is a precondition the LLM respects. Only when the user inputs `y` as the new human turn on resume will the LLM route here.
 
 ---
 
@@ -172,7 +180,7 @@ Tool cancelTransferTool = Tool.builder()
         .build();
 ```
 
-Symmetrically, only `[User decision: n]` causes the LLM to call this tool.
+Symmetrically, when the user inputs `n` as the new human turn, the LLM routes here.
 
 ---
 
@@ -188,7 +196,7 @@ McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
         .build();
 ```
 
-A single agent instance containing all four tools. Unlike the `testPauseAndResume` pattern in Article 26 (where a new agent is constructed after approval with a different tool), here the **same** agent instance is used for resume — because the tools do not change; the LLM routes based on context.
+A single agent instance containing all four tools. Unlike the `testPauseAndResume` pattern in Article 26 (which requires rebuilding the agent with a different tool after approval), here the **same** agent instance is used for resume — the tools do not change; the LLM routes based on context.
 
 ---
 
@@ -210,7 +218,9 @@ System.out.println("    Action: " + paused.getPayload().get("action"));
 // Output: Action: Transfer ¥50000 to ZhangSan
 
 System.out.println("    Completed steps so far: " + paused.getCompletedSteps().size());
-// Output: Completed steps so far: 1  (balance check done; transfer request triggered the pause)
+// Output: Completed steps so far: 2
+// step-1: check_balance call + "Balance: ¥80,000 — sufficient"
+// step-2: request_transfer call + "[paused: need_confirmation]"
 ```
 
 ---
@@ -221,17 +231,27 @@ System.out.println("    Completed steps so far: " + paused.getCompletedSteps().s
 // Production: String userInput = new Scanner(System.in).nextLine();
 String userInput = "y"; // simulated
 
-// Append user decision to the original question; LLM reads it and routes autonomously
-String resumeQuestion = question + "\n[User decision: " + userInput + "]";
-
-// Resume from the saved partialContext — completed steps are skipped
-ChatGeneration result = agent.invoke(resumeQuestion, paused.getPartialContext());
+// Pass the user's input directly — the framework appends it as a new human turn at the end
+ChatGeneration result = agent.invoke(userInput, paused.getPartialContext());
 
 System.out.println(">>> Result (user input: " + userInput + ")");
 System.out.println(result.getText());
 // y → Transfer successful: sent ¥50000 to Zhang San
 // n → Transfer cancelled: user declined the operation
 ```
+
+The message chain the framework builds for the LLM:
+
+```
+human:     Check my balance first, then transfer...  (original request)
+assistant: [tool_call: check_balance]
+tool:      Balance: ¥80,000 — sufficient
+assistant: [tool_call: request_transfer]
+tool:      [paused: need_confirmation]
+human:     y                                          ← user decision, after the pause point
+```
+
+This order lets the LLM reason clearly: the transfer request was initiated and awaiting confirmation; the user has just decided to approve → call `confirm_transfer`.
 
 ---
 
@@ -310,13 +330,12 @@ private void doConfirmFlow(String simulatedInput) {
     System.out.println("    Action: " + paused.getPayload().get("action"));
     System.out.println("    Completed steps before pause: " + paused.getCompletedSteps().size());
 
-    // ── Simulate user input; LLM routes to confirm or cancel ─────────────
+    // ── Simulate user input; pass it directly as the new human turn ───────
     // Production: String userInput = new Scanner(System.in).nextLine();
     System.out.print("Proceed with the action above? (y/n): ");
     System.out.println(simulatedInput + "  ← simulated input");
 
-    String resumeQuestion = question + "\n[User decision: " + simulatedInput + "]";
-    var result = agent.invoke(resumeQuestion, paused.getPartialContext());
+    var result = agent.invoke(simulatedInput, paused.getPartialContext());
 
     System.out.println("\n>>> Result (user input: " + simulatedInput + ")");
     System.out.println(result.getText());
@@ -328,7 +347,7 @@ private void doConfirmFlow(String simulatedInput) {
 ```
 >>> Confirmation required
     Action: Transfer ¥50000 to ZhangSan
-    Completed steps before pause: 1
+    Completed steps before pause: 2
 Proceed with the action above? (y/n): y  ← simulated input
 
 >>> Result (user input: y)
@@ -340,7 +359,7 @@ Transfer successful: sent ¥50000 to Zhang San
 ```
 >>> Confirmation required
     Action: Transfer ¥50000 to ZhangSan
-    Completed steps before pause: 1
+    Completed steps before pause: 2
 Proceed with the action above? (y/n): n  ← simulated input
 
 >>> Result (user input: n)
@@ -356,9 +375,9 @@ A seemingly simpler design is to have the framework decide which tool to call on
 ### 6.1 The LLM understands semantics, not just y/n
 
 Users may type:
-- `"y, but change the amount to 30000"`
-- `"check the recipient's account first, then confirm"`
-- `"n, let's do it tomorrow"`
+- `"y, but change the amount to 30000"` → LLM calls `confirm_transfer` with the new amount
+- `"check the recipient's account first, then confirm"` → LLM calls a lookup tool, then confirms
+- `"n, let's do it tomorrow"` → LLM calls `cancel_transfer` with a reason
 
 The framework cannot parse these; it can only do string comparison. The LLM understands intent and adjusts its subsequent actions accordingly.
 
@@ -368,23 +387,33 @@ In real scenarios, there may be multiple post-resume paths: partial approval, pa
 
 ### 6.3 Cleaner separation of concerns
 
-The framework has one job: **pass the execution context (`partialContext`) and the new `question` to the LLM and let it continue reasoning**. Business routing logic lives entirely in the tool descriptions and the LLM's understanding. The framework stays free of business logic.
+The framework has one job: **append the user's input as a new human turn, inject the completed steps from `partialContext` into the conversation history, and let the LLM continue reasoning**. Business routing logic lives entirely in the tool descriptions and the LLM's understanding. The framework stays free of business logic.
 
 ---
 
-## 7. What partialContext Carries
+## 7. How partialContext and addHumanTurn Work Together
 
-`AgentPauseException.getPartialContext()` returns an `AgentTaskContext` snapshot that contains:
+### 7.1 What partialContext carries
 
-- **Completed step list** (`completedSteps`): each step includes the LLM's reasoning, the tool name, arguments, and the tool's return value
-- **Conversation history**: all messages the LLM has already seen
+`AgentPauseException.getPartialContext()` returns an `AgentTaskContext` containing:
 
-When `agent.invoke(resumeQuestion, savedCtx)` is called:
-1. The framework injects the tool call results from `completedSteps` into the conversation history
-2. The LLM sees "balance checked (¥80,000)" + "User decision: y"
-3. The LLM reasons: balance is sufficient, user approved → calls `confirm_transfer`
+- **Completed step list** (`completedSteps`): each step includes the LLM's tool call and the tool's return value
+- The paused tool's synthetic step with observation `"[paused: need_confirmation]"`
 
-**The balance is not queried again** because it already exists in step-1's observation.
+In this example, there are **2 steps** at pause time:
+```
+step-1: check_balance call + "Balance: ¥80,000 — sufficient"
+step-2: request_transfer call + "[paused: need_confirmation]"
+```
+
+### 7.2 Message injection on resume
+
+When `agent.invoke("y", savedCtx)` is called, the framework:
+1. Loads the steps from `partialContext` and injects them into the conversation history
+2. Appends `"y"` as the final human message via `addHumanTurn`
+3. The LLM reasons from the complete, chronologically-correct context
+
+**No step is repeated**: step-1 already contains the balance result; step-2 shows where the pause occurred. The user's decision `"y"` appears at the right point in time.
 
 ---
 
@@ -413,7 +442,7 @@ Tool requestDeleteTool = Tool.builder()
                     .getTransmit(CallInfo.AGENT_TASK_CTX.name());
             throw new AgentPauseException(
                     "need_confirmation",
-                    Map.of("action", "Delete " + ((Map) args).get("count") + " log files"),
+                    Map.of("action", "Delete " + ((Map<?,?>) args).get("count") + " log files"),
                     ctx);
         })
         .build();
@@ -439,29 +468,22 @@ Tool requestUpdateTool = Tool.builder()
             AgentTaskContext ctx = ContextBus.get()
                     .getTransmit(CallInfo.AGENT_TASK_CTX.name());
             throw new AgentPauseException("need_dba_approval",
-                    Map.of("sql_preview", "UPDATE " + ((Map) args).get("table") + "...",
-                           "affected_rows", ((Map) args).get("affected_rows")),
+                    Map.of("sql_preview", "UPDATE " + ((Map<?,?>) args).get("table") + "...",
+                           "affected_rows", ((Map<?,?>) args).get("affected_rows")),
                     ctx);
         })
         .build();
 ```
 
-### 8.3 Email send confirmation
-
-```java
-// Draft generation tool: LLM generates draft automatically
-// Request send tool: pauses to display the draft and wait for user's final confirmation
-```
-
-### 8.4 Universal template
+### 8.3 Universal template
 
 Every scenario follows the same structure:
 
 ```
 Information-gathering tool (automatic)
     → Request-initiation tool (pauses)
-    → Confirm-execution tool (automatic, called after user approves)
-    → Cancel-operation tool (automatic, called after user declines)
+    → Confirm-execution tool (automatic, called by LLM after user approves)
+    → Cancel-operation tool (automatic, called by LLM after user declines)
 ```
 
 The tool description language is the routing rule. The LLM reasons from context to determine which branch to take. Adding a new branch means adding a new tool — the framework changes nothing.
@@ -482,9 +504,9 @@ The Human-in-the-Loop implementation in j-langchain reflects three design princi
 
 **Tool semantic split**: Decompose a "dangerous operation" into "initiate request", "confirm execution", and "cancel operation" — three tools with single, unambiguous responsibilities. The tool description itself becomes the LLM's routing rule.
 
-**AgentPauseException carries the execution snapshot**: When the tool throws, it simultaneously captures `partialContext` containing all completed steps. On resume, those steps are injected directly into the conversation history — the LLM sees them as already done and does not repeat them.
+**AgentPauseException carries the execution snapshot**: When the tool throws, the framework records the paused call with a synthetic `"[paused: ...]"` observation and saves it in `partialContext`. On resume, those steps are injected directly into the conversation history — the LLM sees them as already done, knows where the pause occurred, and does not repeat any work.
 
-**LLM owns routing; framework owns state**: The user's decision is appended to `question` as natural language. The LLM uses its understanding of tool descriptions and conversation context to choose the next step autonomously. The framework contains no business logic — it only handles state persistence and resumption.
+**addHumanTurn preserves chronological order**: The user's decision is appended as a new human turn at the end of the message chain, not prepended to the original question. This means the conversation history reads in the correct temporal order: original request → completed steps → user decision. The LLM makes its routing decision from this complete, time-ordered context. The framework contains no business logic.
 
 Together, these three principles deliver the "agent autonomy + human oversight at critical checkpoints" collaboration model: the agent maximizes automation efficiency while never acting unilaterally on irreversible operations.
 
