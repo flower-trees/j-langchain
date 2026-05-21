@@ -382,6 +382,11 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.PRELOADED_CTX.name());
                 if (ctx == null) {
                     ctx = contextFinal.create(question, systemPromptFinal);
+                } else {
+                    // On resume the caller passes the user's follow-up input (e.g. "y" / "n").
+                    // Append it as a new human turn so it lands after the completed steps in the
+                    // message list, preserving chronological order.
+                    ctx.addHumanTurn(question);
                 }
                 ContextBus.get().putTransmit(CallInfo.AGENT_TASK_CTX.name(), ctx);
                 ContextBus.get().putTransmit(CallInfo.QUESTION.name(), question);
@@ -482,6 +487,14 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                                 toolObservation = raw != null ? raw.toString() : "";
                                 lastError = null;
                                 break;
+                            } catch (AgentPauseException e) {
+                                // Record the paused call so the LLM sees full history on resume.
+                                // partialContext references the live ctx object, so the step we add
+                                // here is visible through e.getPartialContext().getCompletedSteps().
+                                toolResults.add(BaseMessage.fromMessage(MessageType.TOOL.getCode(),
+                                        "[paused: " + e.getReason() + "]", toolName, toolCall.getId()));
+                                ctx.addStep(AgentStep.ofFunctionCall(toolMessage, toolResults));
+                                throw e;
                             } catch (AgentException e) {
                                 log.debug("Tool '{}' raised agent signal: {}", toolName, e.getMessage());
                                 throw e;

@@ -48,10 +48,11 @@ public class FullContext implements AgentContext {
 
     static class Session implements AgentTaskContext {
 
-        private final String taskId       = UUID.randomUUID().toString();
+        private final String taskId = UUID.randomUUID().toString();
         private final String originalTask;
         private final String systemPrompt;
         private final List<AgentStep> recentSteps = new ArrayList<>();
+        private String resumeInput;
         private String reactBasePromptText;
 
         Session(String question, String systemPrompt) {
@@ -73,6 +74,9 @@ public class FullContext implements AgentContext {
             messages.add(HumanMessage.builder().content(originalTask).build());
             for (AgentStep step : recentSteps) {
                 messages.addAll(step.toMessages());
+            }
+            if (StringUtils.isNotBlank(resumeInput)) {
+                messages.add(HumanMessage.builder().content(resumeInput).build());
             }
             return messages;
         }
@@ -104,6 +108,11 @@ public class FullContext implements AgentContext {
         @Override
         public List<AgentStep> getCompletedSteps() {
             return Collections.unmodifiableList(recentSteps);
+        }
+
+        @Override
+        public void addHumanTurn(String message) {
+            if (message != null) this.resumeInput = message;
         }
     }
 }

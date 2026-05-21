@@ -71,11 +71,12 @@ public class SlidingWindowContext implements AgentContext {
 
     class Session implements AgentTaskContext {
 
-        private final String taskId       = UUID.randomUUID().toString();
+        private final String taskId = UUID.randomUUID().toString();
         private final String originalTask;
         private final String systemPrompt;
         private final List<AgentStep> recentSteps = new ArrayList<>();
         private String earlyStepsSummary;
+        private String resumeInput;
         private String reactBasePromptText;
 
         Session(String question, String systemPrompt) {
@@ -121,6 +122,9 @@ public class SlidingWindowContext implements AgentContext {
             for (AgentStep step : recentSteps) {
                 messages.addAll(step.toMessages());
             }
+            if (StringUtils.isNotBlank(resumeInput)) {
+                messages.add(HumanMessage.builder().content(resumeInput).build());
+            }
             return messages;
         }
 
@@ -154,6 +158,11 @@ public class SlidingWindowContext implements AgentContext {
         @Override
         public List<AgentStep> getCompletedSteps() {
             return Collections.unmodifiableList(recentSteps);
+        }
+
+        @Override
+        public void addHumanTurn(String message) {
+            if (message != null) this.resumeInput = message;
         }
 
         private void compressEarliestStep() {

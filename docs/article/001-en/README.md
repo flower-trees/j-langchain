@@ -32,6 +32,7 @@
 | [SubAgent Advanced: LLM Strategies, Tool Borrowing, and Skill Nesting](23-subagent-advanced.md) | 3-tier LLM resolution chain, model=inherit, llmFactory, allowedTools least privilege, Skill embedding SubAgent | ⭐⭐⭐ | `Article23SubAgent` |
 | [Agent Stop and Resume: Interruptible Long-Running Tasks](24-stop-and-resume.md) | stop() safe checkpoint, AgentStoppedException + partialContext, cascading stop signal, three resumption strategies | ⭐⭐⭐ | `Article24StopAndResume` |
 | [Agent Runtime Stop Types: MAX_STEPS, TIMEOUT, CONSECUTIVE_TOOL_FAILURES and AgentPauseException](26-agent-stop-types.md) | Runtime stop exception hierarchy, framework tool retry, AgentPauseException for semantic pause and resume | ⭐⭐⭐ | `Article26AgentStopTypes` |
+| [Human-in-the-Loop: Agent Pauses for User Confirmation](27-human-in-the-loop.md) | AgentPauseException, tool semantic split, LLM-driven y/n routing, partialContext resume | ⭐⭐⭐ | `Article26AgentStopTypes` |
 
 ## Suggested Reading Order
 

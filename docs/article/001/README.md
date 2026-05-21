@@ -32,6 +32,7 @@
 | [SubAgent 进阶：LLM 策略、工具借用与 Skill 嵌套](23b-subagent-advanced.md) | LLM 三级解析优先链、model=inherit、llmFactory、allowedTools 最小权限、SKILL 内嵌 SubAgent | ⭐⭐⭐ | `Article23SubAgent` |
 | [Agent 停止与恢复：可中断的长任务](24-stop-and-resume.md) | stop() 安全检查点、AgentStoppedException + partialContext、stop 信号级联透传、三种恢复策略 | ⭐⭐⭐ | `Article24StopAndResume` |
 | [Agent 运行时停止类型：MAX_STEPS、TIMEOUT、CONSECUTIVE_TOOL_FAILURES 与 AgentPauseException](26-agent-stop-types.md) | Runtime Stop 异常体系、框架工具重试、AgentPauseException 业务暂停与恢复 | ⭐⭐⭐ | `Article26AgentStopTypes` |
+| [Human-in-the-Loop：Agent 执行中途等待用户确认](27-human-in-the-loop.md) | AgentPauseException、工具语义分离、LLM 自主路由 y/n、partialContext 跳步恢复 | ⭐⭐⭐ | `Article26AgentStopTypes` |
 
 ## 建议阅读顺序
 

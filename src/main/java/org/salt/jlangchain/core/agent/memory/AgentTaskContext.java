@@ -52,4 +52,15 @@ public interface AgentTaskContext {
     default List<AgentStep> getCompletedSteps() {
         return Collections.emptyList();
     }
+
+    /**
+     * Append a new human turn after the accumulated steps.
+     *
+     * <p>Called during resume when the caller provides follow-up input (e.g. a user
+     * confirmation {@code "y"} or {@code "n"}). The message is placed at the end of
+     * {@link #buildMessages()} so the chronological order is preserved:
+     * original request → completed steps → user follow-up.
+     * The default no-op is provided for backward compatibility with custom implementations.
+     */
+    default void addHumanTurn(String message) {}
 }

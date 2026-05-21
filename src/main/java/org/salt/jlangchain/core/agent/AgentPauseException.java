@@ -69,4 +69,8 @@ public class AgentPauseException extends AgentException {
     public AgentTaskContext getPartialContext() {
         return partialContext;
     }
+
+    public java.util.List<org.salt.jlangchain.core.agent.memory.AgentStep> getCompletedSteps() {
+        return partialContext != null ? partialContext.getCompletedSteps() : java.util.List.of();
+    }
 }
