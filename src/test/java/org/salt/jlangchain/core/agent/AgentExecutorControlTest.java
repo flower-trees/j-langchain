@@ -58,6 +58,7 @@ public class AgentExecutorControlTest {
     @Test
     public void testToolRetryRetriesBeforeReturningObservation() {
         AtomicInteger calls = new AtomicInteger();
+        List<AgentTokenUsageEvent> usageEvents = new ArrayList<>();
         Tool unstableTool = Tool.builder()
                 .name("unstable_tool")
                 .description("A required test tool. Input should be the literal string city. The tool fails once then succeeds.")
@@ -74,8 +75,19 @@ public class AgentExecutorControlTest {
                 .tools(unstableTool)
                 .toolRetry(1)
                 .maxIterations(4)
+                .onTokenUsage(event -> {
+                    usageEvents.add(event);
+                    System.out.println("[AgentExecutor tokenUsage event] " + formatUsageEvent(event));
+                })
                 .build()
-                .invoke("You must call unstable_tool exactly once with Action Input city, then answer after the observation.");
+                .invoke("""
+                        This is a tool-routing test. Your first response must be exactly in this ReAct form:
+                        Thought: I need to call the required test tool.
+                        Action: unstable_tool
+                        Action Input: city
+
+                        Do not provide a Final Answer until after you receive an Observation.
+                        """);
 
         Assert.assertNotNull(result);
         Assert.assertFalse(result.getText().isBlank());
@@ -85,6 +97,7 @@ public class AgentExecutorControlTest {
         Assert.assertTrue("agent should record LLM calls", usage.getLlmCalls() >= 1);
         Assert.assertTrue("agent should record requested tool calls", usage.getToolCalls() >= 1);
         Assert.assertTrue("provider should return total token usage", usage.getTotalTokens() > 0);
+        Assert.assertFalse("token usage events should be emitted during execution", usageEvents.isEmpty());
         System.out.println("[AgentExecutor tokenUsage] " + usage);
     }
 
@@ -174,11 +187,16 @@ public class AgentExecutorControlTest {
         }
 
         List<String> prompts = new ArrayList<>();
+        List<AgentTokenUsageEvent> usageEvents = new ArrayList<>();
         ChatGeneration result = AgentExecutor.builder(chainActor)
                 .llm(qwenFlash())
                 .tools(pauseTool)
                 .maxIterations(4)
                 .onLlm(prompts::add)
+                .onTokenUsage(event -> {
+                    usageEvents.add(event);
+                    System.out.println("[AgentExecutor resume tokenUsage event] " + formatUsageEvent(event));
+                })
                 .build()
                 .invoke("同意，继续。请不要再调用工具，直接给出 Final Answer。", partialContext);
 
@@ -190,6 +208,7 @@ public class AgentExecutorControlTest {
         Assert.assertTrue(resumePrompt.contains("Human: 同意，继续"));
         AiTokenUsage usage = tokenUsage(result);
         Assert.assertNotNull(usage);
+        Assert.assertFalse(usageEvents.isEmpty());
         System.out.println("[AgentExecutor resume tokenUsage] " + usage);
     }
 
@@ -197,5 +216,17 @@ public class AgentExecutorControlTest {
         if (result.getResponseMetadata() == null) return null;
         Object raw = result.getResponseMetadata().get(AiTokenUsage.METADATA_KEY);
         return raw instanceof AiTokenUsage usage ? usage : null;
+    }
+
+    private static String formatUsageEvent(AgentTokenUsageEvent event) {
+        return "task=" + event.getTaskId()
+                + ", deltaPrompt=" + event.getDeltaUsage().getPromptTokens()
+                + ", deltaCompletion=" + event.getDeltaUsage().getCompletionTokens()
+                + ", deltaTotal=" + event.getDeltaUsage().getTotalTokens()
+                + ", totalPrompt=" + event.getTotalUsage().getPromptTokens()
+                + ", totalCompletion=" + event.getTotalUsage().getCompletionTokens()
+                + ", total=" + event.getTotalUsage().getTotalTokens()
+                + ", llmCalls=" + event.getLlmCalls()
+                + ", toolCalls=" + event.getToolCalls();
     }
 }

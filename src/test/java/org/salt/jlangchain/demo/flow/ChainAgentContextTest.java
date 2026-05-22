@@ -20,6 +20,7 @@ import org.junit.runner.RunWith;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.agent.AgentTokenUsageEvent;
 import org.salt.jlangchain.core.agent.AgentExecutor;
 import org.salt.jlangchain.core.agent.McpAgentExecutor;
 import org.salt.jlangchain.core.agent.memory.SlidingWindowContext;
@@ -94,6 +95,7 @@ public class ChainAgentContextTest {
                 .maxIterations(6)
                 .onThought(t -> System.out.print("[Thought] " + t))
                 .onObservation(obs -> System.out.println("[Observation] " + obs))
+                .onTokenUsage(event -> System.out.println("[AgentExecutor tokenUsage event] " + formatUsageEvent(event)))
                 .build();
 
         ChatGeneration result = agent.invoke("上海现在天气怎么样？");
@@ -160,6 +162,7 @@ public class ChainAgentContextTest {
                 .maxIterations(6)
                 .onToolCall(tc -> System.out.println("[ToolCall] " + tc))
                 .onObservation(obs -> System.out.println("[Observation] " + obs))
+                .onTokenUsage(event -> System.out.println("[McpAgentExecutor tokenUsage event] " + formatUsageEvent(event)))
                 .build();
 
         ChatGeneration result = agent.invoke("上海现在天气怎么样？");
@@ -543,5 +546,17 @@ public class ChainAgentContextTest {
         if (result.getResponseMetadata() == null) return null;
         Object raw = result.getResponseMetadata().get(AiTokenUsage.METADATA_KEY);
         return raw instanceof AiTokenUsage usage ? usage : null;
+    }
+
+    private static String formatUsageEvent(AgentTokenUsageEvent event) {
+        return "task=" + event.getTaskId()
+                + ", deltaPrompt=" + event.getDeltaUsage().getPromptTokens()
+                + ", deltaCompletion=" + event.getDeltaUsage().getCompletionTokens()
+                + ", deltaTotal=" + event.getDeltaUsage().getTotalTokens()
+                + ", totalPrompt=" + event.getTotalUsage().getPromptTokens()
+                + ", totalCompletion=" + event.getTotalUsage().getCompletionTokens()
+                + ", total=" + event.getTotalUsage().getTotalTokens()
+                + ", llmCalls=" + event.getLlmCalls()
+                + ", toolCalls=" + event.getToolCalls();
     }
 }

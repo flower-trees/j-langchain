@@ -166,6 +166,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private Consumer<String> llmConsumer;
         private Consumer<String> thoughtConsumer;
         private Consumer<String> observationConsumer;
+        private Consumer<AgentTokenUsageEvent> tokenUsageConsumer;
 
         private Builder(ChainActor chainActor) {
             this.chainActor = chainActor;
@@ -250,6 +251,11 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
+        public Builder onTokenUsage(Consumer<AgentTokenUsageEvent> consumer) {
+            this.tokenUsageConsumer = consumer;
+            return this;
+        }
+
         public Builder verbose(boolean enabled) {
             if (enabled) {
                 this.llmConsumer         = msg -> System.out.println("[LLM]\n" + msg);
@@ -276,6 +282,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             AgentContext contextFinal = this.context != null ? this.context : FullContext.build();
             ConversationMemoryStorerBase conversationStorerFinal = this.conversationStorer;
             Consumer<String> llmConsumer = this.llmConsumer;
+            Consumer<AgentTokenUsageEvent> tokenUsageConsumer = this.tokenUsageConsumer;
 
             // First node: create per-invocation AgentTaskContext and put in ContextBus
             TranslateHandler<Object, Object> initContext = new TranslateHandler<>(input -> {
@@ -300,7 +307,8 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 return promptValue;
             });
 
-            TranslateHandler<AIMessage, AIMessage> recordLlmUsage = new TranslateHandler<>(Builder::recordLlmUsage);
+            TranslateHandler<AIMessage, AIMessage> recordLlmUsage =
+                    new TranslateHandler<>(message -> recordLlmUsage(message, tokenUsageConsumer));
 
             Consumer<String> thoughtConsumer = this.thoughtConsumer;
             TranslateHandler<AIMessage, AIMessage> cutAtObservation = new TranslateHandler<>(llmResult -> {
@@ -498,7 +506,8 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         }
 
         @SuppressWarnings("unchecked")
-        private static AIMessage recordLlmUsage(AIMessage message) {
+        private static AIMessage recordLlmUsage(AIMessage message,
+                                                Consumer<AgentTokenUsageEvent> tokenUsageConsumer) {
             AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
             if (ctx == null) return message;
             AiTokenUsage usage = null;
@@ -513,6 +522,16 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             if (usage == null) usage = AiTokenUsage.empty();
             usage.incrementLlmCalls();
             ctx.addTokenUsage(usage);
+            if (tokenUsageConsumer != null) {
+                AiTokenUsage total = ctx.getTokenUsage();
+                tokenUsageConsumer.accept(AgentTokenUsageEvent.builder()
+                        .taskId(ctx.getTaskId())
+                        .deltaUsage(usage.copy())
+                        .totalUsage(total)
+                        .llmCalls(total.getLlmCalls())
+                        .toolCalls(total.getToolCalls())
+                        .build());
+            }
             return message;
         }
 
