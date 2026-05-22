@@ -40,6 +40,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -154,6 +156,9 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private BaseChatModel llm;
         private List<Tool> tools = new ArrayList<>();
         private int maxIterations = 10;
+        private int maxDurationSeconds = 0;
+        private int maxConsecutiveToolFailures = 0;
+        private int toolRetry = 0;
         private AgentContext context;
         private ConversationMemoryStorerBase conversationStorer;
         private String promptTemplate;
@@ -191,6 +196,24 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
         public Builder maxIterations(int maxIterations) {
             this.maxIterations = maxIterations;
+            return this;
+        }
+
+        /** Maximum wall-clock time for the entire loop. 0 means no limit. */
+        public Builder maxDurationSeconds(int maxDurationSeconds) {
+            this.maxDurationSeconds = maxDurationSeconds;
+            return this;
+        }
+
+        /** Abort after this many consecutive failing tool rounds. 0 means no limit. */
+        public Builder maxConsecutiveToolFailures(int maxConsecutiveToolFailures) {
+            this.maxConsecutiveToolFailures = maxConsecutiveToolFailures;
+            return this;
+        }
+
+        /** Auto-retry a failing tool up to this many extra attempts before returning an error observation. 0 means no retry. */
+        public Builder toolRetry(int toolRetry) {
+            this.toolRetry = toolRetry;
             return this;
         }
 
@@ -261,6 +284,8 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.PRELOADED_CTX.name());
                 if (ctx == null) {
                     ctx = contextFinal.create(question, null);
+                } else {
+                    ctx.addHumanTurn(question);
                 }
                 ContextBus.get().putTransmit(CallInfo.AGENT_TASK_CTX.name(), ctx);
                 ContextBus.get().putTransmit(CallInfo.QUESTION.name(), question);
@@ -292,16 +317,51 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             TranslateHandler<Map<String, String>, AIMessage> parseAction =
                 new TranslateHandler<>(llmResult -> PromptUtil.stringToMap(llmResult.getContent()));
 
+            TranslateHandler<StringPromptValue, StringPromptValue> applyPreloadedSteps = new TranslateHandler<>(promptValue -> {
+                AgentTaskContext resumeCtx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                String question = ContextBus.get().getTransmit(CallInfo.QUESTION.name());
+                if (resumeCtx != null && !resumeCtx.getCompletedSteps().isEmpty()) {
+                    resumeCtx.initReactBasePromptText(promptValue.getText());
+                    String text = resumeCtx.buildReactPromptText();
+                    if (StringUtils.isNotBlank(question)) {
+                        text = text.trim() + "\nHuman: " + question + "\nThought:";
+                    }
+                    promptValue.setText(text);
+                }
+                return promptValue;
+            });
+
             int maxIter = this.maxIterations;
+            long maxDurationMs = this.maxDurationSeconds > 0 ? (long) this.maxDurationSeconds * 1000 : 0;
+            int maxConsecFail = this.maxConsecutiveToolFailures;
+            int toolRetryCount = this.toolRetry;
+            AtomicLong startTimeMs = new AtomicLong(0);
+            AtomicInteger consecutiveFailures = new AtomicInteger(0);
             Function<Integer, Boolean> shouldContinue = i -> {
                 AtomicBoolean signal = ContextBus.get().getTransmit(CallInfo.STOP_SIGNAL.name());
                 if (signal != null && signal.get()) {
                     AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
                     throw new AgentStoppedException("Agent stopped by external request", ctx);
                 }
+                if (i == 0) {
+                    startTimeMs.set(System.currentTimeMillis());
+                    consecutiveFailures.set(0);
+                    return true;
+                }
+                if (maxDurationMs > 0 && System.currentTimeMillis() - startTimeMs.get() > maxDurationMs) {
+                    AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                    throw new AgentAbortException(AgentAbortReason.TIMEOUT,
+                            "Agent timed out after " + (maxDurationMs / 1000) + "s", ctx);
+                }
                 Map<String, String> parsed = ContextBus.get().getResult(parseAction.getNodeId());
-                return i < maxIter
-                    && (parsed == null || (parsed.containsKey("Action") && parsed.containsKey("Action Input")));
+                boolean actionRequested = parsed == null
+                        || (parsed.containsKey("Action") && parsed.containsKey("Action Input"));
+                if (i >= maxIter && actionRequested) {
+                    AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                    throw new AgentAbortException(AgentAbortReason.MAX_STEPS,
+                            "Max iterations (" + maxIter + ") reached without a final answer.", ctx);
+                }
+                return actionRequested;
             };
 
             Function<Object, Boolean> needsToolCall = map ->
@@ -319,26 +379,59 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     .filter(t -> t.getName().equalsIgnoreCase(((Map<String, String>) map).get("Action")))
                     .findFirst().orElse(null);
 
+                String observation;
                 if (useTool == null) {
                     log.warn("Unknown tool requested: {}", ((Map<String, String>) map).get("Action"));
-                    ctx.initReactBasePromptText(promptValue.getText());
-                    promptValue.setText(promptValue.getText().trim()
-                            + "\nThought: The requested tool does not exist, please choose another.\nThought:");
-                    return promptValue;
+                    observation = "Tool '" + ((Map<String, String>) map).get("Action") + "' not found.";
+                    if (maxConsecFail > 0 && consecutiveFailures.incrementAndGet() >= maxConsecFail) {
+                        addReactStep(ctx, promptValue, cutResult, observation);
+                        throw new AgentAbortException(AgentAbortReason.CONSECUTIVE_TOOL_FAILURES,
+                                "Consecutive tool failures reached " + maxConsecFail, ctx);
+                    }
+                } else {
+                    String toolObservation = null;
+                    Exception lastError = null;
+                    int attempts = 0;
+                    while (attempts <= toolRetryCount) {
+                        try {
+                            Object raw = useTool.getFunc().apply(((Map<String, String>) map).get("Action Input"));
+                            toolObservation = raw != null ? raw.toString() : "";
+                            lastError = null;
+                            break;
+                        } catch (AgentPauseException e) {
+                            addReactStep(ctx, promptValue, cutResult, "[paused: " + e.getReason() + "]");
+                            throw e;
+                        } catch (AgentException e) {
+                            log.debug("Tool '{}' raised agent signal: {}", useTool.getName(), e.getMessage());
+                            throw e;
+                        } catch (Exception e) {
+                            lastError = e;
+                            attempts++;
+                            if (attempts <= toolRetryCount) {
+                                log.warn("Tool '{}' failed (attempt {}/{}), retrying: {}",
+                                        useTool.getName(), attempts, toolRetryCount + 1, e.getMessage());
+                            } else {
+                                log.error("Tool '{}' failed after {} attempt(s)", useTool.getName(), attempts, e);
+                            }
+                        }
+                    }
+                    if (lastError != null) {
+                        observation = "Tool execution error: " + lastError.getMessage();
+                        if (maxConsecFail > 0 && consecutiveFailures.incrementAndGet() >= maxConsecFail) {
+                            addReactStep(ctx, promptValue, cutResult, observation);
+                            throw new AgentAbortException(AgentAbortReason.CONSECUTIVE_TOOL_FAILURES,
+                                    "Consecutive tool failures reached " + maxConsecFail, ctx);
+                        }
+                    } else {
+                        observation = toolObservation;
+                        consecutiveFailures.set(0);
+                    }
                 }
 
-                String observation = (String) useTool.getFunc().apply(((Map<String, String>) map).get("Action Input"));
                 if (observationConsumer != null) observationConsumer.accept(observation);
                 else log.debug("Observation: {}", observation);
 
-                String prefix = cutResult.getContent();
-                int thoughtIdx = prefix.lastIndexOf("Thought:");
-                String thoughtPart = thoughtIdx >= 0 ? prefix.substring(thoughtIdx + 8).trim() : prefix.trim();
-                String agentScratchpad = thoughtPart + "\nObservation: " + observation + "\nThought:";
-
-                ctx.initReactBasePromptText(promptValue.getText());
-                ctx.addStep(AgentStep.ofReAct(agentScratchpad));
-                promptValue.setText(ctx.buildReactPromptText());
+                addReactStep(ctx, promptValue, cutResult, observation);
                 return promptValue;
             });
 
@@ -355,6 +448,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             var chainBuilder = chainActor.builder()
                 .next(initContext)
                 .next(prompt)
+                .next(applyPreloadedSteps)
                 .loop(
                     shouldContinue,
                     emitBeforeLlm,
@@ -376,6 +470,18 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     : chainBuilder.build();
 
             return new AgentExecutor(chainActor, agentChain, conversationStorerFinal);
+        }
+
+        private static void addReactStep(AgentTaskContext ctx, StringPromptValue promptValue,
+                                         AIMessage cutResult, String observation) {
+            String prefix = cutResult != null && cutResult.getContent() != null ? cutResult.getContent() : "";
+            int thoughtIdx = prefix.lastIndexOf("Thought:");
+            String thoughtPart = thoughtIdx >= 0 ? prefix.substring(thoughtIdx + 8).trim() : prefix.trim();
+            String agentScratchpad = thoughtPart + "\nObservation: " + observation + "\nThought:";
+
+            ctx.initReactBasePromptText(promptValue.getText());
+            ctx.addStep(AgentStep.ofReAct(agentScratchpad));
+            promptValue.setText(ctx.buildReactPromptText());
         }
     }
 }
