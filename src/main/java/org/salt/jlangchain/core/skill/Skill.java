@@ -140,11 +140,6 @@ public class Skill {
 
     private McpAgentExecutor buildExecutor() {
         List<Tool> allTools = collectTools();
-        if (allTools.isEmpty()) {
-            throw new IllegalStateException(
-                    "Skill '" + getName() + "' has no tools. " +
-                    "Provide scripts in SKILL.md, add via .tools(), or declare allowedTools.");
-        }
 
         log.debug("Building internal executor for skill '{}' with {} tool(s): {}",
                 getName(), allTools.size(), allTools.stream().map(Tool::getName).toList());

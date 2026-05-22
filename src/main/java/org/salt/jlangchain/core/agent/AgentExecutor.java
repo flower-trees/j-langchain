@@ -136,12 +136,15 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         try {
             return (ChatGeneration) chainActor.invoke(agentChain, Map.of("input", input), transmitMap);
         } catch (AgentStoppedException e) {
+            if (e.getPartialContext() != null) e.getPartialContext().markEnded();
             if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
             throw e;
         } catch (AgentPauseException e) {
+            if (e.getPartialContext() != null) e.getPartialContext().markEnded();
             if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
             throw e;
         } catch (AgentAbortException e) {
+            if (e.getPartialContext() != null) e.getPartialContext().markEnded();
             if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
             throw e;
         }
@@ -152,6 +155,8 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
     }
 
     public static class Builder {
+
+        private static final String LLM_STARTED_AT = "AGENT_EXECUTOR_LLM_STARTED_AT";
 
         private final ChainActor chainActor;
         private BaseChatModel llm;
@@ -301,6 +306,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             });
 
             TranslateHandler<StringPromptValue, StringPromptValue> emitBeforeLlm = new TranslateHandler<>(promptValue -> {
+                ContextBus.get().putTransmit(LLM_STARTED_AT, System.currentTimeMillis());
                 if (llmConsumer != null && promptValue != null) {
                     llmConsumer.accept(promptValue.getText());
                 }
@@ -404,6 +410,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     String toolObservation = null;
                     Exception lastError = null;
                     int attempts = 0;
+                    long toolStartedAt = System.currentTimeMillis();
                     while (attempts <= toolRetryCount) {
                         try {
                             Object raw = useTool.getFunc().apply(((Map<String, String>) map).get("Action Input"));
@@ -411,9 +418,11 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                             lastError = null;
                             break;
                         } catch (AgentPauseException e) {
+                            ctx.addToolDuration(System.currentTimeMillis() - toolStartedAt);
                             addReactStep(ctx, promptValue, cutResult, "[paused: " + e.getReason() + "]");
                             throw e;
                         } catch (AgentException e) {
+                            ctx.addToolDuration(System.currentTimeMillis() - toolStartedAt);
                             log.debug("Tool '{}' raised agent signal: {}", useTool.getName(), e.getMessage());
                             throw e;
                         } catch (Exception e) {
@@ -427,6 +436,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                             }
                         }
                     }
+                    ctx.addToolDuration(System.currentTimeMillis() - toolStartedAt);
                     if (lastError != null) {
                         observation = "Tool execution error: " + lastError.getMessage();
                         if (maxConsecFail > 0 && consecutiveFailures.incrementAndGet() >= maxConsecFail) {
@@ -510,6 +520,12 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                                                 Consumer<AgentTokenUsageEvent> tokenUsageConsumer) {
             AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
             if (ctx == null) return message;
+            long deltaDurationMs = 0;
+            Long startedAt = ContextBus.get().getTransmit(LLM_STARTED_AT);
+            if (startedAt != null) {
+                deltaDurationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+                ctx.addLlmDuration(deltaDurationMs);
+            }
             AiTokenUsage usage = null;
             if (message != null && message.getResponseMetadata() != null) {
                 Object raw = message.getResponseMetadata().get(AiTokenUsage.METADATA_KEY);
@@ -524,12 +540,17 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             ctx.addTokenUsage(usage);
             if (tokenUsageConsumer != null) {
                 AiTokenUsage total = ctx.getTokenUsage();
+                AgentExecutionMetrics metrics = ctx.getExecutionMetrics();
                 tokenUsageConsumer.accept(AgentTokenUsageEvent.builder()
                         .taskId(ctx.getTaskId())
                         .deltaUsage(usage.copy())
                         .totalUsage(total)
                         .llmCalls(total.getLlmCalls())
                         .toolCalls(total.getToolCalls())
+                        .deltaDurationMs(deltaDurationMs)
+                        .totalDurationMs(metrics.getDurationMs())
+                        .llmDurationMs(metrics.getLlmDurationMs())
+                        .toolDurationMs(metrics.getToolDurationMs())
                         .build());
             }
             return message;
@@ -538,10 +559,12 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private static void attachAggregateUsage(ChatGeneration generation) {
             AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
             if (ctx == null) return;
+            ctx.markEnded();
             Map<String, Object> metadata = generation.getResponseMetadata() != null
                     ? new HashMap<>(generation.getResponseMetadata())
                     : new HashMap<>();
             metadata.put(AiTokenUsage.METADATA_KEY, ctx.getTokenUsage());
+            metadata.put(AgentExecutionMetrics.METADATA_KEY, ctx.getExecutionMetrics());
             generation.setResponseMetadata(metadata);
             if (generation.getMessage() != null) {
                 generation.getMessage().setResponseMetadata(metadata);

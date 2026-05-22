@@ -16,7 +16,6 @@ package org.salt.jlangchain.core.agent.memory;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.salt.jlangchain.core.history.HistoryInfos;
 import org.salt.jlangchain.core.agent.storage.AgentTaskStorage;
 import org.salt.jlangchain.core.llm.BaseChatModel;
@@ -28,7 +27,6 @@ import org.salt.jlangchain.core.message.SystemMessage;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Sliding-window {@link AgentContext} implementation.
@@ -70,13 +68,11 @@ public class SlidingWindowContext implements AgentContext {
 
     // ── Per-invocation context ───────────────────────────────────────────────────
 
-    class Session implements AgentTaskContext {
+    class Session extends BaseAgentTaskContext {
 
-        private final String taskId = UUID.randomUUID().toString();
         private final String originalTask;
         private final String systemPrompt;
         private final List<AgentStep> recentSteps = new ArrayList<>();
-        private final AiTokenUsage tokenUsage = AiTokenUsage.empty();
         private String earlyStepsSummary;
         private String resumeInput;
         private String reactBasePromptText;
@@ -93,9 +89,9 @@ public class SlidingWindowContext implements AgentContext {
             if (taskStorage != null) {
                 List<BaseMessage> msgs = step.toMessages();
                 if (!msgs.isEmpty()) {
-                    taskStorage.append(taskId, HistoryInfos.builder()
+                    taskStorage.append(getTaskId(), HistoryInfos.builder()
                             .type(HistoryInfos.Type.AGENT_STEP)
-                            .parentId(taskId)
+                            .parentId(getTaskId())
                             .messages(msgs)
                             .build());
                 }
@@ -153,33 +149,14 @@ public class SlidingWindowContext implements AgentContext {
         }
 
         @Override
-        public String getTaskId() {
-            return taskId;
-        }
-
-        @Override
         public List<AgentStep> getCompletedSteps() {
             return Collections.unmodifiableList(recentSteps);
         }
 
         @Override
         public void addHumanTurn(String message) {
+            reopenForResume();
             if (message != null) this.resumeInput = message;
-        }
-
-        @Override
-        public void addTokenUsage(AiTokenUsage usage) {
-            tokenUsage.add(usage);
-        }
-
-        @Override
-        public void addToolCalls(long count) {
-            tokenUsage.addToolCalls(count);
-        }
-
-        @Override
-        public AiTokenUsage getTokenUsage() {
-            return tokenUsage.copy();
         }
 
         private void compressEarliestStep() {
@@ -200,17 +177,17 @@ public class SlidingWindowContext implements AgentContext {
             }
 
             if (taskStorage != null) {
-                List<HistoryInfos> stored = taskStorage.loadByTaskId(taskId);
+                List<HistoryInfos> stored = taskStorage.loadByTaskId(getTaskId());
                 List<HistoryInfos> compacted = new ArrayList<>();
                 compacted.add(HistoryInfos.builder()
                         .type(HistoryInfos.Type.TASK_SUMMARY)
-                        .parentId(taskId)
+                        .parentId(getTaskId())
                         .messages(List.of(BaseMessage.fromMessage(MessageType.AI.getCode(), earlyStepsSummary)))
                         .build());
                 if (stored.size() > 1) {
                     compacted.addAll(stored.subList(1, stored.size()));
                 }
-                taskStorage.replace(taskId, compacted);
+                taskStorage.replace(getTaskId(), compacted);
             }
         }
 

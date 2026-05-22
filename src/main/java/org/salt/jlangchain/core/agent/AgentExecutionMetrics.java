@@ -14,24 +14,25 @@
 
 package org.salt.jlangchain.core.agent;
 
-import lombok.Builder;
+import lombok.AllArgsConstructor;
 import lombok.Data;
-import org.salt.jlangchain.ai.common.param.AiTokenUsage;
+import lombok.NoArgsConstructor;
 
 /**
- * Emitted after each LLM call in an agent loop.
+ * Aggregate execution timing for one agent task.
  */
 @Data
-@Builder
-public class AgentTokenUsageEvent {
+@NoArgsConstructor
+@AllArgsConstructor
+public class AgentExecutionMetrics {
 
-    private String taskId;
-    private AiTokenUsage deltaUsage;
-    private AiTokenUsage totalUsage;
-    private long llmCalls;
-    private long toolCalls;
-    private long deltaDurationMs;
-    private long totalDurationMs;
+    public static final String METADATA_KEY = "executionMetrics";
+
+    private long startedAtMs;
+    private long endedAtMs;
+    private long durationMs;
     private long llmDurationMs;
     private long toolDurationMs;
+    private long llmCalls;
+    private long toolCalls;
 }

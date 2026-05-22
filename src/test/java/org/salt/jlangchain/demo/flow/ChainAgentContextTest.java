@@ -20,6 +20,7 @@ import org.junit.runner.RunWith;
 import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.agent.AgentExecutionMetrics;
 import org.salt.jlangchain.core.agent.AgentTokenUsageEvent;
 import org.salt.jlangchain.core.agent.AgentExecutor;
 import org.salt.jlangchain.core.agent.McpAgentExecutor;
@@ -105,6 +106,9 @@ public class ChainAgentContextTest {
         AiTokenUsage usage = tokenUsage(result);
         Assert.assertNotNull("AgentExecutor should expose token usage", usage);
         System.out.println("[AgentExecutor tokenUsage] " + usage);
+        AgentExecutionMetrics metrics = executionMetrics(result);
+        Assert.assertNotNull("AgentExecutor should expose execution metrics", metrics);
+        System.out.println("[AgentExecutor executionMetrics] " + metrics);
     }
 
     // ── 2. AgentExecutor — SlidingWindowContext ───────────────────────────────
@@ -128,6 +132,9 @@ public class ChainAgentContextTest {
         Assert.assertNotNull("McpAgentExecutor should expose token usage", usage);
         Assert.assertTrue("McpAgentExecutor should record LLM calls", usage.getLlmCalls() >= 1);
         System.out.println("[McpAgentExecutor tokenUsage] " + usage);
+        AgentExecutionMetrics metrics = executionMetrics(result);
+        Assert.assertNotNull("McpAgentExecutor should expose execution metrics", metrics);
+        System.out.println("[McpAgentExecutor executionMetrics] " + metrics);
     }
 
     // ── 3. AgentExecutor — SlidingWindowContext + AgentTaskStorage ────────────
@@ -548,6 +555,12 @@ public class ChainAgentContextTest {
         return raw instanceof AiTokenUsage usage ? usage : null;
     }
 
+    private static AgentExecutionMetrics executionMetrics(ChatGeneration result) {
+        if (result.getResponseMetadata() == null) return null;
+        Object raw = result.getResponseMetadata().get(AgentExecutionMetrics.METADATA_KEY);
+        return raw instanceof AgentExecutionMetrics metrics ? metrics : null;
+    }
+
     private static String formatUsageEvent(AgentTokenUsageEvent event) {
         return "task=" + event.getTaskId()
                 + ", deltaPrompt=" + event.getDeltaUsage().getPromptTokens()
@@ -556,6 +569,10 @@ public class ChainAgentContextTest {
                 + ", totalPrompt=" + event.getTotalUsage().getPromptTokens()
                 + ", totalCompletion=" + event.getTotalUsage().getCompletionTokens()
                 + ", total=" + event.getTotalUsage().getTotalTokens()
+                + ", deltaDurationMs=" + event.getDeltaDurationMs()
+                + ", totalDurationMs=" + event.getTotalDurationMs()
+                + ", llmDurationMs=" + event.getLlmDurationMs()
+                + ", toolDurationMs=" + event.getToolDurationMs()
                 + ", llmCalls=" + event.getLlmCalls()
                 + ", toolCalls=" + event.getToolCalls();
     }

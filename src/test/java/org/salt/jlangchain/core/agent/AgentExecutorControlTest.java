@@ -98,7 +98,11 @@ public class AgentExecutorControlTest {
         Assert.assertTrue("agent should record requested tool calls", usage.getToolCalls() >= 1);
         Assert.assertTrue("provider should return total token usage", usage.getTotalTokens() > 0);
         Assert.assertFalse("token usage events should be emitted during execution", usageEvents.isEmpty());
+        AgentExecutionMetrics metrics = executionMetrics(result);
+        Assert.assertNotNull("agent result should expose execution metrics", metrics);
+        Assert.assertTrue("agent duration should be recorded", metrics.getDurationMs() >= metrics.getLlmDurationMs());
         System.out.println("[AgentExecutor tokenUsage] " + usage);
+        System.out.println("[AgentExecutor executionMetrics] " + metrics);
     }
 
     @Test
@@ -127,6 +131,7 @@ public class AgentExecutorControlTest {
             Assert.assertTrue("partial context should keep token usage",
                     e.getPartialContext().getTokenUsage().getLlmCalls() >= 1);
             System.out.println("[AgentExecutor partial tokenUsage] " + e.getPartialContext().getTokenUsage());
+            System.out.println("[AgentExecutor partial executionMetrics] " + e.getPartialContext().getExecutionMetrics());
         }
     }
 
@@ -209,13 +214,22 @@ public class AgentExecutorControlTest {
         AiTokenUsage usage = tokenUsage(result);
         Assert.assertNotNull(usage);
         Assert.assertFalse(usageEvents.isEmpty());
+        AgentExecutionMetrics metrics = executionMetrics(result);
+        Assert.assertNotNull(metrics);
         System.out.println("[AgentExecutor resume tokenUsage] " + usage);
+        System.out.println("[AgentExecutor resume executionMetrics] " + metrics);
     }
 
     private static AiTokenUsage tokenUsage(ChatGeneration result) {
         if (result.getResponseMetadata() == null) return null;
         Object raw = result.getResponseMetadata().get(AiTokenUsage.METADATA_KEY);
         return raw instanceof AiTokenUsage usage ? usage : null;
+    }
+
+    private static AgentExecutionMetrics executionMetrics(ChatGeneration result) {
+        if (result.getResponseMetadata() == null) return null;
+        Object raw = result.getResponseMetadata().get(AgentExecutionMetrics.METADATA_KEY);
+        return raw instanceof AgentExecutionMetrics metrics ? metrics : null;
     }
 
     private static String formatUsageEvent(AgentTokenUsageEvent event) {
@@ -226,6 +240,10 @@ public class AgentExecutorControlTest {
                 + ", totalPrompt=" + event.getTotalUsage().getPromptTokens()
                 + ", totalCompletion=" + event.getTotalUsage().getCompletionTokens()
                 + ", total=" + event.getTotalUsage().getTotalTokens()
+                + ", deltaDurationMs=" + event.getDeltaDurationMs()
+                + ", totalDurationMs=" + event.getTotalDurationMs()
+                + ", llmDurationMs=" + event.getLlmDurationMs()
+                + ", toolDurationMs=" + event.getToolDurationMs()
                 + ", llmCalls=" + event.getLlmCalls()
                 + ", toolCalls=" + event.getToolCalls();
     }

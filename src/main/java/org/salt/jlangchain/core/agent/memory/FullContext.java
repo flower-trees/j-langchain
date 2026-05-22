@@ -15,7 +15,6 @@
 package org.salt.jlangchain.core.agent.memory;
 
 import org.apache.commons.lang3.StringUtils;
-import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.salt.jlangchain.core.message.BaseMessage;
 import org.salt.jlangchain.core.message.HumanMessage;
 import org.salt.jlangchain.core.message.SystemMessage;
@@ -23,7 +22,6 @@ import org.salt.jlangchain.core.message.SystemMessage;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Default no-compression {@link AgentContext} implementation.
@@ -47,13 +45,11 @@ public class FullContext implements AgentContext {
 
     // ── Per-invocation context ───────────────────────────────────────────────────
 
-    static class Session implements AgentTaskContext {
+    static class Session extends BaseAgentTaskContext {
 
-        private final String taskId = UUID.randomUUID().toString();
         private final String originalTask;
         private final String systemPrompt;
         private final List<AgentStep> recentSteps = new ArrayList<>();
-        private final AiTokenUsage tokenUsage = AiTokenUsage.empty();
         private String resumeInput;
         private String reactBasePromptText;
 
@@ -103,33 +99,14 @@ public class FullContext implements AgentContext {
         }
 
         @Override
-        public String getTaskId() {
-            return taskId;
-        }
-
-        @Override
         public List<AgentStep> getCompletedSteps() {
             return Collections.unmodifiableList(recentSteps);
         }
 
         @Override
         public void addHumanTurn(String message) {
+            reopenForResume();
             if (message != null) this.resumeInput = message;
-        }
-
-        @Override
-        public void addTokenUsage(AiTokenUsage usage) {
-            tokenUsage.add(usage);
-        }
-
-        @Override
-        public void addToolCalls(long count) {
-            tokenUsage.addToolCalls(count);
-        }
-
-        @Override
-        public AiTokenUsage getTokenUsage() {
-            return tokenUsage.copy();
         }
     }
 }
