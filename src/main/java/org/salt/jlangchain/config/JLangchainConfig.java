@@ -74,14 +74,20 @@ public class JLangchainConfig {
     @Value("${models.http.write-timeout-ms:30000}")
     private long httpWriteTimeoutMs;
 
+    @Value("${models.http.call-timeout-ms:300000}")
+    private long httpCallTimeoutMs;
+
     @Value("${models.sse.connect-timeout-ms:30000}")
     private long sseConnectTimeoutMs;
 
-    @Value("${models.sse.read-timeout-ms:0}")
+    @Value("${models.sse.read-timeout-ms:60000}")
     private long sseReadTimeoutMs;
 
     @Value("${models.sse.write-timeout-ms:30000}")
     private long sseWriteTimeoutMs;
+
+    @Value("${models.sse.call-timeout-ms:0}")
+    private long sseCallTimeoutMs;
 
     @Autowired
     private ApplicationContext context;
@@ -200,6 +206,7 @@ public class JLangchainConfig {
         client.setConnectTimeout(sseConnectTimeoutMs);
         client.setReadTimeout(sseReadTimeoutMs);
         client.setWriteTimeout(sseWriteTimeoutMs);
+        client.setCallTimeout(sseCallTimeoutMs);
         return client;
     }
 
@@ -232,5 +239,6 @@ public class JLangchainConfig {
         client.setConnectTimeout(httpConnectTimeoutMs);
         client.setReadTimeout(httpReadTimeoutMs);
         client.setWriteTimeout(httpWriteTimeoutMs);
+        client.setCallTimeout(httpCallTimeoutMs);
     }
 }

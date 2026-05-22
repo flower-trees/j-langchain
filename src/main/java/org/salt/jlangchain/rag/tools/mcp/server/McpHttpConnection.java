@@ -42,9 +42,10 @@ public class McpHttpConnection extends AbstractMcpConnection {
         this.baseUrl = config.url;
 
         this.httpClient = new OkHttpClient.Builder()
-                .connectTimeout(config.connectTimeoutSecondsOr(10), TimeUnit.SECONDS)
-                .readTimeout(config.readTimeoutSecondsOr(30), TimeUnit.SECONDS)
-                .writeTimeout(config.writeTimeoutSecondsOr(10), TimeUnit.SECONDS)
+                .connectTimeout(config.connectTimeoutMsOr(10000), TimeUnit.MILLISECONDS)
+                .readTimeout(config.readTimeoutMsOr(30000), TimeUnit.MILLISECONDS)
+                .writeTimeout(config.writeTimeoutMsOr(10000), TimeUnit.MILLISECONDS)
+                .callTimeout(config.callTimeoutMsOr(300000), TimeUnit.MILLISECONDS)
                 .addInterceptor(chain -> {
                     Request request = chain.request();
                     log.debug("[{}] HTTP Request: {} {}", serverName, request.method(), request.url());

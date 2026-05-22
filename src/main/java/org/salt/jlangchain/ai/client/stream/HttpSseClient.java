@@ -56,6 +56,7 @@ public class HttpSseClient implements InitializingBean {
     private long connectTimeout = 30000;
     private long readTimeout = 30000;
     private long writeTimeout = 30000;
+    private long callTimeout = 0;
     private TimeUnit connectTimeUnit = TimeUnit.MILLISECONDS;
     private String proxyHost;
     private int proxyPort;
@@ -67,7 +68,8 @@ public class HttpSseClient implements InitializingBean {
                 .connectionPool(connectionPool)
                 .connectTimeout(connectTimeout, connectTimeUnit)
                 .readTimeout(readTimeout, connectTimeUnit)
-                .writeTimeout(writeTimeout, connectTimeUnit);
+                .writeTimeout(writeTimeout, connectTimeUnit)
+                .callTimeout(callTimeout, connectTimeUnit);
         if (StringUtils.isNotBlank(proxyHost)) {
             Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort));
             builder.proxy(proxy);

@@ -27,33 +27,38 @@ public class ServerConfig {
     public Type type;
     public String url;
 
-    public Integer connectTimeoutSeconds;
-    public Integer readTimeoutSeconds;
-    public Integer writeTimeoutSeconds;
-    public Integer endpointTimeoutSeconds;
-    public Integer requestTimeoutSeconds;
+    public Integer connectTimeoutMs;
+    public Integer readTimeoutMs;
+    public Integer writeTimeoutMs;
+    public Integer callTimeoutMs;
+    public Integer endpointTimeoutMs;
+    public Integer requestTimeoutMs;
 
     public enum Type {
         stdio, sse, http
     }
 
-    public int connectTimeoutSecondsOr(int defaultValue) {
-        return connectTimeoutSeconds != null ? connectTimeoutSeconds : defaultValue;
+    public int connectTimeoutMsOr(int defaultValue) {
+        return connectTimeoutMs != null ? connectTimeoutMs : defaultValue;
     }
 
-    public int readTimeoutSecondsOr(int defaultValue) {
-        return readTimeoutSeconds != null ? readTimeoutSeconds : defaultValue;
+    public int readTimeoutMsOr(int defaultValue) {
+        return readTimeoutMs != null ? readTimeoutMs : defaultValue;
     }
 
-    public int writeTimeoutSecondsOr(int defaultValue) {
-        return writeTimeoutSeconds != null ? writeTimeoutSeconds : defaultValue;
+    public int writeTimeoutMsOr(int defaultValue) {
+        return writeTimeoutMs != null ? writeTimeoutMs : defaultValue;
     }
 
-    public int endpointTimeoutSecondsOr(int defaultValue) {
-        return endpointTimeoutSeconds != null ? endpointTimeoutSeconds : defaultValue;
+    public int callTimeoutMsOr(int defaultValue) {
+        return callTimeoutMs != null ? callTimeoutMs : defaultValue;
     }
 
-    public int requestTimeoutSecondsOr(int defaultValue) {
-        return requestTimeoutSeconds != null ? requestTimeoutSeconds : defaultValue;
+    public int endpointTimeoutMsOr(int defaultValue) {
+        return endpointTimeoutMs != null ? endpointTimeoutMs : defaultValue;
+    }
+
+    public int requestTimeoutMsOr(int defaultValue) {
+        return requestTimeoutMs != null ? requestTimeoutMs : defaultValue;
     }
 }
