@@ -15,6 +15,7 @@
 package org.salt.jlangchain.core.agent.memory;
 
 import org.apache.commons.lang3.StringUtils;
+import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.salt.jlangchain.core.message.BaseMessage;
 import org.salt.jlangchain.core.message.HumanMessage;
 import org.salt.jlangchain.core.message.SystemMessage;
@@ -52,6 +53,7 @@ public class FullContext implements AgentContext {
         private final String originalTask;
         private final String systemPrompt;
         private final List<AgentStep> recentSteps = new ArrayList<>();
+        private final AiTokenUsage tokenUsage = AiTokenUsage.empty();
         private String resumeInput;
         private String reactBasePromptText;
 
@@ -113,6 +115,21 @@ public class FullContext implements AgentContext {
         @Override
         public void addHumanTurn(String message) {
             if (message != null) this.resumeInput = message;
+        }
+
+        @Override
+        public void addTokenUsage(AiTokenUsage usage) {
+            tokenUsage.add(usage);
+        }
+
+        @Override
+        public void addToolCalls(long count) {
+            tokenUsage.addToolCalls(count);
+        }
+
+        @Override
+        public AiTokenUsage getTokenUsage() {
+            return tokenUsage.copy();
         }
     }
 }

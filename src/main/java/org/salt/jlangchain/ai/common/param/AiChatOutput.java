@@ -52,6 +52,8 @@ public class AiChatOutput {
     // MCP related response fields
     private McpResponse mcpResponse;
 
+    private AiTokenUsage usage;
+
     @Data
     public static class Message {
         private String role;
@@ -125,6 +127,7 @@ public class AiChatOutput {
         private String message;
         private List<DataObject> data;
         private McpResponse mcpResponse;
+        private AiTokenUsage usage;
 
         private AiChatOutputBuilder() {
         }
@@ -159,8 +162,13 @@ public class AiChatOutput {
             return this;
         }
 
+        public AiChatOutputBuilder usage(AiTokenUsage usage) {
+            this.usage = usage;
+            return this;
+        }
+
         public AiChatOutput build() {
-            return new AiChatOutput(this.id, this.messages, this.code, this.message, this.data, this.mcpResponse);
+            return new AiChatOutput(this.id, this.messages, this.code, this.message, this.data, this.mcpResponse, this.usage);
         }
 
         @Override

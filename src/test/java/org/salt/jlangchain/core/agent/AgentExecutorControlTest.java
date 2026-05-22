@@ -19,6 +19,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.function.flow.context.ContextBus;
 import org.salt.jlangchain.TestApplication;
+import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.agent.memory.AgentTaskContext;
 import org.salt.jlangchain.core.common.CallInfo;
@@ -79,6 +80,12 @@ public class AgentExecutorControlTest {
         Assert.assertNotNull(result);
         Assert.assertFalse(result.getText().isBlank());
         Assert.assertEquals("tool should be called once plus one retry", 2, calls.get());
+        AiTokenUsage usage = tokenUsage(result);
+        Assert.assertNotNull("agent result should expose aggregate token usage", usage);
+        Assert.assertTrue("agent should record LLM calls", usage.getLlmCalls() >= 1);
+        Assert.assertTrue("agent should record requested tool calls", usage.getToolCalls() >= 1);
+        Assert.assertTrue("provider should return total token usage", usage.getTotalTokens() > 0);
+        System.out.println("[AgentExecutor tokenUsage] " + usage);
     }
 
     @Test
@@ -104,6 +111,9 @@ public class AgentExecutorControlTest {
             Assert.assertEquals(1, e.getCompletedSteps().size());
             Assert.assertTrue(e.getCompletedSteps().get(0).getScratchpadText()
                     .contains("Tool execution error: boom"));
+            Assert.assertTrue("partial context should keep token usage",
+                    e.getPartialContext().getTokenUsage().getLlmCalls() >= 1);
+            System.out.println("[AgentExecutor partial tokenUsage] " + e.getPartialContext().getTokenUsage());
         }
     }
 
@@ -178,5 +188,14 @@ public class AgentExecutorControlTest {
         String resumePrompt = prompts.get(0);
         Assert.assertTrue(resumePrompt.contains("[paused: wait_user]"));
         Assert.assertTrue(resumePrompt.contains("Human: 同意，继续"));
+        AiTokenUsage usage = tokenUsage(result);
+        Assert.assertNotNull(usage);
+        System.out.println("[AgentExecutor resume tokenUsage] " + usage);
+    }
+
+    private static AiTokenUsage tokenUsage(ChatGeneration result) {
+        if (result.getResponseMetadata() == null) return null;
+        Object raw = result.getResponseMetadata().get(AiTokenUsage.METADATA_KEY);
+        return raw instanceof AiTokenUsage usage ? usage : null;
     }
 }

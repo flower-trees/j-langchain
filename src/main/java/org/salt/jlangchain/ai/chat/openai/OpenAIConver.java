@@ -20,6 +20,7 @@ import org.salt.jlangchain.ai.common.enums.AiChatCode;
 import org.salt.jlangchain.ai.common.enums.MessageType;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
+import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
@@ -107,6 +108,7 @@ public class OpenAIConver {
 
         List<AiChatOutput.DataObject> data = getData(response);
         aiChatOutput.setData(data);
+        aiChatOutput.setUsage(getUsage(response));
 
         // Handle MCP response
         if (response.getMcpResponse() != null) {
@@ -129,6 +131,22 @@ public class OpenAIConver {
         }
 
         return aiChatOutput;
+    }
+
+    private static AiTokenUsage getUsage(OpenAIResponse response) {
+        if (response == null || response.getUsage() == null) return null;
+        OpenAIResponse.Usage usage = response.getUsage();
+        AiTokenUsage tokenUsage = new AiTokenUsage();
+        tokenUsage.setPromptTokens(usage.getPromptTokens());
+        tokenUsage.setCompletionTokens(usage.getCompletionTokens());
+        tokenUsage.setTotalTokens(usage.getTotalTokens());
+        if (usage.getPromptTokensDetails() != null) {
+            tokenUsage.setCachedTokens(usage.getPromptTokensDetails().getCachedTokens());
+        }
+        if (usage.getCompletionTokensDetails() != null) {
+            tokenUsage.setReasoningTokens(usage.getCompletionTokensDetails().getReasoningTokens());
+        }
+        return tokenUsage;
     }
 
     private static List<AiChatOutput.Message> getMessages(OpenAIResponse response) {

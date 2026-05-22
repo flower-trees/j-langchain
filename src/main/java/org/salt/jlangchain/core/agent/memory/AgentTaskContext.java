@@ -16,6 +16,7 @@ package org.salt.jlangchain.core.agent.memory;
 
 import org.salt.jlangchain.core.message.BaseMessage;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
+import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 
 import java.util.Collections;
 import java.util.List;
@@ -63,4 +64,15 @@ public interface AgentTaskContext {
      * The default no-op is provided for backward compatibility with custom implementations.
      */
     default void addHumanTurn(String message) {}
+
+    /** Add token usage from one model call to this task's aggregate usage. */
+    default void addTokenUsage(AiTokenUsage usage) {}
+
+    /** Add tool-call count to this task's aggregate usage metadata. */
+    default void addToolCalls(long count) {}
+
+    /** Returns aggregate token usage for this task. */
+    default AiTokenUsage getTokenUsage() {
+        return AiTokenUsage.empty();
+    }
 }

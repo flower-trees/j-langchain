@@ -24,6 +24,7 @@ import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.common.enums.AiChatCode;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
+import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.event.EventAction;
@@ -77,10 +78,16 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
         }
         List<AiChatOutput.ToolCall> toolCalls = aiChatOutput.getMessages().get(0).getToolCalls();
         if (toolCalls != null) {
-            return ToolMessage.builder().toolCalls(toolCalls).build();
+            return ToolMessage.builder()
+                    .toolCalls(toolCalls)
+                    .responseMetadata(buildResponseMetadata(aiChatOutput.getUsage()))
+                    .build();
         }
 
-        return AIMessage.builder().content((String) aiChatOutput.getMessages().get(0).getContent()).build();
+        return AIMessage.builder()
+                .content((String) aiChatOutput.getMessages().get(0).getContent())
+                .responseMetadata(buildResponseMetadata(aiChatOutput.getUsage()))
+                .build();
     }
 
     @Override
@@ -213,5 +220,13 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
         return Map.of("ls_provider", vendor,
                       "ls_model_type", modelType,
                       "ls_model_name", model);
+    }
+
+    private Map<String, Object> buildResponseMetadata(AiTokenUsage usage) {
+        if (usage == null) return Map.of();
+        AiTokenUsage enriched = usage.copy();
+        enriched.setProvider(vendor);
+        enriched.setModel(model);
+        return Map.of(AiTokenUsage.METADATA_KEY, enriched);
     }
 }

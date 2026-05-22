@@ -18,6 +18,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.jlangchain.TestApplication;
+import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.agent.AgentExecutor;
 import org.salt.jlangchain.core.agent.McpAgentExecutor;
@@ -99,6 +100,9 @@ public class ChainAgentContextTest {
         System.out.println("[Final] " + result.getText());
         Assert.assertNotNull(result);
         Assert.assertFalse(result.getText().isBlank());
+        AiTokenUsage usage = tokenUsage(result);
+        Assert.assertNotNull("AgentExecutor should expose token usage", usage);
+        System.out.println("[AgentExecutor tokenUsage] " + usage);
     }
 
     // ── 2. AgentExecutor — SlidingWindowContext ───────────────────────────────
@@ -118,6 +122,10 @@ public class ChainAgentContextTest {
         System.out.println("[Final] " + result.getText());
         Assert.assertNotNull(result);
         Assert.assertFalse(result.getText().isBlank());
+        AiTokenUsage usage = tokenUsage(result);
+        Assert.assertNotNull("McpAgentExecutor should expose token usage", usage);
+        Assert.assertTrue("McpAgentExecutor should record LLM calls", usage.getLlmCalls() >= 1);
+        System.out.println("[McpAgentExecutor tokenUsage] " + usage);
     }
 
     // ── 3. AgentExecutor — SlidingWindowContext + AgentTaskStorage ────────────
@@ -529,5 +537,11 @@ public class ChainAgentContextTest {
         List<String> getAllTaskIds() {
             return new ArrayList<>(taskIds);
         }
+    }
+
+    private static AiTokenUsage tokenUsage(ChatGeneration result) {
+        if (result.getResponseMetadata() == null) return null;
+        Object raw = result.getResponseMetadata().get(AiTokenUsage.METADATA_KEY);
+        return raw instanceof AiTokenUsage usage ? usage : null;
     }
 }

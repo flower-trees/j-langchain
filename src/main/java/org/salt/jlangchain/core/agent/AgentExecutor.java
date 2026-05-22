@@ -19,6 +19,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.salt.function.flow.FlowInstance;
 import org.salt.function.flow.Info;
 import org.salt.function.flow.context.ContextBus;
+import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.agent.memory.*;
@@ -299,6 +300,8 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 return promptValue;
             });
 
+            TranslateHandler<AIMessage, AIMessage> recordLlmUsage = new TranslateHandler<>(Builder::recordLlmUsage);
+
             Consumer<String> thoughtConsumer = this.thoughtConsumer;
             TranslateHandler<AIMessage, AIMessage> cutAtObservation = new TranslateHandler<>(llmResult -> {
                 if (llmResult == null || StringUtils.isEmpty(llmResult.getContent())) {
@@ -374,6 +377,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 StringPromptValue promptValue = ContextBus.get().getResult(prompt.getNodeId());
                 AIMessage cutResult = ContextBus.get().getResult(cutAtObservation.getNodeId());
                 AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                if (ctx != null) ctx.addToolCalls(1);
 
                 Tool useTool = toolList.stream()
                     .filter(t -> t.getName().equalsIgnoreCase(((Map<String, String>) map).get("Action")))
@@ -445,6 +449,13 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 return generation;
             });
 
+            TranslateHandler<Object, Object> attachTokenUsage = new TranslateHandler<>(input -> {
+                if (input instanceof ChatGeneration generation) {
+                    attachAggregateUsage(generation);
+                }
+                return input;
+            });
+
             var chainBuilder = chainActor.builder()
                 .next(initContext)
                 .next(prompt)
@@ -454,6 +465,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     emitBeforeLlm,
                     llm,
                     chainActor.builder()
+                        .next(recordLlmUsage)
                         .next(cutAtObservation)
                         .next(parseAction)
                         .next(
@@ -463,6 +475,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                         .build()
                 )
                 .next(new StrOutputParser())
+                .next(attachTokenUsage)
                 .next(extractFinalAnswer);
 
             FlowInstance agentChain = conversationStorerFinal != null
@@ -482,6 +495,66 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             ctx.initReactBasePromptText(promptValue.getText());
             ctx.addStep(AgentStep.ofReAct(agentScratchpad));
             promptValue.setText(ctx.buildReactPromptText());
+        }
+
+        @SuppressWarnings("unchecked")
+        private static AIMessage recordLlmUsage(AIMessage message) {
+            AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+            if (ctx == null) return message;
+            AiTokenUsage usage = null;
+            if (message != null && message.getResponseMetadata() != null) {
+                Object raw = message.getResponseMetadata().get(AiTokenUsage.METADATA_KEY);
+                if (raw instanceof AiTokenUsage tokenUsage) {
+                    usage = tokenUsage.copy();
+                } else if (raw instanceof Map<?, ?> map) {
+                    usage = fromUsageMap((Map<String, Object>) map);
+                }
+            }
+            if (usage == null) usage = AiTokenUsage.empty();
+            usage.incrementLlmCalls();
+            ctx.addTokenUsage(usage);
+            return message;
+        }
+
+        private static void attachAggregateUsage(ChatGeneration generation) {
+            AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+            if (ctx == null) return;
+            Map<String, Object> metadata = generation.getResponseMetadata() != null
+                    ? new HashMap<>(generation.getResponseMetadata())
+                    : new HashMap<>();
+            metadata.put(AiTokenUsage.METADATA_KEY, ctx.getTokenUsage());
+            generation.setResponseMetadata(metadata);
+            if (generation.getMessage() != null) {
+                generation.getMessage().setResponseMetadata(metadata);
+            }
+        }
+
+        private static AiTokenUsage fromUsageMap(Map<String, Object> map) {
+            AiTokenUsage usage = AiTokenUsage.empty();
+            usage.setPromptTokens(asLong(map.get("promptTokens")));
+            usage.setCompletionTokens(asLong(map.get("completionTokens")));
+            usage.setTotalTokens(asLong(map.get("totalTokens")));
+            usage.setCachedTokens(asLong(map.get("cachedTokens")));
+            usage.setReasoningTokens(asLong(map.get("reasoningTokens")));
+            usage.setLlmCalls(asLong(map.get("llmCalls")));
+            usage.setToolCalls(asLong(map.get("toolCalls")));
+            Object provider = map.get("provider");
+            Object model = map.get("model");
+            Object estimated = map.get("estimated");
+            if (provider != null) usage.setProvider(provider.toString());
+            if (model != null) usage.setModel(model.toString());
+            if (estimated instanceof Boolean b) usage.setEstimated(b);
+            return usage;
+        }
+
+        private static long asLong(Object value) {
+            if (value instanceof Number n) return n.longValue();
+            if (value == null) return 0;
+            try {
+                return Long.parseLong(value.toString());
+            } catch (NumberFormatException e) {
+                return 0;
+            }
         }
     }
 }
