@@ -65,6 +65,24 @@ public class JLangchainConfig {
     @Value("${models.chatgpt.proxy.port:${HTTP_PROXY_PORT:}}")
     private String proxyPort;
 
+    @Value("${models.http.connect-timeout-ms:30000}")
+    private long httpConnectTimeoutMs;
+
+    @Value("${models.http.read-timeout-ms:30000}")
+    private long httpReadTimeoutMs;
+
+    @Value("${models.http.write-timeout-ms:30000}")
+    private long httpWriteTimeoutMs;
+
+    @Value("${models.sse.connect-timeout-ms:30000}")
+    private long sseConnectTimeoutMs;
+
+    @Value("${models.sse.read-timeout-ms:0}")
+    private long sseReadTimeoutMs;
+
+    @Value("${models.sse.write-timeout-ms:30000}")
+    private long sseWriteTimeoutMs;
+
     @Autowired
     private ApplicationContext context;
 
@@ -81,6 +99,7 @@ public class JLangchainConfig {
     @Bean
     public HttpStreamClient chatGPTHttpClient(TheadHelper theadHelper) {
         HttpStreamClient client = new HttpStreamClient(theadHelper);
+        configureHttpClient(client);
         if (StringUtils.isNotEmpty(proxyHost) && StringUtils.isNotEmpty(proxyPort)) {
             client.setProxyHost(proxyHost);
             client.setProxyPort(Integer.parseInt(proxyPort));
@@ -90,7 +109,9 @@ public class JLangchainConfig {
 
     @Bean
     public HttpStreamClient commonHttpClient(TheadHelper theadHelper) {
-        return new HttpStreamClient(theadHelper);
+        HttpStreamClient client = new HttpStreamClient(theadHelper);
+        configureHttpClient(client);
+        return client;
     }
 
     @Bean
@@ -175,7 +196,11 @@ public class JLangchainConfig {
 
     @Bean
     public HttpSseClient httpSseClient(TheadHelper theadHelper) {
-        return new HttpSseClient(theadHelper);
+        HttpSseClient client = new HttpSseClient(theadHelper);
+        client.setConnectTimeout(sseConnectTimeoutMs);
+        client.setReadTimeout(sseReadTimeoutMs);
+        client.setWriteTimeout(sseWriteTimeoutMs);
+        return client;
     }
 
     @Bean
@@ -201,5 +226,11 @@ public class JLangchainConfig {
     @Bean
     public TtsAliyunClient ttsAliyunClient(HttpStreamClient commonHttpClient) {
         return new TtsAliyunClient(commonHttpClient);
+    }
+
+    private void configureHttpClient(HttpStreamClient client) {
+        client.setConnectTimeout(httpConnectTimeoutMs);
+        client.setReadTimeout(httpReadTimeoutMs);
+        client.setWriteTimeout(httpWriteTimeoutMs);
     }
 }

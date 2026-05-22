@@ -27,7 +27,33 @@ public class ServerConfig {
     public Type type;
     public String url;
 
+    public Integer connectTimeoutSeconds;
+    public Integer readTimeoutSeconds;
+    public Integer writeTimeoutSeconds;
+    public Integer endpointTimeoutSeconds;
+    public Integer requestTimeoutSeconds;
+
     public enum Type {
         stdio, sse, http
+    }
+
+    public int connectTimeoutSecondsOr(int defaultValue) {
+        return connectTimeoutSeconds != null ? connectTimeoutSeconds : defaultValue;
+    }
+
+    public int readTimeoutSecondsOr(int defaultValue) {
+        return readTimeoutSeconds != null ? readTimeoutSeconds : defaultValue;
+    }
+
+    public int writeTimeoutSecondsOr(int defaultValue) {
+        return writeTimeoutSeconds != null ? writeTimeoutSeconds : defaultValue;
+    }
+
+    public int endpointTimeoutSecondsOr(int defaultValue) {
+        return endpointTimeoutSeconds != null ? endpointTimeoutSeconds : defaultValue;
+    }
+
+    public int requestTimeoutSecondsOr(int defaultValue) {
+        return requestTimeoutSeconds != null ? requestTimeoutSeconds : defaultValue;
     }
 }

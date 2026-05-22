@@ -40,18 +40,22 @@ public class McpSseConnection extends AbstractMcpConnection {
     private EventSource eventSource;
     private String messageEndpoint;  // Dynamically obtained message endpoint
     private final CountDownLatch endpointLatch = new CountDownLatch(1);
+    private final int endpointTimeoutSeconds;
+    private final int requestTimeoutSeconds;
 
     private final Map<Integer, CompletableFuture<McpResponse>> pendingResponses = new ConcurrentHashMap<>();
 
     public McpSseConnection(String serverName, ServerConfig config) {
         super(serverName, config);
         this.sseUrl = config.url;
+        this.endpointTimeoutSeconds = config.endpointTimeoutSecondsOr(10);
+        this.requestTimeoutSeconds = config.requestTimeoutSecondsOr(30);
 
         // Create OkHttp client
         this.httpClient = new OkHttpClient.Builder()
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(0, TimeUnit.SECONDS)  // SSE requires long connection
-                .writeTimeout(10, TimeUnit.SECONDS)
+                .connectTimeout(config.connectTimeoutSecondsOr(10), TimeUnit.SECONDS)
+                .readTimeout(config.readTimeoutSecondsOr(0), TimeUnit.SECONDS)  // SSE requires long connection
+                .writeTimeout(config.writeTimeoutSecondsOr(10), TimeUnit.SECONDS)
                 .build();
     }
 
@@ -66,7 +70,7 @@ public class McpSseConnection extends AbstractMcpConnection {
             startSseConnection();
 
             // Wait for endpoint event
-            boolean received = endpointLatch.await(10, TimeUnit.SECONDS);
+            boolean received = endpointLatch.await(endpointTimeoutSeconds, TimeUnit.SECONDS);
             if (!received) {
                 throw new IOException("Timeout waiting for endpoint event from SSE server");
             }
@@ -212,7 +216,7 @@ public class McpSseConnection extends AbstractMcpConnection {
 
             sendHttpPost(requestJson);
 
-            return responseFuture.get(30, TimeUnit.SECONDS);
+            return responseFuture.get(requestTimeoutSeconds, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             pendingResponses.remove(currentRequestId);
             throw new IOException("Request timeout for method: " + method);
