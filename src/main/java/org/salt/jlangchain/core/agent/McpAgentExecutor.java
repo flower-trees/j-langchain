@@ -213,6 +213,11 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
+        public Builder skills(List<Skill> skills) {
+            this.skills.addAll(skills);
+            return this;
+        }
+
         public Builder subAgent(SubAgent subAgent) {
             this.subAgents.add(subAgent);
             return this;
@@ -220,6 +225,11 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
         public Builder subAgents(SubAgent... subAgents) {
             this.subAgents.addAll(List.of(subAgents));
+            return this;
+        }
+
+        public Builder subAgents(List<SubAgent> subAgents) {
+            this.subAgents.addAll(subAgents);
             return this;
         }
 
