@@ -178,7 +178,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         }
 
         public Builder llm(BaseChatModel llm) {
-            this.llm = llm;
+            this.llm = llm.copy();
             return this;
         }
 
