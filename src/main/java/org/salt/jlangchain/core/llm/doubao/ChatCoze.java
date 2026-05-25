@@ -114,6 +114,13 @@ public class ChatCoze extends BaseChatModel {
     }
 
     @Override
+    public BaseChatModel copy() {
+        return ChatCoze.builder()
+                .vendor(this.vendor).botId(this.botId).userId(this.userId)
+                .key(this.key).modelKwargs(this.modelKwargs).build();
+    }
+
+    @Override
     public void otherInformation(AiChatInput aiChatInput) {
         aiChatInput.setBotId(botId);
         aiChatInput.setUserId(userId);

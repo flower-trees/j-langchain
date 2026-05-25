@@ -125,6 +125,7 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
 
     public abstract void otherInformation(AiChatInput aiChatInput);
     public abstract Class<? extends AiChatActuator> getActuator();
+    public abstract BaseChatModel copy();
 
     protected List<AiChatInput.Message> convertMessage(Object input) {
         if (input instanceof StringPromptValue stringPromptValue) {
