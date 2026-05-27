@@ -16,6 +16,8 @@ package org.salt.jlangchain.ai.chat.openai.param;
 
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.util.Collections;
@@ -77,6 +79,9 @@ public class OpenAIRequest {
     public static class Message {
         private String role;
         private String content;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty("reasoning_content")
+        private String reasoningContent;
         private String name; // Message sender name
         private List<ToolCall> toolCalls; // Tool calls
         private String toolCallId; // Tool call ID

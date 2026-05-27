@@ -58,6 +58,7 @@ public class AiChatOutput {
     public static class Message {
         private String role;
         private Object content;
+        private String reasoningContent; // Thinking/reasoning content from DeepSeek/Qwen reasoning models
         private String type;
         private List<ToolCall> toolCalls; // Tool calls in response
         private FunctionCall functionCall; // Deprecated function call format

@@ -80,6 +80,8 @@ public class AiChatInput {
 
         private String role;
         private String content;
+        @JsonProperty("reasoning_content")
+        private String reasoningContent;
         private String name; // Message sender name
         private List<ToolCall> toolCalls; // Tool calls
         private String toolCallId; // Tool call ID

@@ -83,6 +83,7 @@ public class OpenAIConver {
         OpenAIRequest.Message chatGPTMessage = new OpenAIRequest.Message();
         chatGPTMessage.setRole(aiChatMessage.getRole());
         chatGPTMessage.setContent(aiChatMessage.getContent());
+        chatGPTMessage.setReasoningContent(aiChatMessage.getReasoningContent());
         chatGPTMessage.setName(aiChatMessage.getName());
         chatGPTMessage.setToolCallId(aiChatMessage.getToolCallId());
         chatGPTMessage.setMetadata(aiChatMessage.getMetadata());
@@ -156,6 +157,7 @@ public class OpenAIConver {
             OpenAIResponse.Choice.Delta delta = response.getChoices().get(0).getDelta();
             message.setRole(delta.getRole());
             message.setContent(delta.getContent());
+            message.setReasoningContent(delta.getReasoningContent());
             message.setType(MessageType.MARKDOWN.getCode());
 
             // Handle tool calls in delta
@@ -172,6 +174,7 @@ public class OpenAIConver {
             OpenAIResponse.Choice.Message chatGPTMessage = response.getChoices().get(0).getMessage();
             message.setRole(chatGPTMessage.getRole());
             message.setContent(chatGPTMessage.getContent());
+            message.setReasoningContent(chatGPTMessage.getReasoningContent());
             message.setType(MessageType.MARKDOWN.getCode());
             message.setName(chatGPTMessage.getName());
             message.setMetadata(chatGPTMessage.getMetadata());

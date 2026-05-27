@@ -76,16 +76,20 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
         if (CollectionUtils.isEmpty(aiChatOutput.getMessages())) {
             return AIMessage.builder().content("").build();
         }
-        List<AiChatOutput.ToolCall> toolCalls = aiChatOutput.getMessages().get(0).getToolCalls();
+        AiChatOutput.Message outMsg = aiChatOutput.getMessages().get(0);
+        List<AiChatOutput.ToolCall> toolCalls = outMsg.getToolCalls();
         if (toolCalls != null) {
-            return ToolMessage.builder()
+            ToolMessage tm = ToolMessage.builder()
                     .toolCalls(toolCalls)
+                    .reasoningContent(outMsg.getReasoningContent())
                     .responseMetadata(buildResponseMetadata(aiChatOutput.getUsage()))
                     .build();
+            return tm;
         }
 
         return AIMessage.builder()
-                .content((String) aiChatOutput.getMessages().get(0).getContent())
+                .content((String) outMsg.getContent())
+                .reasoningContent(outMsg.getReasoningContent())
                 .responseMetadata(buildResponseMetadata(aiChatOutput.getUsage()))
                 .build();
     }
@@ -141,7 +145,9 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
                         messages.add(new AiChatInput.Message(RoleType.USER.getCode(), baseMessage.getContent()));
                         break;
                     case AI:
-                        messages.add(new AiChatInput.Message(RoleType.ASSISTANT.getCode(), baseMessage.getContent()));
+                        AiChatInput.Message aiMsg = new AiChatInput.Message(RoleType.ASSISTANT.getCode(), baseMessage.getContent());
+                        aiMsg.setReasoningContent(baseMessage.getReasoningContent());
+                        messages.add(aiMsg);
                         break;
                     case SYSTEM:
                         messages.add(new AiChatInput.Message(RoleType.SYSTEM.getCode(), baseMessage.getContent()));
@@ -150,6 +156,7 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
                         if (baseMessage instanceof ToolMessage tm && !CollectionUtils.isEmpty(tm.getToolCalls())) {
                             // LLM's tool_call response: reconstruct as assistant message with tool_calls
                             AiChatInput.Message assistantMsg = new AiChatInput.Message(RoleType.ASSISTANT.getCode(), tm.getContent() != null ? tm.getContent() : "");
+                            assistantMsg.setReasoningContent(tm.getReasoningContent());
                             assistantMsg.setToolCalls(tm.getToolCalls().stream().map(tc -> {
                                 AiChatInput.ToolCall itc = new AiChatInput.ToolCall();
                                 itc.setId(tc.getId());
