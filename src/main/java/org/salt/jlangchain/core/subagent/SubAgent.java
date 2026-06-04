@@ -163,11 +163,6 @@ public class SubAgent {
 
     private McpAgentExecutor buildExecutor() {
         List<Tool> allTools = collectTools();
-        if (allTools.isEmpty() && callableSkills.isEmpty()) {
-            throw new IllegalStateException(
-                    "SubAgent '" + getName() + "' has no tools. " +
-                    "Add via .tools(), declare allowedTools in config, or add .skill().");
-        }
 
         BaseChatModel resolvedLlm = resolveLlm();
         if (resolvedLlm == null) {

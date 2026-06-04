@@ -52,10 +52,13 @@ public class AiChatOutput {
     // MCP related response fields
     private McpResponse mcpResponse;
 
+    private AiTokenUsage usage;
+
     @Data
     public static class Message {
         private String role;
         private Object content;
+        private String reasoningContent; // Thinking/reasoning content from DeepSeek/Qwen reasoning models
         private String type;
         private List<ToolCall> toolCalls; // Tool calls in response
         private FunctionCall functionCall; // Deprecated function call format
@@ -125,6 +128,7 @@ public class AiChatOutput {
         private String message;
         private List<DataObject> data;
         private McpResponse mcpResponse;
+        private AiTokenUsage usage;
 
         private AiChatOutputBuilder() {
         }
@@ -159,8 +163,13 @@ public class AiChatOutput {
             return this;
         }
 
+        public AiChatOutputBuilder usage(AiTokenUsage usage) {
+            this.usage = usage;
+            return this;
+        }
+
         public AiChatOutput build() {
-            return new AiChatOutput(this.id, this.messages, this.code, this.message, this.data, this.mcpResponse);
+            return new AiChatOutput(this.id, this.messages, this.code, this.message, this.data, this.mcpResponse, this.usage);
         }
 
         @Override

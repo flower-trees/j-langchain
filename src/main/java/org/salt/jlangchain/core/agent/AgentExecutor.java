@@ -19,6 +19,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.salt.function.flow.FlowInstance;
 import org.salt.function.flow.Info;
 import org.salt.function.flow.context.ContextBus;
+import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.agent.memory.*;
@@ -40,6 +41,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -133,6 +136,15 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         try {
             return (ChatGeneration) chainActor.invoke(agentChain, Map.of("input", input), transmitMap);
         } catch (AgentStoppedException e) {
+            if (e.getPartialContext() != null) e.getPartialContext().markEnded();
+            if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
+            throw e;
+        } catch (AgentPauseException e) {
+            if (e.getPartialContext() != null) e.getPartialContext().markEnded();
+            if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
+            throw e;
+        } catch (AgentAbortException e) {
+            if (e.getPartialContext() != null) e.getPartialContext().markEnded();
             if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
             throw e;
         }
@@ -144,23 +156,29 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
     public static class Builder {
 
+        private static final String LLM_STARTED_AT = "AGENT_EXECUTOR_LLM_STARTED_AT";
+
         private final ChainActor chainActor;
         private BaseChatModel llm;
         private List<Tool> tools = new ArrayList<>();
         private int maxIterations = 10;
+        private int maxDurationSeconds = 0;
+        private int maxConsecutiveToolFailures = 0;
+        private int toolRetry = 0;
         private AgentContext context;
         private ConversationMemoryStorerBase conversationStorer;
         private String promptTemplate;
         private Consumer<String> llmConsumer;
         private Consumer<String> thoughtConsumer;
         private Consumer<String> observationConsumer;
+        private Consumer<AgentTokenUsageEvent> tokenUsageConsumer;
 
         private Builder(ChainActor chainActor) {
             this.chainActor = chainActor;
         }
 
         public Builder llm(BaseChatModel llm) {
-            this.llm = llm;
+            this.llm = llm.copy();
             return this;
         }
 
@@ -185,6 +203,24 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
         public Builder maxIterations(int maxIterations) {
             this.maxIterations = maxIterations;
+            return this;
+        }
+
+        /** Maximum wall-clock time for the entire loop. 0 means no limit. */
+        public Builder maxDurationSeconds(int maxDurationSeconds) {
+            this.maxDurationSeconds = maxDurationSeconds;
+            return this;
+        }
+
+        /** Abort after this many consecutive failing tool rounds. 0 means no limit. */
+        public Builder maxConsecutiveToolFailures(int maxConsecutiveToolFailures) {
+            this.maxConsecutiveToolFailures = maxConsecutiveToolFailures;
+            return this;
+        }
+
+        /** Auto-retry a failing tool up to this many extra attempts before returning an error observation. 0 means no retry. */
+        public Builder toolRetry(int toolRetry) {
+            this.toolRetry = toolRetry;
             return this;
         }
 
@@ -220,6 +256,11 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
+        public Builder onTokenUsage(Consumer<AgentTokenUsageEvent> consumer) {
+            this.tokenUsageConsumer = consumer;
+            return this;
+        }
+
         public Builder verbose(boolean enabled) {
             if (enabled) {
                 this.llmConsumer         = msg -> System.out.println("[LLM]\n" + msg);
@@ -246,6 +287,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             AgentContext contextFinal = this.context != null ? this.context : FullContext.build();
             ConversationMemoryStorerBase conversationStorerFinal = this.conversationStorer;
             Consumer<String> llmConsumer = this.llmConsumer;
+            Consumer<AgentTokenUsageEvent> tokenUsageConsumer = this.tokenUsageConsumer;
 
             // First node: create per-invocation AgentTaskContext and put in ContextBus
             TranslateHandler<Object, Object> initContext = new TranslateHandler<>(input -> {
@@ -255,6 +297,8 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.PRELOADED_CTX.name());
                 if (ctx == null) {
                     ctx = contextFinal.create(question, null);
+                } else {
+                    ctx.addHumanTurn(question);
                 }
                 ContextBus.get().putTransmit(CallInfo.AGENT_TASK_CTX.name(), ctx);
                 ContextBus.get().putTransmit(CallInfo.QUESTION.name(), question);
@@ -262,11 +306,15 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             });
 
             TranslateHandler<StringPromptValue, StringPromptValue> emitBeforeLlm = new TranslateHandler<>(promptValue -> {
+                ContextBus.get().putTransmit(LLM_STARTED_AT, System.currentTimeMillis());
                 if (llmConsumer != null && promptValue != null) {
                     llmConsumer.accept(promptValue.getText());
                 }
                 return promptValue;
             });
+
+            TranslateHandler<AIMessage, AIMessage> recordLlmUsage =
+                    new TranslateHandler<>(message -> recordLlmUsage(message, tokenUsageConsumer));
 
             Consumer<String> thoughtConsumer = this.thoughtConsumer;
             TranslateHandler<AIMessage, AIMessage> cutAtObservation = new TranslateHandler<>(llmResult -> {
@@ -286,16 +334,51 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             TranslateHandler<Map<String, String>, AIMessage> parseAction =
                 new TranslateHandler<>(llmResult -> PromptUtil.stringToMap(llmResult.getContent()));
 
+            TranslateHandler<StringPromptValue, StringPromptValue> applyPreloadedSteps = new TranslateHandler<>(promptValue -> {
+                AgentTaskContext resumeCtx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                String question = ContextBus.get().getTransmit(CallInfo.QUESTION.name());
+                if (resumeCtx != null && !resumeCtx.getCompletedSteps().isEmpty()) {
+                    resumeCtx.initReactBasePromptText(promptValue.getText());
+                    String text = resumeCtx.buildReactPromptText();
+                    if (StringUtils.isNotBlank(question)) {
+                        text = text.trim() + "\nHuman: " + question + "\nThought:";
+                    }
+                    promptValue.setText(text);
+                }
+                return promptValue;
+            });
+
             int maxIter = this.maxIterations;
+            long maxDurationMs = this.maxDurationSeconds > 0 ? (long) this.maxDurationSeconds * 1000 : 0;
+            int maxConsecFail = this.maxConsecutiveToolFailures;
+            int toolRetryCount = this.toolRetry;
+            AtomicLong startTimeMs = new AtomicLong(0);
+            AtomicInteger consecutiveFailures = new AtomicInteger(0);
             Function<Integer, Boolean> shouldContinue = i -> {
                 AtomicBoolean signal = ContextBus.get().getTransmit(CallInfo.STOP_SIGNAL.name());
                 if (signal != null && signal.get()) {
                     AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
                     throw new AgentStoppedException("Agent stopped by external request", ctx);
                 }
+                if (i == 0) {
+                    startTimeMs.set(System.currentTimeMillis());
+                    consecutiveFailures.set(0);
+                    return true;
+                }
+                if (maxDurationMs > 0 && System.currentTimeMillis() - startTimeMs.get() > maxDurationMs) {
+                    AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                    throw new AgentAbortException(AgentAbortReason.TIMEOUT,
+                            "Agent timed out after " + (maxDurationMs / 1000) + "s", ctx);
+                }
                 Map<String, String> parsed = ContextBus.get().getResult(parseAction.getNodeId());
-                return i < maxIter
-                    && (parsed == null || (parsed.containsKey("Action") && parsed.containsKey("Action Input")));
+                boolean actionRequested = parsed == null
+                        || (parsed.containsKey("Action") && parsed.containsKey("Action Input"));
+                if (i >= maxIter && actionRequested) {
+                    AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                    throw new AgentAbortException(AgentAbortReason.MAX_STEPS,
+                            "Max iterations (" + maxIter + ") reached without a final answer.", ctx);
+                }
+                return actionRequested;
             };
 
             Function<Object, Boolean> needsToolCall = map ->
@@ -308,31 +391,69 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 StringPromptValue promptValue = ContextBus.get().getResult(prompt.getNodeId());
                 AIMessage cutResult = ContextBus.get().getResult(cutAtObservation.getNodeId());
                 AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                if (ctx != null) ctx.addToolCalls(1);
 
                 Tool useTool = toolList.stream()
                     .filter(t -> t.getName().equalsIgnoreCase(((Map<String, String>) map).get("Action")))
                     .findFirst().orElse(null);
 
+                String observation;
                 if (useTool == null) {
                     log.warn("Unknown tool requested: {}", ((Map<String, String>) map).get("Action"));
-                    ctx.initReactBasePromptText(promptValue.getText());
-                    promptValue.setText(promptValue.getText().trim()
-                            + "\nThought: The requested tool does not exist, please choose another.\nThought:");
-                    return promptValue;
+                    observation = "Tool '" + ((Map<String, String>) map).get("Action") + "' not found.";
+                    if (maxConsecFail > 0 && consecutiveFailures.incrementAndGet() >= maxConsecFail) {
+                        addReactStep(ctx, promptValue, cutResult, observation);
+                        throw new AgentAbortException(AgentAbortReason.CONSECUTIVE_TOOL_FAILURES,
+                                "Consecutive tool failures reached " + maxConsecFail, ctx);
+                    }
+                } else {
+                    String toolObservation = null;
+                    Exception lastError = null;
+                    int attempts = 0;
+                    long toolStartedAt = System.currentTimeMillis();
+                    while (attempts <= toolRetryCount) {
+                        try {
+                            Object raw = useTool.getFunc().apply(((Map<String, String>) map).get("Action Input"));
+                            toolObservation = raw != null ? raw.toString() : "";
+                            lastError = null;
+                            break;
+                        } catch (AgentPauseException e) {
+                            ctx.addToolDuration(System.currentTimeMillis() - toolStartedAt);
+                            addReactStep(ctx, promptValue, cutResult, "[paused: " + e.getReason() + "]");
+                            throw e;
+                        } catch (AgentException e) {
+                            ctx.addToolDuration(System.currentTimeMillis() - toolStartedAt);
+                            log.debug("Tool '{}' raised agent signal: {}", useTool.getName(), e.getMessage());
+                            throw e;
+                        } catch (Exception e) {
+                            lastError = e;
+                            attempts++;
+                            if (attempts <= toolRetryCount) {
+                                log.warn("Tool '{}' failed (attempt {}/{}), retrying: {}",
+                                        useTool.getName(), attempts, toolRetryCount + 1, e.getMessage());
+                            } else {
+                                log.error("Tool '{}' failed after {} attempt(s)", useTool.getName(), attempts, e);
+                            }
+                        }
+                    }
+                    ctx.addToolDuration(System.currentTimeMillis() - toolStartedAt);
+                    if (lastError != null) {
+                        observation = "Tool execution error: " + lastError.getMessage();
+                        if (maxConsecFail > 0 && consecutiveFailures.incrementAndGet() >= maxConsecFail) {
+                            addReactStep(ctx, promptValue, cutResult, observation);
+                            throw new AgentAbortException(AgentAbortReason.CONSECUTIVE_TOOL_FAILURES,
+                                    "Consecutive tool failures reached " + maxConsecFail, ctx);
+                        }
+                    } else {
+                        observation = toolObservation;
+                        consecutiveFailures.set(0);
+                    }
                 }
 
-                String observation = (String) useTool.getFunc().apply(((Map<String, String>) map).get("Action Input"));
                 if (observationConsumer != null) observationConsumer.accept(observation);
                 else log.debug("Observation: {}", observation);
 
-                String prefix = cutResult.getContent();
-                int thoughtIdx = prefix.lastIndexOf("Thought:");
-                String thoughtPart = thoughtIdx >= 0 ? prefix.substring(thoughtIdx + 8).trim() : prefix.trim();
-                String agentScratchpad = thoughtPart + "\nObservation: " + observation + "\nThought:";
-
-                ctx.initReactBasePromptText(promptValue.getText());
-                ctx.addStep(AgentStep.ofReAct(agentScratchpad));
-                promptValue.setText(ctx.buildReactPromptText());
+                addReactStep(ctx, promptValue, cutResult, observation);
                 return promptValue;
             });
 
@@ -346,14 +467,23 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 return generation;
             });
 
+            TranslateHandler<Object, Object> attachTokenUsage = new TranslateHandler<>(input -> {
+                if (input instanceof ChatGeneration generation) {
+                    attachAggregateUsage(generation);
+                }
+                return input;
+            });
+
             var chainBuilder = chainActor.builder()
                 .next(initContext)
                 .next(prompt)
+                .next(applyPreloadedSteps)
                 .loop(
                     shouldContinue,
                     emitBeforeLlm,
                     llm,
                     chainActor.builder()
+                        .next(recordLlmUsage)
                         .next(cutAtObservation)
                         .next(parseAction)
                         .next(
@@ -363,6 +493,7 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                         .build()
                 )
                 .next(new StrOutputParser())
+                .next(attachTokenUsage)
                 .next(extractFinalAnswer);
 
             FlowInstance agentChain = conversationStorerFinal != null
@@ -370,6 +501,102 @@ public class AgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     : chainBuilder.build();
 
             return new AgentExecutor(chainActor, agentChain, conversationStorerFinal);
+        }
+
+        private static void addReactStep(AgentTaskContext ctx, StringPromptValue promptValue,
+                                         AIMessage cutResult, String observation) {
+            String prefix = cutResult != null && cutResult.getContent() != null ? cutResult.getContent() : "";
+            int thoughtIdx = prefix.lastIndexOf("Thought:");
+            String thoughtPart = thoughtIdx >= 0 ? prefix.substring(thoughtIdx + 8).trim() : prefix.trim();
+            String agentScratchpad = thoughtPart + "\nObservation: " + observation + "\nThought:";
+
+            ctx.initReactBasePromptText(promptValue.getText());
+            ctx.addStep(AgentStep.ofReAct(agentScratchpad));
+            promptValue.setText(ctx.buildReactPromptText());
+        }
+
+        @SuppressWarnings("unchecked")
+        private static AIMessage recordLlmUsage(AIMessage message,
+                                                Consumer<AgentTokenUsageEvent> tokenUsageConsumer) {
+            AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+            if (ctx == null) return message;
+            long deltaDurationMs = 0;
+            Long startedAt = ContextBus.get().getTransmit(LLM_STARTED_AT);
+            if (startedAt != null) {
+                deltaDurationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+                ctx.addLlmDuration(deltaDurationMs);
+            }
+            AiTokenUsage usage = null;
+            if (message != null && message.getResponseMetadata() != null) {
+                Object raw = message.getResponseMetadata().get(AiTokenUsage.METADATA_KEY);
+                if (raw instanceof AiTokenUsage tokenUsage) {
+                    usage = tokenUsage.copy();
+                } else if (raw instanceof Map<?, ?> map) {
+                    usage = fromUsageMap((Map<String, Object>) map);
+                }
+            }
+            if (usage == null) usage = AiTokenUsage.empty();
+            usage.incrementLlmCalls();
+            ctx.addTokenUsage(usage);
+            if (tokenUsageConsumer != null) {
+                AiTokenUsage total = ctx.getTokenUsage();
+                AgentExecutionMetrics metrics = ctx.getExecutionMetrics();
+                tokenUsageConsumer.accept(AgentTokenUsageEvent.builder()
+                        .taskId(ctx.getTaskId())
+                        .deltaUsage(usage.copy())
+                        .totalUsage(total)
+                        .llmCalls(total.getLlmCalls())
+                        .toolCalls(total.getToolCalls())
+                        .deltaDurationMs(deltaDurationMs)
+                        .totalDurationMs(metrics.getDurationMs())
+                        .llmDurationMs(metrics.getLlmDurationMs())
+                        .toolDurationMs(metrics.getToolDurationMs())
+                        .build());
+            }
+            return message;
+        }
+
+        private static void attachAggregateUsage(ChatGeneration generation) {
+            AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+            if (ctx == null) return;
+            ctx.markEnded();
+            Map<String, Object> metadata = generation.getResponseMetadata() != null
+                    ? new HashMap<>(generation.getResponseMetadata())
+                    : new HashMap<>();
+            metadata.put(AiTokenUsage.METADATA_KEY, ctx.getTokenUsage());
+            metadata.put(AgentExecutionMetrics.METADATA_KEY, ctx.getExecutionMetrics());
+            generation.setResponseMetadata(metadata);
+            if (generation.getMessage() != null) {
+                generation.getMessage().setResponseMetadata(metadata);
+            }
+        }
+
+        private static AiTokenUsage fromUsageMap(Map<String, Object> map) {
+            AiTokenUsage usage = AiTokenUsage.empty();
+            usage.setPromptTokens(asLong(map.get("promptTokens")));
+            usage.setCompletionTokens(asLong(map.get("completionTokens")));
+            usage.setTotalTokens(asLong(map.get("totalTokens")));
+            usage.setCachedTokens(asLong(map.get("cachedTokens")));
+            usage.setReasoningTokens(asLong(map.get("reasoningTokens")));
+            usage.setLlmCalls(asLong(map.get("llmCalls")));
+            usage.setToolCalls(asLong(map.get("toolCalls")));
+            Object provider = map.get("provider");
+            Object model = map.get("model");
+            Object estimated = map.get("estimated");
+            if (provider != null) usage.setProvider(provider.toString());
+            if (model != null) usage.setModel(model.toString());
+            if (estimated instanceof Boolean b) usage.setEstimated(b);
+            return usage;
+        }
+
+        private static long asLong(Object value) {
+            if (value instanceof Number n) return n.longValue();
+            if (value == null) return 0;
+            try {
+                return Long.parseLong(value.toString());
+            } catch (NumberFormatException e) {
+                return 0;
+            }
         }
     }
 }

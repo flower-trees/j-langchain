@@ -22,7 +22,6 @@ import org.salt.jlangchain.core.message.SystemMessage;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Default no-compression {@link AgentContext} implementation.
@@ -46,12 +45,12 @@ public class FullContext implements AgentContext {
 
     // ── Per-invocation context ───────────────────────────────────────────────────
 
-    static class Session implements AgentTaskContext {
+    static class Session extends BaseAgentTaskContext {
 
-        private final String taskId       = UUID.randomUUID().toString();
         private final String originalTask;
         private final String systemPrompt;
         private final List<AgentStep> recentSteps = new ArrayList<>();
+        private String resumeInput;
         private String reactBasePromptText;
 
         Session(String question, String systemPrompt) {
@@ -73,6 +72,9 @@ public class FullContext implements AgentContext {
             messages.add(HumanMessage.builder().content(originalTask).build());
             for (AgentStep step : recentSteps) {
                 messages.addAll(step.toMessages());
+            }
+            if (StringUtils.isNotBlank(resumeInput)) {
+                messages.add(HumanMessage.builder().content(resumeInput).build());
             }
             return messages;
         }
@@ -97,13 +99,14 @@ public class FullContext implements AgentContext {
         }
 
         @Override
-        public String getTaskId() {
-            return taskId;
+        public List<AgentStep> getCompletedSteps() {
+            return Collections.unmodifiableList(recentSteps);
         }
 
         @Override
-        public List<AgentStep> getCompletedSteps() {
-            return Collections.unmodifiableList(recentSteps);
+        public void addHumanTurn(String message) {
+            reopenForResume();
+            if (message != null) this.resumeInput = message;
         }
     }
 }

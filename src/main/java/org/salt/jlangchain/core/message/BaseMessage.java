@@ -41,6 +41,7 @@ public class BaseMessage extends Serializable {
     protected String id;
     protected String role;
     protected String content;
+    protected String reasoningContent; // Thinking content from reasoning models (DeepSeek/Qwen)
     protected Map<String, Object> responseMetadata;
     protected Map<String, Object> additionalKwargs;
     protected String finishReason;
@@ -71,6 +72,7 @@ public class BaseMessage extends Serializable {
         this.id = builder.id;
         this.role = builder.role;
         this.content = builder.content;
+        this.reasoningContent = builder.reasoningContent;
         this.responseMetadata = builder.responseMetadata;
         this.additionalKwargs = builder.additionalKwargs;
         this.finishReason = builder.finishReason;
@@ -95,9 +97,15 @@ public class BaseMessage extends Serializable {
         private String id;
         private String role;
         private String content;
+        private String reasoningContent;
         private Map<String, Object> responseMetadata;
         private Map<String, Object> additionalKwargs;
         private String finishReason;
+
+        public B reasoningContent(String reasoningContent) {
+            this.reasoningContent = reasoningContent;
+            return self();
+        }
 
         public B id(String id) {
             this.id = id;

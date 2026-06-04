@@ -18,7 +18,10 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.jlangchain.TestApplication;
+import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.agent.AgentExecutionMetrics;
+import org.salt.jlangchain.core.agent.AgentTokenUsageEvent;
 import org.salt.jlangchain.core.agent.AgentExecutor;
 import org.salt.jlangchain.core.agent.McpAgentExecutor;
 import org.salt.jlangchain.core.agent.memory.SlidingWindowContext;
@@ -93,12 +96,19 @@ public class ChainAgentContextTest {
                 .maxIterations(6)
                 .onThought(t -> System.out.print("[Thought] " + t))
                 .onObservation(obs -> System.out.println("[Observation] " + obs))
+                .onTokenUsage(event -> System.out.println("[AgentExecutor tokenUsage event] " + formatUsageEvent(event)))
                 .build();
 
         ChatGeneration result = agent.invoke("上海现在天气怎么样？");
         System.out.println("[Final] " + result.getText());
         Assert.assertNotNull(result);
         Assert.assertFalse(result.getText().isBlank());
+        AiTokenUsage usage = tokenUsage(result);
+        Assert.assertNotNull("AgentExecutor should expose token usage", usage);
+        System.out.println("[AgentExecutor tokenUsage] " + usage);
+        AgentExecutionMetrics metrics = executionMetrics(result);
+        Assert.assertNotNull("AgentExecutor should expose execution metrics", metrics);
+        System.out.println("[AgentExecutor executionMetrics] " + metrics);
     }
 
     // ── 2. AgentExecutor — SlidingWindowContext ───────────────────────────────
@@ -118,6 +128,13 @@ public class ChainAgentContextTest {
         System.out.println("[Final] " + result.getText());
         Assert.assertNotNull(result);
         Assert.assertFalse(result.getText().isBlank());
+        AiTokenUsage usage = tokenUsage(result);
+        Assert.assertNotNull("McpAgentExecutor should expose token usage", usage);
+        Assert.assertTrue("McpAgentExecutor should record LLM calls", usage.getLlmCalls() >= 1);
+        System.out.println("[McpAgentExecutor tokenUsage] " + usage);
+        AgentExecutionMetrics metrics = executionMetrics(result);
+        Assert.assertNotNull("McpAgentExecutor should expose execution metrics", metrics);
+        System.out.println("[McpAgentExecutor executionMetrics] " + metrics);
     }
 
     // ── 3. AgentExecutor — SlidingWindowContext + AgentTaskStorage ────────────
@@ -152,6 +169,7 @@ public class ChainAgentContextTest {
                 .maxIterations(6)
                 .onToolCall(tc -> System.out.println("[ToolCall] " + tc))
                 .onObservation(obs -> System.out.println("[Observation] " + obs))
+                .onTokenUsage(event -> System.out.println("[McpAgentExecutor tokenUsage event] " + formatUsageEvent(event)))
                 .build();
 
         ChatGeneration result = agent.invoke("上海现在天气怎么样？");
@@ -529,5 +547,33 @@ public class ChainAgentContextTest {
         List<String> getAllTaskIds() {
             return new ArrayList<>(taskIds);
         }
+    }
+
+    private static AiTokenUsage tokenUsage(ChatGeneration result) {
+        if (result.getResponseMetadata() == null) return null;
+        Object raw = result.getResponseMetadata().get(AiTokenUsage.METADATA_KEY);
+        return raw instanceof AiTokenUsage usage ? usage : null;
+    }
+
+    private static AgentExecutionMetrics executionMetrics(ChatGeneration result) {
+        if (result.getResponseMetadata() == null) return null;
+        Object raw = result.getResponseMetadata().get(AgentExecutionMetrics.METADATA_KEY);
+        return raw instanceof AgentExecutionMetrics metrics ? metrics : null;
+    }
+
+    private static String formatUsageEvent(AgentTokenUsageEvent event) {
+        return "task=" + event.getTaskId()
+                + ", deltaPrompt=" + event.getDeltaUsage().getPromptTokens()
+                + ", deltaCompletion=" + event.getDeltaUsage().getCompletionTokens()
+                + ", deltaTotal=" + event.getDeltaUsage().getTotalTokens()
+                + ", totalPrompt=" + event.getTotalUsage().getPromptTokens()
+                + ", totalCompletion=" + event.getTotalUsage().getCompletionTokens()
+                + ", total=" + event.getTotalUsage().getTotalTokens()
+                + ", deltaDurationMs=" + event.getDeltaDurationMs()
+                + ", totalDurationMs=" + event.getTotalDurationMs()
+                + ", llmDurationMs=" + event.getLlmDurationMs()
+                + ", toolDurationMs=" + event.getToolDurationMs()
+                + ", llmCalls=" + event.getLlmCalls()
+                + ", toolCalls=" + event.getToolCalls();
     }
 }

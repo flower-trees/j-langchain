@@ -65,6 +65,7 @@ String result = chainActor.invoke(chain, Map.of("topic", "AI"));
 | `model` | String | 厂商默认 | 模型名，如 `qwen-plus`、`gpt-4` |
 | `temperature` | Float | 0.7 | 采样温度 |
 | `tools` | `List<AiChatInput.Tool>` | — | 工具调用定义列表 |
+| `modelKwargs` | `Map<String,Object>` | — | 厂商自定义扩展参数（如 `enable_thinking`） |
 
 ```java
 ChatAliyun llm = ChatAliyun.builder()
@@ -76,7 +77,37 @@ AIMessage response = llm.invoke("你好");
 AIMessageChunk stream = llm.stream("给我讲个故事");
 ```
 
-### 2.3 扣子 OAuth 2.0
+### 2.3 推理模型
+
+推理模型在输出最终答案之前会先进行内部推理，两部分内容均可通过 `AIMessage`（及流式 `AIMessageChunk`）访问。
+
+| 模型 | 启用方式 |
+|------|----------|
+| DeepSeek-R1（`deepseek-reasoner`） | 默认开启 |
+| Qwen3 | `modelKwargs(Map.of("enable_thinking", true))` |
+
+```java
+// 非流式：一次调用同时获取推理过程与答案
+ChatDeepseek llm = ChatDeepseek.builder().model("deepseek-reasoner").build();
+AIMessage result = llm.invoke("9.11 和 9.9 哪个更大？");
+String reasoning = result.getReasoningContent(); // 推理过程
+String answer    = result.getContent();           // 最终答案
+
+// 流式：推理 token 先出现，答案 token 后出现
+AIMessageChunk stream = llm.stream("9.11 和 9.9 哪个更大？");
+while (stream.getIterator().hasNext()) {
+    AIMessageChunk chunk = stream.getIterator().next();
+    if (chunk.getReasoningContent() != null) { /* 推理 delta */ }
+    if (chunk.getContent() != null)          { /* 答案 delta */ }
+}
+// 流结束后读取完整累积值
+String fullReasoning = stream.getReasoningContent();
+String fullAnswer    = stream.getContent();
+```
+
+> 非推理模型的 `getReasoningContent()` 返回 `null`，不影响现有代码。
+
+### 2.4 扣子 OAuth 2.0
 
 ```bash
 # COZE_KEY 的替代方案
@@ -168,6 +199,9 @@ String result = agent.invoke("帮我查北京到上海的机票");
 | `onToolCall` | `Consumer<String>` | 工具调用回调 |
 | `onObservation` | `Consumer<String>` | 工具结果回调 |
 | `onLlm` | `Consumer<String>` | 模型调用前回调 |
+| `maxDurationSeconds` | `int` | 最大执行时长（秒），0=不限 |
+| `maxConsecutiveToolFailures` | `int` | LLM 连续调用失败工具的最大轮数，0=不限 |
+| `toolRetry` | `int` | 框架层工具自动重试次数（对 LLM 透明），0=不重试 |
 
 ```java
 McpAgentExecutor master = McpAgentExecutor.builder(chainActor)
@@ -346,7 +380,68 @@ try {
 
 停止信号通过 `ContextBus` 从主 Agent 级联透传至 SubAgent 和 Skill，整个调用链同步停止。
 
-### 5.6 @AgentTool / @Param / @ParamDesc / ToolScanner
+### 5.6 Agent 停止类型
+
+**异常体系**
+
+```
+AgentException（抽象基类，implements FlowControlException）
+├── AgentStoppedException   外部 stop()，user_cancel
+├── AgentAbortException     系统强制终止（MAX_STEPS / TIMEOUT / CONSECUTIVE_TOOL_FAILURES / BUDGET_EXCEEDED）
+└── AgentPauseException     Agent 主动暂停（上层业务定义 reason）
+```
+
+**AgentAbortException**
+
+| AgentAbortReason | 触发条件 | Builder 配置 |
+|---|---|---|
+| `MAX_STEPS` | 循环超出 maxIterations 仍未完成 | `.maxIterations(n)` |
+| `TIMEOUT` | 执行时长超过限制 | `.maxDurationSeconds(n)` |
+| `CONSECUTIVE_TOOL_FAILURES` | LLM 连续多轮调用失败工具 | `.maxConsecutiveToolFailures(n)` |
+| `BUDGET_EXCEEDED` | 超 token 预算（预留） | — |
+
+**AgentPauseException**
+
+上层工具主动抛出，携带业务自定义 reason 和 payload，框架保存 partialContext 供恢复。
+
+```java
+// 上层工具内
+AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+throw new AgentPauseException("need_approval",
+    Map.of("action", "转账 ¥50000", "reason", "超过自动审批限额"), ctx);
+```
+
+**框架工具重试（toolRetry）**
+
+工具失败时框架静默重试，全部失败才把错误 observation 回给 LLM：
+
+```java
+McpAgentExecutor agent = McpAgentExecutor.builder(chainActor)
+    .toolRetry(3)                        // 每次工具调用最多重试 3 次
+    .maxConsecutiveToolFailures(5)        // LLM 连续 5 轮调用失败 → 终止
+    .maxDurationSeconds(30)              // 整个任务 30 秒超时
+    .build();
+```
+
+**捕获示例**
+
+```java
+try {
+    ChatGeneration result = agent.invoke("...");
+} catch (AgentStoppedException e) {
+    // 用户取消，可用 e.getPartialContext() 恢复
+} catch (AgentAbortException e) {
+    System.out.println("系统终止，原因: " + e.getReason()); // MAX_STEPS / TIMEOUT / ...
+    // 可用 e.getPartialContext() 查看已完成步骤
+} catch (AgentPauseException e) {
+    System.out.println("Agent 暂停，reason=" + e.getReason());
+    System.out.println("payload=" + e.getPayload());
+    // 处理业务逻辑后，用 e.getPartialContext() 恢复
+    ChatGeneration result = agent.invoke(question, e.getPartialContext());
+}
+```
+
+### 5.7 @AgentTool / @Param / @ParamDesc / ToolScanner
 
 **包路径**: `org.salt.jlangchain.rag.tools.annotation`
 
@@ -567,13 +662,13 @@ TtsCardChunk audio = tts.stream("你好，欢迎使用 J-LangChain！");
 
 | 类 | 包路径 | 说明 |
 |----|--------|------|
-| `AIMessage` | `core.message` | AI 回复 |
+| `AIMessage` | `core.message` | AI 回复；`.getContent()` 最终答案，`.getReasoningContent()` 推理过程（推理模型专用） |
 | `HumanMessage` | `core.message` | 用户消息 |
-| `AIMessageChunk` | `core.message` | 流式 AI 块 |
+| `AIMessageChunk` | `core.message` | 流式 AI 块；每个 chunk 携带 `.getReasoningContent()`（推理 delta）和 `.getContent()`（答案 delta）；流结束后可读完整累积值 |
 | `ToolMessage` | `core.message` | 工具调用结果 |
 | `EventMessageChunk` | `core.event` | 事件流块 |
 | `TtsCardChunk` | `ai.tts` | TTS 流式音频块 |
-| `ChatGeneration` | `core.parser.generation` | 同步生成结果 |
+| `ChatGeneration` | `core.parser.generation` | 同步生成结果（由 `StrOutputParser` 产生） |
 | `ChatGenerationChunk` | `core.parser.generation` | 流式生成块 |
 
 ---

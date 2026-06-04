@@ -16,6 +16,8 @@ package org.salt.jlangchain.core.agent.memory;
 
 import org.salt.jlangchain.core.message.BaseMessage;
 import org.salt.jlangchain.core.prompt.value.ChatPromptValue;
+import org.salt.jlangchain.ai.common.param.AiTokenUsage;
+import org.salt.jlangchain.core.agent.AgentExecutionMetrics;
 
 import java.util.Collections;
 import java.util.List;
@@ -51,5 +53,41 @@ public interface AgentTaskContext {
     /** Returns the steps completed so far (unmodifiable). Used by stop/resume. */
     default List<AgentStep> getCompletedSteps() {
         return Collections.emptyList();
+    }
+
+    /**
+     * Append a new human turn after the accumulated steps.
+     *
+     * <p>Called during resume when the caller provides follow-up input (e.g. a user
+     * confirmation {@code "y"} or {@code "n"}). The message is placed at the end of
+     * {@link #buildMessages()} so the chronological order is preserved:
+     * original request → completed steps → user follow-up.
+     * The default no-op is provided for backward compatibility with custom implementations.
+     */
+    default void addHumanTurn(String message) {}
+
+    /** Add token usage from one model call to this task's aggregate usage. */
+    default void addTokenUsage(AiTokenUsage usage) {}
+
+    /** Add tool-call count to this task's aggregate usage metadata. */
+    default void addToolCalls(long count) {}
+
+    /** Add model-call wall-clock duration to this task's aggregate metrics. */
+    default void addLlmDuration(long durationMs) {}
+
+    /** Add tool-call wall-clock duration to this task's aggregate metrics. */
+    default void addToolDuration(long durationMs) {}
+
+    /** Mark this task as ended; no-op for custom contexts that do not track timing. */
+    default void markEnded() {}
+
+    /** Returns aggregate token usage for this task. */
+    default AiTokenUsage getTokenUsage() {
+        return AiTokenUsage.empty();
+    }
+
+    /** Returns aggregate execution metrics for this task. */
+    default AgentExecutionMetrics getExecutionMetrics() {
+        return new AgentExecutionMetrics();
     }
 }

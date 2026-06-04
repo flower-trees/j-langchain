@@ -20,6 +20,7 @@ import org.salt.function.flow.Info;
 import org.salt.function.flow.context.ContextBus;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
+import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.agent.memory.*;
@@ -47,6 +48,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -126,6 +129,15 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         try {
             return (ChatGeneration) chainActor.invoke(agentChain, Map.of("input", input), transmitMap);
         } catch (AgentStoppedException e) {
+            if (e.getPartialContext() != null) e.getPartialContext().markEnded();
+            if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
+            throw e;
+        } catch (AgentPauseException e) {
+            if (e.getPartialContext() != null) e.getPartialContext().markEnded();
+            if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
+            throw e;
+        } catch (AgentAbortException e) {
+            if (e.getPartialContext() != null) e.getPartialContext().markEnded();
             if (conversationStorer != null) conversationStorer.savePartial(e.getPartialContext());
             throw e;
         }
@@ -137,6 +149,8 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
     public static class Builder {
 
+        private static final String LLM_STARTED_AT = "MCP_AGENT_EXECUTOR_LLM_STARTED_AT";
+
         private final ChainActor chainActor;
         private BaseChatModel llm;
         private List<Tool> tools = new ArrayList<>();
@@ -145,11 +159,15 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private Function<String, BaseChatModel> llmFactory;
         private String systemPrompt;
         private int maxIterations = 10;
+        private int maxDurationSeconds = 0;
+        private int maxConsecutiveToolFailures = 0;
+        private int toolRetry = 0;
         private AgentContext context;
         private ConversationMemoryStorerBase conversationStorer;
         private Consumer<String> llmConsumer;
         private Consumer<String> toolCallConsumer;
         private Consumer<String> observationConsumer;
+        private Consumer<AgentTokenUsageEvent> tokenUsageConsumer;
         private java.util.function.Supplier<String> authorizationSupplier;
 
         private Builder(ChainActor chainActor) {
@@ -157,7 +175,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         }
 
         public Builder llm(BaseChatModel llm) {
-            this.llm = llm;
+            this.llm = llm.copy();
             return this;
         }
 
@@ -195,6 +213,11 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
+        public Builder skills(List<Skill> skills) {
+            this.skills.addAll(skills);
+            return this;
+        }
+
         public Builder subAgent(SubAgent subAgent) {
             this.subAgents.add(subAgent);
             return this;
@@ -202,6 +225,11 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
         public Builder subAgents(SubAgent... subAgents) {
             this.subAgents.addAll(List.of(subAgents));
+            return this;
+        }
+
+        public Builder subAgents(List<SubAgent> subAgents) {
+            this.subAgents.addAll(subAgents);
             return this;
         }
 
@@ -246,6 +274,24 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
+        /** Maximum wall-clock time for the entire loop. 0 means no limit. */
+        public Builder maxDurationSeconds(int maxDurationSeconds) {
+            this.maxDurationSeconds = maxDurationSeconds;
+            return this;
+        }
+
+        /** Abort after this many consecutive rounds where every tool call failed. 0 means no limit. */
+        public Builder maxConsecutiveToolFailures(int maxConsecutiveToolFailures) {
+            this.maxConsecutiveToolFailures = maxConsecutiveToolFailures;
+            return this;
+        }
+
+        /** Auto-retry a failing tool up to this many extra attempts before returning an error observation. 0 means no retry. */
+        public Builder toolRetry(int toolRetry) {
+            this.toolRetry = toolRetry;
+            return this;
+        }
+
         /** Inject a context strategy. Defaults to {@link FullContext} if not set. */
         public Builder context(AgentContext context) {
             this.context = context;
@@ -270,6 +316,11 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
         public Builder onObservation(Consumer<String> consumer) {
             this.observationConsumer = consumer;
+            return this;
+        }
+
+        public Builder onTokenUsage(Consumer<AgentTokenUsageEvent> consumer) {
+            this.tokenUsageConsumer = consumer;
             return this;
         }
 
@@ -319,7 +370,8 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 tools.add(subAgent.asTool());
             }
 
-            if (tools == null || tools.isEmpty()) throw new IllegalStateException("at least one tool must be provided");
+            // tools may be empty when the planner decides no capability is needed;
+            // the LLM will answer directly without tool calls in that case.
 
             // ── 1. Build tool lookup map and AiChatInput.Tool list for the LLM ──
             Map<String, Tool> toolMap = new java.util.HashMap<>();
@@ -328,7 +380,9 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 toolMap.put(t.getName(), t);
                 aiTools.add(toAiTool(t));
             }
-            llm.setTools(aiTools);
+            if (!aiTools.isEmpty()) {
+                llm.setTools(aiTools);
+            }
 
             // ── 2. Build initial prompt template (system + user placeholder) ──
             List<BaseMessage> messages = new ArrayList<>();
@@ -342,6 +396,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             String systemPromptFinal = this.systemPrompt;
             ConversationMemoryStorerBase conversationStorerFinal = this.conversationStorer;
             Consumer<String> llmConsumer = this.llmConsumer;
+            Consumer<AgentTokenUsageEvent> tokenUsageConsumer = this.tokenUsageConsumer;
 
             // First node: create per-invocation AgentTaskContext and put in ContextBus
             TranslateHandler<Object, Object> initContext = new TranslateHandler<>(input -> {
@@ -352,6 +407,11 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.PRELOADED_CTX.name());
                 if (ctx == null) {
                     ctx = contextFinal.create(question, systemPromptFinal);
+                } else {
+                    // On resume the caller passes the user's follow-up input (e.g. "y" / "n").
+                    // Append it as a new human turn so it lands after the completed steps in the
+                    // message list, preserving chronological order.
+                    ctx.addHumanTurn(question);
                 }
                 ContextBus.get().putTransmit(CallInfo.AGENT_TASK_CTX.name(), ctx);
                 ContextBus.get().putTransmit(CallInfo.QUESTION.name(), question);
@@ -359,11 +419,15 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             });
 
             TranslateHandler<ChatPromptValue, ChatPromptValue> emitBeforeLlm = new TranslateHandler<>(promptValue -> {
+                ContextBus.get().putTransmit(LLM_STARTED_AT, System.currentTimeMillis());
                 if (llmConsumer != null && promptValue != null) {
                     llmConsumer.accept(formatChatPromptValue(promptValue));
                 }
                 return promptValue;
             });
+
+            TranslateHandler<AIMessage, AIMessage> recordLlmUsage =
+                    new TranslateHandler<>(message -> recordLlmUsage(message, tokenUsageConsumer));
 
             // ── 3. If resuming with prior steps, replace the plain prompt output so the first
             //       LLM call sees the full accumulated context (human + prior tool calls + results)
@@ -377,14 +441,29 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
             // ── 4. Loop condition: continue while LLM returns tool calls ──
             int maxIter = this.maxIterations;
+            long maxDurationMs = this.maxDurationSeconds > 0 ? (long) this.maxDurationSeconds * 1000 : 0;
+            int maxConsecFail = this.maxConsecutiveToolFailures;
+            int toolRetryCount = this.toolRetry;
+            AtomicLong startTimeMs = new AtomicLong(0);
+            AtomicInteger consecutiveFailures = new AtomicInteger(0);
+
             Function<Integer, Boolean> shouldContinue = i -> {
                 AtomicBoolean signal = ContextBus.get().getTransmit(CallInfo.STOP_SIGNAL.name());
                 if (signal != null && signal.get()) {
                     AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
                     throw new AgentStoppedException("Agent stopped by external request", ctx);
                 }
+                if (i == 0) {
+                    startTimeMs.set(System.currentTimeMillis());
+                    consecutiveFailures.set(0);
+                    return true;
+                }
+                if (maxDurationMs > 0 && System.currentTimeMillis() - startTimeMs.get() > maxDurationMs) {
+                    AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                    throw new AgentAbortException(AgentAbortReason.TIMEOUT,
+                            "Agent timed out after " + (maxDurationMs / 1000) + "s", ctx);
+                }
                 if (i >= maxIter) return false;
-                if (i == 0) return true;
                 AIMessage aiMessage = ContextBus.get().getResult(llm.getNodeId());
                 if (aiMessage instanceof ToolMessage toolMessage) {
                     return !CollectionUtils.isEmpty(toolMessage.getToolCalls());
@@ -405,6 +484,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             TranslateHandler<Object, AIMessage> executeTool = new TranslateHandler<>(msg -> {
                 ToolMessage toolMessage = (ToolMessage) msg;
                 AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                if (ctx != null) ctx.addToolCalls(toolMessage.getToolCalls().size());
 
                 List<BaseMessage> toolResults = new ArrayList<>();
                 for (AiChatOutput.ToolCall toolCall : toolMessage.getToolCalls()) {
@@ -419,18 +499,59 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     if (tool == null) {
                         observation = "Tool '" + toolName + "' not found.";
                         log.warn("Tool not found: {}", toolName);
+                        if (maxConsecFail > 0 && consecutiveFailures.incrementAndGet() >= maxConsecFail) {
+                            throw new AgentAbortException(AgentAbortReason.CONSECUTIVE_TOOL_FAILURES,
+                                    "Consecutive tool failures reached " + maxConsecFail, ctx);
+                        }
                     } else {
-                        try {
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> argsMap = JsonUtil.fromJson(argsJson, Map.class);
-                            Object raw = tool.getFunc().apply(argsMap != null ? argsMap : Map.of());
-                            observation = raw != null ? raw.toString() : "";
-                        } catch (AgentStoppedException e) {
-                            log.debug("Tool '{}' interrupted by stop signal", toolName);
-                            throw e;
-                        } catch (Exception e) {
-                            observation = "Tool execution error: " + e.getMessage();
-                            log.error("Tool execution failed: {}", toolName, e);
+                        // ── Framework-level auto-retry (transparent to LLM) ──
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> argsMap = JsonUtil.fromJson(argsJson, Map.class);
+                        Map<String, Object> args = argsMap != null ? argsMap : Map.of();
+                        String toolObservation = null;
+                        Exception lastError = null;
+                        int attempts = 0;
+                        long toolStartedAt = System.currentTimeMillis();
+                        while (attempts <= toolRetryCount) {
+                            try {
+                                Object raw = tool.getFunc().apply(args);
+                                toolObservation = raw != null ? raw.toString() : "";
+                                lastError = null;
+                                break;
+                            } catch (AgentPauseException e) {
+                                ctx.addToolDuration(System.currentTimeMillis() - toolStartedAt);
+                                // Record the paused call so the LLM sees full history on resume.
+                                // partialContext references the live ctx object, so the step we add
+                                // here is visible through e.getPartialContext().getCompletedSteps().
+                                toolResults.add(BaseMessage.fromMessage(MessageType.TOOL.getCode(),
+                                        "[paused: " + e.getReason() + "]", toolName, toolCall.getId()));
+                                ctx.addStep(AgentStep.ofFunctionCall(toolMessage, toolResults));
+                                throw e;
+                            } catch (AgentException e) {
+                                ctx.addToolDuration(System.currentTimeMillis() - toolStartedAt);
+                                log.debug("Tool '{}' raised agent signal: {}", toolName, e.getMessage());
+                                throw e;
+                            } catch (Exception e) {
+                                lastError = e;
+                                attempts++;
+                                if (attempts <= toolRetryCount) {
+                                    log.warn("Tool '{}' failed (attempt {}/{}), retrying: {}",
+                                            toolName, attempts, toolRetryCount + 1, e.getMessage());
+                                } else {
+                                    log.error("Tool '{}' failed after {} attempt(s)", toolName, attempts, e);
+                                }
+                            }
+                        }
+                        ctx.addToolDuration(System.currentTimeMillis() - toolStartedAt);
+                        if (lastError != null) {
+                            observation = "Tool execution error: " + lastError.getMessage();
+                            if (maxConsecFail > 0 && consecutiveFailures.incrementAndGet() >= maxConsecFail) {
+                                throw new AgentAbortException(AgentAbortReason.CONSECUTIVE_TOOL_FAILURES,
+                                        "Consecutive tool failures reached " + maxConsecFail, ctx);
+                            }
+                        } else {
+                            observation = toolObservation;
+                            consecutiveFailures.set(0);
                         }
                     }
 
@@ -455,6 +576,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     emitBeforeLlm,
                     llm,
                     chainActor.builder()
+                        .next(recordLlmUsage)
                         .next(
                             Info.c(isToolCall, executeTool),
                             Info.c(msg -> ContextBus.get().getResult(llm.getNodeId()))
@@ -463,10 +585,18 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 )
                 .next(
                     Info.c(output -> output instanceof ChatPromptValue, output -> {
-                        throw new RuntimeException("Max iterations (" + maxIter + ") reached without a final answer.");
+                        AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+                        throw new AgentAbortException(AgentAbortReason.MAX_STEPS,
+                                "Max iterations (" + maxIter + ") reached without a final answer.", ctx);
                     }),
                     Info.c(new StrOutputParser())
-                );
+                )
+                .next(new TranslateHandler<>(output -> {
+                    if (output instanceof ChatGeneration generation) {
+                        attachAggregateUsage(generation);
+                    }
+                    return output;
+                }));
 
             FlowInstance agentChain = conversationStorerFinal != null
                     ? chainBuilder.next(conversationStorerFinal).build()
@@ -560,6 +690,90 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     return role + ": " + content;
                 })
                 .collect(Collectors.joining("\n"));
+        }
+
+        @SuppressWarnings("unchecked")
+        private static AIMessage recordLlmUsage(AIMessage message,
+                                                Consumer<AgentTokenUsageEvent> tokenUsageConsumer) {
+            AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+            if (ctx == null) return message;
+            long deltaDurationMs = 0;
+            Long startedAt = ContextBus.get().getTransmit(LLM_STARTED_AT);
+            if (startedAt != null) {
+                deltaDurationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+                ctx.addLlmDuration(deltaDurationMs);
+            }
+            AiTokenUsage usage = null;
+            if (message != null && message.getResponseMetadata() != null) {
+                Object raw = message.getResponseMetadata().get(AiTokenUsage.METADATA_KEY);
+                if (raw instanceof AiTokenUsage tokenUsage) {
+                    usage = tokenUsage.copy();
+                } else if (raw instanceof Map<?, ?> map) {
+                    usage = fromUsageMap((Map<String, Object>) map);
+                }
+            }
+            if (usage == null) usage = AiTokenUsage.empty();
+            usage.incrementLlmCalls();
+            ctx.addTokenUsage(usage);
+            if (tokenUsageConsumer != null) {
+                AiTokenUsage total = ctx.getTokenUsage();
+                AgentExecutionMetrics metrics = ctx.getExecutionMetrics();
+                tokenUsageConsumer.accept(AgentTokenUsageEvent.builder()
+                        .taskId(ctx.getTaskId())
+                        .deltaUsage(usage.copy())
+                        .totalUsage(total)
+                        .llmCalls(total.getLlmCalls())
+                        .toolCalls(total.getToolCalls())
+                        .deltaDurationMs(deltaDurationMs)
+                        .totalDurationMs(metrics.getDurationMs())
+                        .llmDurationMs(metrics.getLlmDurationMs())
+                        .toolDurationMs(metrics.getToolDurationMs())
+                        .build());
+            }
+            return message;
+        }
+
+        private static void attachAggregateUsage(ChatGeneration generation) {
+            AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
+            if (ctx == null) return;
+            ctx.markEnded();
+            Map<String, Object> metadata = generation.getResponseMetadata() != null
+                    ? new HashMap<>(generation.getResponseMetadata())
+                    : new HashMap<>();
+            metadata.put(AiTokenUsage.METADATA_KEY, ctx.getTokenUsage());
+            metadata.put(AgentExecutionMetrics.METADATA_KEY, ctx.getExecutionMetrics());
+            generation.setResponseMetadata(metadata);
+            if (generation.getMessage() != null) {
+                generation.getMessage().setResponseMetadata(metadata);
+            }
+        }
+
+        private static AiTokenUsage fromUsageMap(Map<String, Object> map) {
+            AiTokenUsage usage = AiTokenUsage.empty();
+            usage.setPromptTokens(asLong(map.get("promptTokens")));
+            usage.setCompletionTokens(asLong(map.get("completionTokens")));
+            usage.setTotalTokens(asLong(map.get("totalTokens")));
+            usage.setCachedTokens(asLong(map.get("cachedTokens")));
+            usage.setReasoningTokens(asLong(map.get("reasoningTokens")));
+            usage.setLlmCalls(asLong(map.get("llmCalls")));
+            usage.setToolCalls(asLong(map.get("toolCalls")));
+            Object provider = map.get("provider");
+            Object model = map.get("model");
+            Object estimated = map.get("estimated");
+            if (provider != null) usage.setProvider(provider.toString());
+            if (model != null) usage.setModel(model.toString());
+            if (estimated instanceof Boolean b) usage.setEstimated(b);
+            return usage;
+        }
+
+        private static long asLong(Object value) {
+            if (value instanceof Number n) return n.longValue();
+            if (value == null) return 0;
+            try {
+                return Long.parseLong(value.toString());
+            } catch (NumberFormatException e) {
+                return 0;
+            }
         }
     }
 }

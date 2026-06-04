@@ -27,7 +27,38 @@ public class ServerConfig {
     public Type type;
     public String url;
 
+    public Integer connectTimeoutMs;
+    public Integer readTimeoutMs;
+    public Integer writeTimeoutMs;
+    public Integer callTimeoutMs;
+    public Integer endpointTimeoutMs;
+    public Integer requestTimeoutMs;
+
     public enum Type {
         stdio, sse, http
+    }
+
+    public int connectTimeoutMsOr(int defaultValue) {
+        return connectTimeoutMs != null ? connectTimeoutMs : defaultValue;
+    }
+
+    public int readTimeoutMsOr(int defaultValue) {
+        return readTimeoutMs != null ? readTimeoutMs : defaultValue;
+    }
+
+    public int writeTimeoutMsOr(int defaultValue) {
+        return writeTimeoutMs != null ? writeTimeoutMs : defaultValue;
+    }
+
+    public int callTimeoutMsOr(int defaultValue) {
+        return callTimeoutMs != null ? callTimeoutMs : defaultValue;
+    }
+
+    public int endpointTimeoutMsOr(int defaultValue) {
+        return endpointTimeoutMs != null ? endpointTimeoutMs : defaultValue;
+    }
+
+    public int requestTimeoutMsOr(int defaultValue) {
+        return requestTimeoutMs != null ? requestTimeoutMs : defaultValue;
     }
 }

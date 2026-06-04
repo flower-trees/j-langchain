@@ -33,6 +33,9 @@ public abstract class BaseMessageChunk<T extends BaseMessage> extends BaseMessag
     @JsonIgnore
     protected StringBuilder cumulate = new StringBuilder();
 
+    @JsonIgnore
+    protected StringBuilder cumulateReasoning = new StringBuilder();
+
     private boolean isLast(T chunk) {
         return StringUtils.equals(chunk.getFinishReason(), FinishReasonType.STOP.getCode());
     }
@@ -42,8 +45,14 @@ public abstract class BaseMessageChunk<T extends BaseMessage> extends BaseMessag
     }
 
     public BaseMessageChunk<T> add(T chunk) {
-        this.cumulate.append(chunk.getContent());
-        this.content = this.cumulate.toString();
+        if (chunk.getContent() != null) {
+            this.cumulate.append(chunk.getContent());
+            this.content = this.cumulate.toString();
+        }
+        if (chunk.getReasoningContent() != null) {
+            this.cumulateReasoning.append(chunk.getReasoningContent());
+            this.reasoningContent = this.cumulateReasoning.toString();
+        }
         return this;
     }
 
@@ -51,6 +60,7 @@ public abstract class BaseMessageChunk<T extends BaseMessage> extends BaseMessag
         super(builder);
         this.iterator = builder.iterator != null ? builder.iterator : new Iterator<>(this::isLast);
         this.cumulate = builder.cumulate != null ? builder.cumulate : new StringBuilder();
+        this.cumulateReasoning = builder.cumulateReasoning != null ? builder.cumulateReasoning : new StringBuilder();
     }
 
     protected BaseMessageChunk() {
@@ -59,6 +69,7 @@ public abstract class BaseMessageChunk<T extends BaseMessage> extends BaseMessag
     public static abstract class BaseMessageChunkBuilder<T extends BaseMessage, C extends BaseMessageChunk<T>, B extends BaseMessageChunkBuilder<T, C, B>> extends BaseMessageBuilder<C, B> {
         private Iterator<T> iterator;
         private StringBuilder cumulate;
+        private StringBuilder cumulateReasoning;
 
         @JsonIgnore
         public B iterator(Iterator<T> iterator) {
@@ -69,6 +80,12 @@ public abstract class BaseMessageChunk<T extends BaseMessage> extends BaseMessag
         @JsonIgnore
         public B cumulate(StringBuilder cumulate) {
             this.cumulate = cumulate;
+            return self();
+        }
+
+        @JsonIgnore
+        public B cumulateReasoning(StringBuilder cumulateReasoning) {
+            this.cumulateReasoning = cumulateReasoning;
             return self();
         }
 

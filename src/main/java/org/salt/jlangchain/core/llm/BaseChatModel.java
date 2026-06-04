@@ -24,6 +24,7 @@ import org.salt.jlangchain.ai.chat.strategy.AiChatActuator;
 import org.salt.jlangchain.ai.common.enums.AiChatCode;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
+import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.common.CallInfo;
 import org.salt.jlangchain.core.event.EventAction;
@@ -75,12 +76,22 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
         if (CollectionUtils.isEmpty(aiChatOutput.getMessages())) {
             return AIMessage.builder().content("").build();
         }
-        List<AiChatOutput.ToolCall> toolCalls = aiChatOutput.getMessages().get(0).getToolCalls();
+        AiChatOutput.Message outMsg = aiChatOutput.getMessages().get(0);
+        List<AiChatOutput.ToolCall> toolCalls = outMsg.getToolCalls();
         if (toolCalls != null) {
-            return ToolMessage.builder().toolCalls(toolCalls).build();
+            ToolMessage tm = ToolMessage.builder()
+                    .toolCalls(toolCalls)
+                    .reasoningContent(outMsg.getReasoningContent())
+                    .responseMetadata(buildResponseMetadata(aiChatOutput.getUsage()))
+                    .build();
+            return tm;
         }
 
-        return AIMessage.builder().content((String) aiChatOutput.getMessages().get(0).getContent()).build();
+        return AIMessage.builder()
+                .content((String) outMsg.getContent())
+                .reasoningContent(outMsg.getReasoningContent())
+                .responseMetadata(buildResponseMetadata(aiChatOutput.getUsage()))
+                .build();
     }
 
     @Override
@@ -118,6 +129,7 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
 
     public abstract void otherInformation(AiChatInput aiChatInput);
     public abstract Class<? extends AiChatActuator> getActuator();
+    public abstract BaseChatModel copy();
 
     protected List<AiChatInput.Message> convertMessage(Object input) {
         if (input instanceof StringPromptValue stringPromptValue) {
@@ -133,7 +145,9 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
                         messages.add(new AiChatInput.Message(RoleType.USER.getCode(), baseMessage.getContent()));
                         break;
                     case AI:
-                        messages.add(new AiChatInput.Message(RoleType.ASSISTANT.getCode(), baseMessage.getContent()));
+                        AiChatInput.Message aiMsg = new AiChatInput.Message(RoleType.ASSISTANT.getCode(), baseMessage.getContent());
+                        aiMsg.setReasoningContent(baseMessage.getReasoningContent());
+                        messages.add(aiMsg);
                         break;
                     case SYSTEM:
                         messages.add(new AiChatInput.Message(RoleType.SYSTEM.getCode(), baseMessage.getContent()));
@@ -142,6 +156,7 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
                         if (baseMessage instanceof ToolMessage tm && !CollectionUtils.isEmpty(tm.getToolCalls())) {
                             // LLM's tool_call response: reconstruct as assistant message with tool_calls
                             AiChatInput.Message assistantMsg = new AiChatInput.Message(RoleType.ASSISTANT.getCode(), tm.getContent() != null ? tm.getContent() : "");
+                            assistantMsg.setReasoningContent(tm.getReasoningContent());
                             assistantMsg.setToolCalls(tm.getToolCalls().stream().map(tc -> {
                                 AiChatInput.ToolCall itc = new AiChatInput.ToolCall();
                                 itc.setId(tc.getId());
@@ -180,6 +195,7 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
 
             if (!CollectionUtils.isEmpty(aiChatOutput.getMessages())) {
                 chunk.setContent((String) aiChatOutput.getMessages().get(0).getContent());
+                chunk.setReasoningContent(aiChatOutput.getMessages().get(0).getReasoningContent());
             }
 
             if (StringUtils.equals(aiChatOutput.getCode(), AiChatCode.STOP.getCode())) {
@@ -213,5 +229,13 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
         return Map.of("ls_provider", vendor,
                       "ls_model_type", modelType,
                       "ls_model_name", model);
+    }
+
+    private Map<String, Object> buildResponseMetadata(AiTokenUsage usage) {
+        if (usage == null) return Map.of();
+        AiTokenUsage enriched = usage.copy();
+        enriched.setProvider(vendor);
+        enriched.setModel(model);
+        return Map.of(AiTokenUsage.METADATA_KEY, enriched);
     }
 }

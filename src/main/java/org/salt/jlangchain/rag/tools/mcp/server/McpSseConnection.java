@@ -40,18 +40,23 @@ public class McpSseConnection extends AbstractMcpConnection {
     private EventSource eventSource;
     private String messageEndpoint;  // Dynamically obtained message endpoint
     private final CountDownLatch endpointLatch = new CountDownLatch(1);
+    private final int endpointTimeoutMs;
+    private final int requestTimeoutMs;
 
     private final Map<Integer, CompletableFuture<McpResponse>> pendingResponses = new ConcurrentHashMap<>();
 
     public McpSseConnection(String serverName, ServerConfig config) {
         super(serverName, config);
         this.sseUrl = config.url;
+        this.endpointTimeoutMs = config.endpointTimeoutMsOr(10000);
+        this.requestTimeoutMs = config.requestTimeoutMsOr(300000);
 
         // Create OkHttp client
         this.httpClient = new OkHttpClient.Builder()
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(0, TimeUnit.SECONDS)  // SSE requires long connection
-                .writeTimeout(10, TimeUnit.SECONDS)
+                .connectTimeout(config.connectTimeoutMsOr(10000), TimeUnit.MILLISECONDS)
+                .readTimeout(config.readTimeoutMsOr(60000), TimeUnit.MILLISECONDS)  // SSE requires long connection
+                .writeTimeout(config.writeTimeoutMsOr(10000), TimeUnit.MILLISECONDS)
+                .callTimeout(config.callTimeoutMsOr(0), TimeUnit.MILLISECONDS)
                 .build();
     }
 
@@ -66,7 +71,7 @@ public class McpSseConnection extends AbstractMcpConnection {
             startSseConnection();
 
             // Wait for endpoint event
-            boolean received = endpointLatch.await(10, TimeUnit.SECONDS);
+            boolean received = endpointLatch.await(endpointTimeoutMs, TimeUnit.MILLISECONDS);
             if (!received) {
                 throw new IOException("Timeout waiting for endpoint event from SSE server");
             }
@@ -212,7 +217,7 @@ public class McpSseConnection extends AbstractMcpConnection {
 
             sendHttpPost(requestJson);
 
-            return responseFuture.get(30, TimeUnit.SECONDS);
+            return responseFuture.get(requestTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             pendingResponses.remove(currentRequestId);
             throw new IOException("Request timeout for method: " + method);

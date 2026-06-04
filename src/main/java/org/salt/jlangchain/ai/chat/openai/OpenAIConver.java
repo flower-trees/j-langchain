@@ -20,6 +20,7 @@ import org.salt.jlangchain.ai.common.enums.AiChatCode;
 import org.salt.jlangchain.ai.common.enums.MessageType;
 import org.salt.jlangchain.ai.common.param.AiChatInput;
 import org.salt.jlangchain.ai.common.param.AiChatOutput;
+import org.salt.jlangchain.ai.common.param.AiTokenUsage;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
@@ -82,6 +83,7 @@ public class OpenAIConver {
         OpenAIRequest.Message chatGPTMessage = new OpenAIRequest.Message();
         chatGPTMessage.setRole(aiChatMessage.getRole());
         chatGPTMessage.setContent(aiChatMessage.getContent());
+        chatGPTMessage.setReasoningContent(aiChatMessage.getReasoningContent());
         chatGPTMessage.setName(aiChatMessage.getName());
         chatGPTMessage.setToolCallId(aiChatMessage.getToolCallId());
         chatGPTMessage.setMetadata(aiChatMessage.getMetadata());
@@ -107,6 +109,7 @@ public class OpenAIConver {
 
         List<AiChatOutput.DataObject> data = getData(response);
         aiChatOutput.setData(data);
+        aiChatOutput.setUsage(getUsage(response));
 
         // Handle MCP response
         if (response.getMcpResponse() != null) {
@@ -131,6 +134,22 @@ public class OpenAIConver {
         return aiChatOutput;
     }
 
+    private static AiTokenUsage getUsage(OpenAIResponse response) {
+        if (response == null || response.getUsage() == null) return null;
+        OpenAIResponse.Usage usage = response.getUsage();
+        AiTokenUsage tokenUsage = new AiTokenUsage();
+        tokenUsage.setPromptTokens(usage.getPromptTokens());
+        tokenUsage.setCompletionTokens(usage.getCompletionTokens());
+        tokenUsage.setTotalTokens(usage.getTotalTokens());
+        if (usage.getPromptTokensDetails() != null) {
+            tokenUsage.setCachedTokens(usage.getPromptTokensDetails().getCachedTokens());
+        }
+        if (usage.getCompletionTokensDetails() != null) {
+            tokenUsage.setReasoningTokens(usage.getCompletionTokensDetails().getReasoningTokens());
+        }
+        return tokenUsage;
+    }
+
     private static List<AiChatOutput.Message> getMessages(OpenAIResponse response) {
         List<AiChatOutput.Message> messages = new ArrayList<>();
         if (!CollectionUtils.isEmpty(response.getChoices()) && response.getChoices().get(0).getDelta() != null) {
@@ -138,6 +157,7 @@ public class OpenAIConver {
             OpenAIResponse.Choice.Delta delta = response.getChoices().get(0).getDelta();
             message.setRole(delta.getRole());
             message.setContent(delta.getContent());
+            message.setReasoningContent(delta.getReasoningContent());
             message.setType(MessageType.MARKDOWN.getCode());
 
             // Handle tool calls in delta
@@ -154,6 +174,7 @@ public class OpenAIConver {
             OpenAIResponse.Choice.Message chatGPTMessage = response.getChoices().get(0).getMessage();
             message.setRole(chatGPTMessage.getRole());
             message.setContent(chatGPTMessage.getContent());
+            message.setReasoningContent(chatGPTMessage.getReasoningContent());
             message.setType(MessageType.MARKDOWN.getCode());
             message.setName(chatGPTMessage.getName());
             message.setMetadata(chatGPTMessage.getMetadata());

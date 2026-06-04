@@ -123,6 +123,13 @@ public class ChatQianfan extends BaseChatModel {
     }
 
     @Override
+    public BaseChatModel copy() {
+        return ChatQianfan.builder()
+                .vendor(this.vendor).modelType(this.modelType).model(this.model)
+                .temperature(this.temperature).modelKwargs(this.modelKwargs).build();
+    }
+
+    @Override
     public void otherInformation(AiChatInput aiChatInput) {
         aiChatInput.setModel(model);
         aiChatInput.setTemperature(temperature);

@@ -38,7 +38,9 @@ public abstract class BaseOutputParser extends BaseLLMOutputParser<Generation> {
         } else if (input instanceof BaseMessage baseMessage) {
             return parseResult(List.of(new ChatGeneration(baseMessage)));
         } else if (input instanceof Generation generation) {
-            return parseResult(List.of(new ChatGeneration(BaseMessage.fromMessage(MessageType.AI.getCode(), generation.getText()))));
+            BaseMessage message = BaseMessage.fromMessage(MessageType.AI.getCode(), generation.getText());
+            message.setResponseMetadata(generation.getResponseMetadata());
+            return parseResult(List.of(new ChatGeneration(message)));
         } else {
             throw new RuntimeException("Unsupported input type: " + input.getClass().getName());
         }

@@ -31,6 +31,10 @@
 | [SubAgent Basics: An Autonomous Agent with Its Own Tools](23-subagent-basic.md) | Skill vs SubAgent comparison, AGENT.md format, three basic usage patterns (standalone / Master / code-constructed) | ⭐⭐⭐ | `Article23SubAgent` |
 | [SubAgent Advanced: LLM Strategies, Tool Borrowing, and Skill Nesting](23-subagent-advanced.md) | 3-tier LLM resolution chain, model=inherit, llmFactory, allowedTools least privilege, Skill embedding SubAgent | ⭐⭐⭐ | `Article23SubAgent` |
 | [Agent Stop and Resume: Interruptible Long-Running Tasks](24-stop-and-resume.md) | stop() safe checkpoint, AgentStoppedException + partialContext, cascading stop signal, three resumption strategies | ⭐⭐⭐ | `Article24StopAndResume` |
+| [Agent Runtime Stop Types: MAX_STEPS, TIMEOUT, CONSECUTIVE_TOOL_FAILURES and AgentPauseException](26-agent-stop-types.md) | Runtime stop exception hierarchy, framework tool retry, AgentPauseException for semantic pause and resume | ⭐⭐⭐ | `Article26AgentStopTypes` |
+| [Human-in-the-Loop: Agent Pauses for User Confirmation](27-human-in-the-loop.md) | AgentPauseException, tool semantic split, LLM-driven y/n routing, partialContext resume | ⭐⭐⭐ | `Article27HumanInTheLoop` |
+| [Agent Observability: Token Usage Stats and Execution Metrics](28-observability.md) | AiTokenUsage, AgentExecutionMetrics, onTokenUsage callback, AgentTokenUsageEvent | ⭐⭐ | `Article28Observability` |
+| [Reasoning Model Integration: Accessing DeepSeek-R1 and Qwen3 Thinking Content](29-reasoning-content.md) | reasoningContent, deepseek-reasoner, enable_thinking, chain-of-thought access | ⭐⭐ | `Article29ReasoningContent` |
 
 ## Suggested Reading Order
 
@@ -39,7 +43,7 @@ Getting started (01-hello-ai) → Multi-model (07-multi-model) → Streaming (06
 → RAG (03-rag-pipeline) → ReAct (04-react-agent) → AgentExecutor (09-agent-executor)
 → Airline comparison (10-flight-compare-agent) → TTS (05-llm-tts) → MCP basics (08-mcp)
 → MCP Function-Calling ReAct (11-mcp-react-agent) → McpAgentExecutor (12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent) → Nested AgentExecutor (15-travel-agent) → Dual agents (16-multi-agent-executor) → Parallel agents (18-parallel-agent-concurrent) → RPC as AI tools (19-rpc-vo-param) → Dual-agent correction (20-two-agent-self-correct) → Proposer-Critic debate (21-proposer-critic-debate)
-→ Skill Agent (22-skill-agent) → SubAgent basics (23-subagent-basic) → SubAgent advanced (23-subagent-advanced) → Agent stop and resume (24-stop-and-resume)
+→ Skill Agent (22-skill-agent) → SubAgent basics (23-subagent-basic) → SubAgent advanced (23-subagent-advanced) → Agent stop and resume (24-stop-and-resume) → Agent stop types (26-agent-stop-types) → Human-in-the-Loop (27-human-in-the-loop) → Observability (28-observability) → Reasoning models (29-reasoning-content)
 ```
 
 ## Code Location
@@ -71,7 +75,11 @@ src/test/java/org/salt/jlangchain/demo/article/
 ├── Article21ProposerCriticDebate.java   ← 21-proposer-critic-debate.md
 ├── Article22SkillAgent.java             ← 22-skill-agent.md
 ├── Article23SubAgent.java               ← 23-subagent-basic.md / 23-subagent-advanced.md
-└── Article24StopAndResume.java          ← 24-stop-and-resume.md
+├── Article24StopAndResume.java          ← 24-stop-and-resume.md
+├── Article26AgentStopTypes.java         ← 26-agent-stop-types.md
+├── Article27HumanInTheLoop.java         ← 27-human-in-the-loop.md
+├── Article28Observability.java          ← 28-observability.md
+└── Article29ReasoningContent.java       ← 29-reasoning-content.md
 ```
 
 ## Runtime Requirements
@@ -95,3 +103,7 @@ src/test/java/org/salt/jlangchain/demo/article/
 | `22-skill-agent.md` / `Article22SkillAgent` | `ALIYUN_KEY` (`qwen-plus`) |
 | `23-subagent-basic.md` / `23-subagent-advanced.md` / `Article23SubAgent` | `ALIYUN_KEY` (`qwen-plus` / `qwen-turbo`) |
 | `24-stop-and-resume.md` / `Article24StopAndResume` | `ALIYUN_KEY` (`qwen-plus`) |
+| `26-agent-stop-types.md` / `Article26AgentStopTypes` | `ALIYUN_KEY` (`qwen-plus`) |
+| `27-human-in-the-loop.md` / `Article27HumanInTheLoop` | `ALIYUN_KEY` (`qwen-plus`) |
+| `28-observability.md` / `Article28Observability` | `ALIYUN_KEY` (`qwen-plus`) |
+| `29-reasoning-content.md` / `Article29ReasoningContent` | `DEEPSEEK_KEY` (deepseek-reasoner) or `ALIYUN_KEY` (qwen3) |

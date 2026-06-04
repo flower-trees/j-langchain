@@ -14,6 +14,7 @@
 
 package org.salt.jlangchain.ai.chat.openai.param;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.util.List;
@@ -60,6 +61,8 @@ public class OpenAIResponse {
         public static class Delta {
             private String role;
             private String content;
+            @JsonProperty("reasoning_content")
+            private String reasoningContent; // DeepSeek / Qwen thinking content (streaming)
             private List<ToolCall> toolCalls; // Tool calls in streaming
             private FunctionCall functionCall; // Deprecated function call format
         }
@@ -68,6 +71,8 @@ public class OpenAIResponse {
         public static class Message {
             private String role;
             private String content;
+            @JsonProperty("reasoning_content")
+            private String reasoningContent; // DeepSeek / Qwen thinking content (non-streaming)
             private List<ToolCall> toolCalls; // Tool calls in response
             private FunctionCall functionCall; // Deprecated function call format
             private String name; // Message name

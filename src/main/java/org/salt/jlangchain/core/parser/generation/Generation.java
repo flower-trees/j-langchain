@@ -18,11 +18,14 @@ import lombok.Getter;
 import lombok.Setter;
 import org.salt.jlangchain.core.Serializable;
 
+import java.util.Map;
+
 @Setter
 @Getter
 public class Generation extends Serializable {
 
     protected String text;
+    protected Map<String, Object> responseMetadata;
 
     public Generation(String text) {
         this.text = text;
