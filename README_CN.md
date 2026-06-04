@@ -57,13 +57,13 @@ McpAgentExecutor（主 Agent）
 <dependency>
     <groupId>io.github.flower-trees</groupId>
     <artifactId>j-langchain</artifactId>
-    <version>1.0.15</version>
+    <version>1.0.16</version>
 </dependency>
 ```
 
 ```groovy
 // Gradle
-implementation 'io.github.flower-trees:j-langchain:1.0.15'
+implementation 'io.github.flower-trees:j-langchain:1.0.16'
 ```
 
 ### 2. 导入配置
