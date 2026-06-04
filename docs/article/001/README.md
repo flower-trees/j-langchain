@@ -32,7 +32,9 @@
 | [SubAgent 进阶：LLM 策略、工具借用与 Skill 嵌套](23b-subagent-advanced.md) | LLM 三级解析优先链、model=inherit、llmFactory、allowedTools 最小权限、SKILL 内嵌 SubAgent | ⭐⭐⭐ | `Article23SubAgent` |
 | [Agent 停止与恢复：可中断的长任务](24-stop-and-resume.md) | stop() 安全检查点、AgentStoppedException + partialContext、stop 信号级联透传、三种恢复策略 | ⭐⭐⭐ | `Article24StopAndResume` |
 | [Agent 运行时停止类型：MAX_STEPS、TIMEOUT、CONSECUTIVE_TOOL_FAILURES 与 AgentPauseException](26-agent-stop-types.md) | Runtime Stop 异常体系、框架工具重试、AgentPauseException 业务暂停与恢复 | ⭐⭐⭐ | `Article26AgentStopTypes` |
-| [Human-in-the-Loop：Agent 执行中途等待用户确认](27-human-in-the-loop.md) | AgentPauseException、工具语义分离、LLM 自主路由 y/n、partialContext 跳步恢复 | ⭐⭐⭐ | `Article26AgentStopTypes` |
+| [Human-in-the-Loop：Agent 执行中途等待用户确认](27-human-in-the-loop.md) | AgentPauseException、工具语义分离、LLM 自主路由 y/n、partialContext 跳步恢复 | ⭐⭐⭐ | `Article27HumanInTheLoop` |
+| [Agent 可观测性：Token 用量统计与执行指标](28-observability.md) | AiTokenUsage、AgentExecutionMetrics、onTokenUsage 回调、AgentTokenUsageEvent | ⭐⭐ | `Article28Observability` |
+| [推理模型集成：读取 DeepSeek-R1 与 Qwen3 的思考内容](29-reasoning-content.md) | reasoningContent、deepseek-reasoner、enable_thinking、思维链访问 | ⭐⭐ | `Article29ReasoningContent` |
 
 ## 建议阅读顺序
 
@@ -41,7 +43,7 @@
 → RAG（03-rag-pipeline）→ ReAct（04-react-agent）→ AgentExecutor（09-agent-executor）
 → 航司比价（10-flight-compare-agent）→ TTS（05-llm-tts）→ MCP 基础（08-mcp）
 → MCP Function-Calling ReAct（11-mcp-react-agent）→ McpAgentExecutor（12-mcp-manager-agent → 13-mcp-client-agent → 14-mcp-mixed-agent）→ AgentExecutor 嵌套（15-travel-agent）→ 双 Agent 串联（16-multi-agent-executor）→ 并行 Agent（18-parallel-agent-concurrent）→ RPC 接入 AI 工具（19-rpc-vo-param）→ 双Agent纠错（20-two-agent-self-correct）→ Proposer-Critic 辩论（21-proposer-critic-debate）
-→ Skill Agent（22-skill-agent）→ SubAgent 基础（23a-subagent-basic）→ SubAgent 进阶（23b-subagent-advanced）→ Agent 停止与恢复（24-stop-and-resume）→ Agent 停止类型（26-agent-stop-types）
+→ Skill Agent（22-skill-agent）→ SubAgent 基础（23a-subagent-basic）→ SubAgent 进阶（23b-subagent-advanced）→ Agent 停止与恢复（24-stop-and-resume）→ Agent 停止类型（26-agent-stop-types）→ Human-in-the-Loop（27-human-in-the-loop）→ 可观测性（28-observability）→ 推理模型（29-reasoning-content）
 ```
 
 ## 代码位置
@@ -74,7 +76,10 @@ src/test/java/org/salt/jlangchain/demo/article/
 ├── Article22SkillAgent.java             ← 22-skill-agent.md / 22-skill-agent-en.md
 ├── Article23SubAgent.java               ← 23a-subagent-basic.md / 23b-subagent-advanced.md
 ├── Article24StopAndResume.java          ← 24-stop-and-resume.md / 24-stop-and-resume-en.md
-└── Article26AgentStopTypes.java         ← 26-agent-stop-types.md
+├── Article26AgentStopTypes.java         ← 26-agent-stop-types.md
+├── Article27HumanInTheLoop.java         ← 27-human-in-the-loop.md
+├── Article28Observability.java          ← 28-observability.md
+└── Article29ReasoningContent.java       ← 29-reasoning-content.md
 ```
 
 ## 运行环境要求
@@ -99,3 +104,6 @@ src/test/java/org/salt/jlangchain/demo/article/
 | `23a-subagent-basic.md` / `23b-subagent-advanced.md` / `Article23SubAgent` | `ALIYUN_KEY`（`qwen-plus` / `qwen-turbo`） |
 | `24-stop-and-resume.md` / `Article24StopAndResume` | `ALIYUN_KEY`（`qwen-plus`） |
 | `26-agent-stop-types.md` / `Article26AgentStopTypes` | `ALIYUN_KEY`（`qwen-plus`） |
+| `27-human-in-the-loop.md` / `Article27HumanInTheLoop` | `ALIYUN_KEY`（`qwen-plus`） |
+| `28-observability.md` / `Article28Observability` | `ALIYUN_KEY`（`qwen-plus`） |
+| `29-reasoning-content.md` / `Article29ReasoningContent` | `DEEPSEEK_KEY`（deepseek-reasoner）或 `ALIYUN_KEY`（qwen3） |

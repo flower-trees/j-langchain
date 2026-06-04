@@ -65,6 +65,7 @@ All implementations support `invoke`, `stream`, `streamEvent`, and `withConfig`.
 | `model` | String | vendor default | Model name (e.g. `qwen-plus`, `gpt-4`) |
 | `temperature` | Float | 0.7 | Sampling temperature |
 | `tools` | `List<AiChatInput.Tool>` | — | Tool calling definitions |
+| `modelKwargs` | `Map<String,Object>` | — | Vendor-specific extra parameters (e.g. `enable_thinking`) |
 
 ```java
 ChatAliyun llm = ChatAliyun.builder()
@@ -76,7 +77,37 @@ AIMessage response = llm.invoke("Hello");
 AIMessageChunk stream = llm.stream("Tell me a story");
 ```
 
-### 2.3 Coze OAuth 2.0
+### 2.3 Reasoning Models
+
+Reasoning models produce a chain-of-thought before the final answer. Both parts are accessible via `AIMessage` (and streaming `AIMessageChunk`).
+
+| Model | How to enable |
+|-------|--------------|
+| DeepSeek-R1 (`deepseek-reasoner`) | Reasoning on by default |
+| Qwen3 | Pass `modelKwargs(Map.of("enable_thinking", true))` |
+
+```java
+// Non-streaming: reasoning + answer in one call
+ChatDeepseek llm = ChatDeepseek.builder().model("deepseek-reasoner").build();
+AIMessage result = llm.invoke("Which is larger: 9.11 or 9.9?");
+String reasoning = result.getReasoningContent(); // chain-of-thought
+String answer    = result.getContent();           // final answer
+
+// Streaming: reasoning tokens arrive first, then answer tokens
+AIMessageChunk stream = llm.stream("Which is larger: 9.11 or 9.9?");
+while (stream.getIterator().hasNext()) {
+    AIMessageChunk chunk = stream.getIterator().next();
+    if (chunk.getReasoningContent() != null) { /* reasoning delta */ }
+    if (chunk.getContent() != null)          { /* answer delta    */ }
+}
+// Accumulated values after stream ends
+String fullReasoning = stream.getReasoningContent();
+String fullAnswer    = stream.getContent();
+```
+
+> `getReasoningContent()` returns `null` for non-reasoning models — existing code is unaffected.
+
+### 2.4 Coze OAuth 2.0
 
 ```java
 // OAuth alternative to COZE_KEY
@@ -632,13 +663,13 @@ Chain building is powered by [salt-function-flow](https://github.com/flower-tree
 
 | Class | Package | Description |
 |-------|---------|-------------|
-| `AIMessage` | `core.message` | AI reply |
+| `AIMessage` | `core.message` | AI reply; `.getContent()` = answer, `.getReasoningContent()` = chain-of-thought (reasoning models only) |
 | `HumanMessage` | `core.message` | User message |
-| `AIMessageChunk` | `core.message` | Streaming AI chunk |
+| `AIMessageChunk` | `core.message` | Streaming AI chunk; each chunk carries `.getReasoningContent()` (reasoning delta) and `.getContent()` (answer delta); accumulated totals available after stream ends |
 | `ToolMessage` | `core.message` | Tool call result |
 | `EventMessageChunk` | `core.event` | Event stream chunk |
 | `TtsCardChunk` | `ai.tts` | TTS audio stream chunk |
-| `ChatGeneration` | `core.parser.generation` | Sync generation result |
+| `ChatGeneration` | `core.parser.generation` | Sync generation result (produced by `StrOutputParser`) |
 | `ChatGenerationChunk` | `core.parser.generation` | Streaming generation chunk |
 
 ---

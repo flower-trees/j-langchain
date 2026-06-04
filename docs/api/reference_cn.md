@@ -65,6 +65,7 @@ String result = chainActor.invoke(chain, Map.of("topic", "AI"));
 | `model` | String | 厂商默认 | 模型名，如 `qwen-plus`、`gpt-4` |
 | `temperature` | Float | 0.7 | 采样温度 |
 | `tools` | `List<AiChatInput.Tool>` | — | 工具调用定义列表 |
+| `modelKwargs` | `Map<String,Object>` | — | 厂商自定义扩展参数（如 `enable_thinking`） |
 
 ```java
 ChatAliyun llm = ChatAliyun.builder()
@@ -76,7 +77,37 @@ AIMessage response = llm.invoke("你好");
 AIMessageChunk stream = llm.stream("给我讲个故事");
 ```
 
-### 2.3 扣子 OAuth 2.0
+### 2.3 推理模型
+
+推理模型在输出最终答案之前会先进行内部推理，两部分内容均可通过 `AIMessage`（及流式 `AIMessageChunk`）访问。
+
+| 模型 | 启用方式 |
+|------|----------|
+| DeepSeek-R1（`deepseek-reasoner`） | 默认开启 |
+| Qwen3 | `modelKwargs(Map.of("enable_thinking", true))` |
+
+```java
+// 非流式：一次调用同时获取推理过程与答案
+ChatDeepseek llm = ChatDeepseek.builder().model("deepseek-reasoner").build();
+AIMessage result = llm.invoke("9.11 和 9.9 哪个更大？");
+String reasoning = result.getReasoningContent(); // 推理过程
+String answer    = result.getContent();           // 最终答案
+
+// 流式：推理 token 先出现，答案 token 后出现
+AIMessageChunk stream = llm.stream("9.11 和 9.9 哪个更大？");
+while (stream.getIterator().hasNext()) {
+    AIMessageChunk chunk = stream.getIterator().next();
+    if (chunk.getReasoningContent() != null) { /* 推理 delta */ }
+    if (chunk.getContent() != null)          { /* 答案 delta */ }
+}
+// 流结束后读取完整累积值
+String fullReasoning = stream.getReasoningContent();
+String fullAnswer    = stream.getContent();
+```
+
+> 非推理模型的 `getReasoningContent()` 返回 `null`，不影响现有代码。
+
+### 2.4 扣子 OAuth 2.0
 
 ```bash
 # COZE_KEY 的替代方案
@@ -631,13 +662,13 @@ TtsCardChunk audio = tts.stream("你好，欢迎使用 J-LangChain！");
 
 | 类 | 包路径 | 说明 |
 |----|--------|------|
-| `AIMessage` | `core.message` | AI 回复 |
+| `AIMessage` | `core.message` | AI 回复；`.getContent()` 最终答案，`.getReasoningContent()` 推理过程（推理模型专用） |
 | `HumanMessage` | `core.message` | 用户消息 |
-| `AIMessageChunk` | `core.message` | 流式 AI 块 |
+| `AIMessageChunk` | `core.message` | 流式 AI 块；每个 chunk 携带 `.getReasoningContent()`（推理 delta）和 `.getContent()`（答案 delta）；流结束后可读完整累积值 |
 | `ToolMessage` | `core.message` | 工具调用结果 |
 | `EventMessageChunk` | `core.event` | 事件流块 |
 | `TtsCardChunk` | `ai.tts` | TTS 流式音频块 |
-| `ChatGeneration` | `core.parser.generation` | 同步生成结果 |
+| `ChatGeneration` | `core.parser.generation` | 同步生成结果（由 `StrOutputParser` 产生） |
 | `ChatGenerationChunk` | `core.parser.generation` | 流式生成块 |
 
 ---

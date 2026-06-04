@@ -513,7 +513,7 @@ Together, these three principles deliver the "agent autonomy + human oversight a
 ---
 
 > Resources
-> - Full source: [Article26AgentStopTypes.java](../../../src/test/java/org/salt/jlangchain/demo/article/Article26AgentStopTypes.java) (`testUserConfirmYes` / `testUserConfirmNo` / `doConfirmFlow` methods)
+> - Full source: [Article27HumanInTheLoop.java](../../../src/test/java/org/salt/jlangchain/demo/article/Article27HumanInTheLoop.java) (`testUserConfirmYes` / `testUserConfirmNo` / `doConfirmFlow` methods)
 > - Prerequisite: [Agent Runtime Stop Types: MAX_STEPS, TIMEOUT, CONSECUTIVE_TOOL_FAILURES and AgentPauseException](26-agent-stop-types.md)
 > - j-langchain GitHub: https://github.com/flower-trees/j-langchain
 > - Runtime: `ALIYUN_KEY` (`qwen-plus`)

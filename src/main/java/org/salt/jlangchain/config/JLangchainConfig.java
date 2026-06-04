@@ -68,7 +68,7 @@ public class JLangchainConfig {
     @Value("${models.http.connect-timeout-ms:30000}")
     private long httpConnectTimeoutMs;
 
-    @Value("${models.http.read-timeout-ms:30000}")
+    @Value("${models.http.read-timeout-ms:60000}")
     private long httpReadTimeoutMs;
 
     @Value("${models.http.write-timeout-ms:30000}")

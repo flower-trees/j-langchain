@@ -195,6 +195,7 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
 
             if (!CollectionUtils.isEmpty(aiChatOutput.getMessages())) {
                 chunk.setContent((String) aiChatOutput.getMessages().get(0).getContent());
+                chunk.setReasoningContent(aiChatOutput.getMessages().get(0).getReasoningContent());
             }
 
             if (StringUtils.equals(aiChatOutput.getCode(), AiChatCode.STOP.getCode())) {

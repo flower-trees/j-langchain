@@ -78,7 +78,7 @@ public class Article06Streaming {
             String token = chunk.getIterator().next().getContent();
             if (StringUtils.isNotEmpty(token)) {
                 sb.append(token);
-                System.out.print(token);  // 逐 token 输出
+                System.out.println(sb);  // 逐 token 输出
             }
         }
         System.out.println("\n完整内容：" + sb);
@@ -107,7 +107,7 @@ public class Article06Streaming {
         while (chunk.getIterator().hasNext()) {
             String token = chunk.getIterator().next().getText();
             sb.append(token);
-            System.out.print(token);
+            System.out.println(sb);
         }
         System.out.println();
     }
@@ -128,9 +128,11 @@ public class Article06Streaming {
 
         System.out.println("=== 流式输出（中途取消）===");
         int tokenCount = 0;
+        StringBuilder sb = new StringBuilder();
         while (chunk.getIterator().hasNext()) {
             String token = chunk.getIterator().next().getText();
-            System.out.print(token);
+            sb.append(token);
+            System.out.println(sb);
             tokenCount++;
 
             // 模拟用户在第5个 token 后点击停止
@@ -161,8 +163,12 @@ public class Article06Streaming {
         );
 
         System.out.println("=== 流式 JSON 输出 ===");
+        StringBuilder sb = new StringBuilder();
         while (chunk.getIterator().hasNext()) {
-            System.out.println(chunk.getIterator().next());
+            String token = chunk.getIterator().next().getText();
+            sb.append(token);
+            System.out.println(sb);
+
         }
     }
 
@@ -189,10 +195,12 @@ public class Article06Streaming {
         );
 
         System.out.println("=== 流式 + 自定义函数 ===");
+        StringBuilder sb = new StringBuilder();
         while (chunk.getIterator().hasNext()) {
             String text = chunk.getIterator().next().getText();
             if (StringUtils.isNotEmpty(text)) {
-                System.out.println("提取到国家：" + text);
+                sb.append(text);
+                System.out.println("提取到国家：" + sb);
             }
         }
     }
