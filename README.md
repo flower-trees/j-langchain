@@ -186,7 +186,7 @@ TtsCardChunk audio = aliyunTts.stream(llmStream);
 
 ---
 
-## 📖 24 Tutorials: From Hello World to Multi-Agent Systems
+## 📖 29 Tutorials: From Hello World to Multi-Agent Systems
 
 Every tutorial has a runnable demo class — no setup beyond a single API key.
 
@@ -202,9 +202,13 @@ Every tutorial has a runnable demo class — no setup beyond a single API key.
 | [10 · Flight Price Agent](./docs/article/001-en/10-flight-compare-agent.md) | Multi-step tool-calling: compare & book flights | ⭐⭐ |
 | [05 · LLM + TTS](./docs/article/001-en/05-llm-tts.md) | LLM → speech, smart stream synthesis | ⭐⭐ |
 | [08 · MCP Basics](./docs/article/001-en/08-mcp.md) | MCP protocol, McpManager / McpClient | ⭐⭐⭐ |
-| [11–14 · MCP Agents](./docs/article/001-en/11-mcp-react-agent.md) | Function Calling ReAct, HTTP/NPX/mixed MCP | ⭐⭐⭐ |
+| [11 · MCP Function-Calling ReAct](./docs/article/001-en/11-mcp-react-agent.md) | Native tool calls, MCP manifest, loop control | ⭐⭐⭐ |
+| [12 · MCP Manager Agent](./docs/article/001-en/12-mcp-manager-agent.md) | McpAgentExecutor with HTTP MCP tools | ⭐⭐⭐ |
+| [13 · MCP Client Agent](./docs/article/001-en/13-mcp-client-agent.md) | NPX process-based MCP servers, auto tool selection | ⭐⭐⭐ |
+| [14 · Mixed MCP Agent](./docs/article/001-en/14-mcp-mixed-agent.md) | Multi-step tasks across HTTP and NPX MCP tools | ⭐⭐⭐ |
 | [15 · Travel Planner](./docs/article/001-en/15-agent-executor-embed.md) | Nested AgentExecutor inside a chain | ⭐⭐ |
 | [16 · Dual-Agent Service](./docs/article/001-en/16-multi-agent-executor.md) | ReAct + MCP serial pipeline, file output | ⭐⭐⭐ |
+| [17 · Domestic Vendors](./docs/article/001-en/17-domestic-vendors-chain.md) | Sequential chain across domestic `Chat*` APIs | ⭐ |
 | [18 · Parallel Agents](./docs/article/001-en/18-parallel-agent-concurrent.md) | 3 concurrent agents, fan-out/fan-in | ⭐⭐⭐ |
 | [19 · RPC Zero-Intrusion](./docs/article/001-en/19-rpc-vo-param.md) | Dubbo/Feign → AI tool, 2 annotations | ⭐⭐ |
 | [20 · Dual-Agent Self-Correction](./docs/article/001-en/20-two-agent-self-correct.md) | Write Agent + Test Agent loop, real javac execution | ⭐⭐⭐ |
@@ -213,6 +217,10 @@ Every tutorial has a runnable demo class — no setup beyond a single API key.
 | [23 · SubAgent Basics ✨](./docs/article/001-en/23-subagent-basic.md) | Autonomous sub-agent with own tools, AGENT.md | ⭐⭐⭐ |
 | [23 · SubAgent Advanced ✨](./docs/article/001-en/23-subagent-advanced.md) | model=inherit, llmFactory, allowedTools, nesting | ⭐⭐⭐ |
 | [24 · Stop & Resume ✨](./docs/article/001-en/24-stop-and-resume.md) | stop(), partialContext, 3 resumption strategies | ⭐⭐⭐ |
+| [26 · Agent Stop Types ✨](./docs/article/001-en/26-agent-stop-types.md) | MAX_STEPS, TIMEOUT, tool failures, pause/resume | ⭐⭐⭐ |
+| [27 · Human-in-the-Loop ✨](./docs/article/001-en/27-human-in-the-loop.md) | Pause for user confirmation, resume with partialContext | ⭐⭐⭐ |
+| [28 · Observability ✨](./docs/article/001-en/28-observability.md) | Token usage stats, execution metrics, callbacks | ⭐⭐ |
+| [29 · Reasoning Content ✨](./docs/article/001-en/29-reasoning-content.md) | DeepSeek-R1 / Qwen3 reasoning content access | ⭐⭐ |
 
 ➡️ [Full tutorial index with reading order →](./docs/article/001-en/README.md)
 
@@ -272,7 +280,7 @@ chat + tools  Embed/Vector   Auto-filter   HTTP/FC
 | | |
 |--|--|
 | [Quick Start](./docs/guide/quickstart.md) | Detailed setup guide |
-| [Tutorial Series (EN)](./docs/article/001-en/README.md) | 19 articles, reading order, runnable demos |
+| [Tutorial Series (EN)](./docs/article/001-en/README.md) | 29 tutorials, reading order, runnable demos |
 | [Tutorial Series (CN)](./docs/article/001/README.md) | 中文系列教程 |
 | [Sample Code](./src/test/java/org/salt/jlangchain/demo/) | 30+ runnable examples |
 | [API Reference](./docs/api/reference.md) | Full API docs |
@@ -308,6 +316,6 @@ git push origin feature/your-feature
 
 **⭐ Found this useful? A Star takes 2 seconds and helps the project grow — thank you! ⭐**
 
-[Quick Start](#-quick-start-5-minutes) · [19 Tutorials](#-19-tutorials-from-hello-world-to-multi-agent-systems) · [Sample Code](./src/test/java/org/salt/jlangchain/demo/) · [Issues](https://github.com/flower-trees/j-langchain/issues)
+[Quick Start](#-quick-start-5-minutes) · [29 Tutorials](#-29-tutorials-from-hello-world-to-multi-agent-systems) · [Sample Code](./src/test/java/org/salt/jlangchain/demo/) · [Issues](https://github.com/flower-trees/j-langchain/issues)
 
 </div>
