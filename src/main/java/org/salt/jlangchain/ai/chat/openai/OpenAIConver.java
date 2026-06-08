@@ -71,9 +71,14 @@ public class OpenAIConver {
         openAIRequest.setResponseFormat(convertResponseFormat(aiChatInput.getResponseFormat()));
         openAIRequest.setResponseSchema(aiChatInput.getResponseSchema());
 
-        // Vendor-specific extra parameters (e.g. enable_thinking for qwen3)
+        // Vendor-specific extra parameters (e.g. enable_thinking for qwen3).
+        // Standard fields (temperature, etc.) are extracted and applied via their dedicated setters
+        // to prevent @JsonAnyGetter duplication with the fields already set above.
         if (aiChatInput.getExtraParams() != null && !aiChatInput.getExtraParams().isEmpty()) {
-            openAIRequest.setExtraFields(aiChatInput.getExtraParams());
+            java.util.Map<String, Object> extra = new java.util.HashMap<>(aiChatInput.getExtraParams());
+            Object tempVal = extra.remove("temperature");
+            if (tempVal instanceof Number n) openAIRequest.setTemperature(n.floatValue());
+            if (!extra.isEmpty()) openAIRequest.setExtraFields(extra);
         }
 
         return openAIRequest;

@@ -16,6 +16,7 @@ package org.salt.jlangchain.core.skill;
 
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.agent.AgentTokenUsageEvent;
 import org.salt.jlangchain.core.agent.McpAgentExecutor;
 import org.salt.jlangchain.core.llm.BaseChatModel;
 import org.salt.jlangchain.core.subagent.SubAgent;
@@ -65,12 +66,14 @@ public class Skill {
     private final Consumer<String> onLlm;
     private final Consumer<String> onToolCall;
     private final Consumer<String> onObservation;
+    private final Consumer<AgentTokenUsageEvent> onTokenUsage;
     private List<Tool> parentTools = new ArrayList<>();
     private volatile McpAgentExecutor executor;
 
     private Skill(SkillConfig config, ChainActor chainActor, BaseChatModel llm,
                   List<Tool> ownTools, int maxIterations, boolean verbose,
-                  Consumer<String> onLlm, Consumer<String> onToolCall, Consumer<String> onObservation) {
+                  Consumer<String> onLlm, Consumer<String> onToolCall, Consumer<String> onObservation,
+                  Consumer<AgentTokenUsageEvent> onTokenUsage) {
         this.config = config;
         this.chainActor = chainActor;
         this.llm = llm;
@@ -80,6 +83,7 @@ public class Skill {
         this.onLlm = onLlm;
         this.onToolCall = onToolCall;
         this.onObservation = onObservation;
+        this.onTokenUsage = onTokenUsage;
     }
 
     public static Builder from(SkillConfig config, ChainActor chainActor) {
@@ -174,6 +178,7 @@ public class Skill {
         if (onLlm != null)          builder.onLlm(onLlm);
         if (onToolCall != null)     builder.onToolCall(onToolCall);
         if (onObservation != null)  builder.onObservation(onObservation);
+        if (onTokenUsage != null)   builder.onTokenUsage(onTokenUsage);
 
         return builder.build();
     }
@@ -215,6 +220,7 @@ public class Skill {
         private Consumer<String> onLlm;
         private Consumer<String> onToolCall;
         private Consumer<String> onObservation;
+        private Consumer<AgentTokenUsageEvent> onTokenUsage;
 
         private Builder(SkillConfig config, ChainActor chainActor) {
             this.config = config;
@@ -288,6 +294,11 @@ public class Skill {
             return this;
         }
 
+        public Builder onTokenUsage(Consumer<AgentTokenUsageEvent> consumer) {
+            this.onTokenUsage = consumer;
+            return this;
+        }
+
         public Skill build() {
             if (llm == null) {
                 throw new IllegalStateException("llm must be set for skill: " + config.getName());
@@ -295,7 +306,7 @@ public class Skill {
             int resolvedMaxIter = maxIterations != null ? maxIterations
                     : (config.getMaxIterations() != null ? config.getMaxIterations() : DEFAULT_MAX_ITERATIONS);
             return new Skill(config, chainActor, llm, ownTools, resolvedMaxIter, verbose,
-                    onLlm, onToolCall, onObservation);
+                    onLlm, onToolCall, onObservation, onTokenUsage);
         }
     }
 }

@@ -16,6 +16,7 @@ package org.salt.jlangchain.core.subagent;
 
 import lombok.extern.slf4j.Slf4j;
 import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.agent.AgentTokenUsageEvent;
 import org.salt.jlangchain.core.agent.McpAgentExecutor;
 import org.salt.jlangchain.core.llm.BaseChatModel;
 import org.salt.jlangchain.core.skill.Skill;
@@ -69,6 +70,7 @@ public class SubAgent {
     private final Consumer<String> onLlm;
     private final Consumer<String> onToolCall;
     private final Consumer<String> onObservation;
+    private final Consumer<AgentTokenUsageEvent> onTokenUsage;
 
     // injected after construction by the parent agent
     private volatile BaseChatModel injectedLlm;
@@ -78,7 +80,8 @@ public class SubAgent {
     private SubAgent(SubAgentConfig config, ChainActor chainActor, BaseChatModel llm,
                      Function<String, BaseChatModel> llmFactory,
                      List<Tool> ownTools, List<Skill> callableSkills, int maxIterations,
-                     Consumer<String> onLlm, Consumer<String> onToolCall, Consumer<String> onObservation) {
+                     Consumer<String> onLlm, Consumer<String> onToolCall, Consumer<String> onObservation,
+                     Consumer<AgentTokenUsageEvent> onTokenUsage) {
         this.config = config;
         this.chainActor = chainActor;
         this.llm = llm;
@@ -89,6 +92,7 @@ public class SubAgent {
         this.onLlm = onLlm;
         this.onToolCall = onToolCall;
         this.onObservation = onObservation;
+        this.onTokenUsage = onTokenUsage;
     }
 
     public static Builder from(SubAgentConfig config, ChainActor chainActor) {
@@ -191,6 +195,7 @@ public class SubAgent {
         if (onLlm != null)          builder.onLlm(onLlm);
         if (onToolCall != null)     builder.onToolCall(onToolCall);
         if (onObservation != null)  builder.onObservation(onObservation);
+        if (onTokenUsage != null)   builder.onTokenUsage(onTokenUsage);
 
         return builder.build();
     }
@@ -247,6 +252,7 @@ public class SubAgent {
         private Consumer<String> onLlm;
         private Consumer<String> onToolCall;
         private Consumer<String> onObservation;
+        private Consumer<AgentTokenUsageEvent> onTokenUsage;
 
         private Builder(SubAgentConfig config, ChainActor chainActor) {
             this.config = config;
@@ -329,6 +335,11 @@ public class SubAgent {
             return this;
         }
 
+        public Builder onTokenUsage(Consumer<AgentTokenUsageEvent> consumer) {
+            this.onTokenUsage = consumer;
+            return this;
+        }
+
         public SubAgent build() {
             // llm required unless: model=inherit (injected later) OR model is named (factory resolves later)
             boolean llmWillBeProvided = config.isInheritModel()
@@ -342,7 +353,7 @@ public class SubAgent {
             int resolvedMaxIter = maxIterations != null ? maxIterations
                     : (config.getMaxIterations() != null ? config.getMaxIterations() : DEFAULT_MAX_ITERATIONS);
             return new SubAgent(config, chainActor, llm, llmFactory, ownTools, callableSkills,
-                    resolvedMaxIter, onLlm, onToolCall, onObservation);
+                    resolvedMaxIter, onLlm, onToolCall, onObservation, onTokenUsage);
         }
     }
 }
