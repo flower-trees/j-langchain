@@ -150,6 +150,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
     public static class Builder {
 
         private static final String LLM_STARTED_AT = "MCP_AGENT_EXECUTOR_LLM_STARTED_AT";
+        private static final String LAST_TOOL_RESULT = "MCP_AGENT_EXECUTOR_LAST_TOOL_RESULT";
 
         private final ChainActor chainActor;
         private BaseChatModel llm;
@@ -169,6 +170,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
         private Consumer<String> observationConsumer;
         private Consumer<AgentTokenUsageEvent> tokenUsageConsumer;
         private java.util.function.Supplier<String> authorizationSupplier;
+        private boolean returnLastToolResult;
 
         private Builder(ChainActor chainActor) {
             this.chainActor = chainActor;
@@ -324,6 +326,15 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
+        /**
+         * Return the last tool observation directly after tool execution instead
+         * of asking the LLM to rewrite it into a final answer.
+         */
+        public Builder returnLastToolResult(boolean returnLastToolResult) {
+            this.returnLastToolResult = returnLastToolResult;
+            return this;
+        }
+
         public Builder verbose(boolean enabled) {
             if (enabled) {
                 this.llmConsumer         = msg -> System.out.println("[LLM]\n" + msg);
@@ -384,16 +395,17 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 llm.setTools(aiTools);
             }
 
+            String systemPromptFinal = appendReturnLastToolResultPrompt(this.systemPrompt, this.returnLastToolResult);
+
             // ── 2. Build initial prompt template (system + user placeholder) ──
             List<BaseMessage> messages = new ArrayList<>();
-            if (systemPrompt != null && !systemPrompt.isBlank()) {
-                messages.add(BaseMessage.fromMessage(MessageType.SYSTEM.getCode(), systemPrompt));
+            if (systemPromptFinal != null && !systemPromptFinal.isBlank()) {
+                messages.add(BaseMessage.fromMessage(MessageType.SYSTEM.getCode(), systemPromptFinal));
             }
             messages.add(BaseMessage.fromMessage(MessageType.HUMAN.getCode(), "${input}"));
             var prompt = ChatPromptTemplate.fromMessages(messages);
 
             AgentContext contextFinal = this.context != null ? this.context : FullContext.build();
-            String systemPromptFinal = this.systemPrompt;
             ConversationMemoryStorerBase conversationStorerFinal = this.conversationStorer;
             Consumer<String> llmConsumer = this.llmConsumer;
             Consumer<AgentTokenUsageEvent> tokenUsageConsumer = this.tokenUsageConsumer;
@@ -444,6 +456,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             long maxDurationMs = this.maxDurationSeconds > 0 ? (long) this.maxDurationSeconds * 1000 : 0;
             int maxConsecFail = this.maxConsecutiveToolFailures;
             int toolRetryCount = this.toolRetry;
+            boolean returnLastToolResultFinal = this.returnLastToolResult;
             AtomicLong startTimeMs = new AtomicLong(0);
             AtomicInteger consecutiveFailures = new AtomicInteger(0);
 
@@ -557,6 +570,7 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
                     if (observationConsumer != null) observationConsumer.accept(observation);
                     else log.debug("Observation: {}", observation);
+                    ContextBus.get().putTransmit(LAST_TOOL_RESULT, observation);
 
                     toolResults.add(BaseMessage.fromMessage(MessageType.TOOL.getCode(), observation,
                             toolName, toolCall.getId()));
@@ -592,6 +606,15 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     Info.c(new StrOutputParser())
                 )
                 .next(new TranslateHandler<>(output -> {
+                    if (returnLastToolResultFinal && output instanceof ChatGeneration) {
+                        String lastToolResult = ContextBus.get().getTransmit(LAST_TOOL_RESULT);
+                        if (lastToolResult != null) {
+                            return new ChatGeneration(AIMessage.builder().content(lastToolResult).build());
+                        }
+                    }
+                    return output;
+                }))
+                .next(new TranslateHandler<>(output -> {
                     if (output instanceof ChatGeneration generation) {
                         attachAggregateUsage(generation);
                     }
@@ -613,6 +636,21 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             aiTool.getFunction().setDescription(tool.getDescription());
             aiTool.getFunction().setParameters(buildSchema(tool.getParams()));
             return aiTool;
+        }
+
+        private static String appendReturnLastToolResultPrompt(String systemPrompt,
+                                                               boolean returnLastToolResult) {
+            if (!returnLastToolResult) {
+                return systemPrompt;
+            }
+            String rule = """
+                    When a tool call has already produced a result that satisfies the user goal, stop calling tools and finish.
+                    Keep the final response minimal. Only indicate whether execution succeeded or failed; do not expand, reformat, or add details beyond the tool result.
+                    """;
+            if (systemPrompt == null || systemPrompt.isBlank()) {
+                return rule;
+            }
+            return systemPrompt + "\n\n" + rule;
         }
 
         private static Map<String, Object> buildSchema(String params) {
