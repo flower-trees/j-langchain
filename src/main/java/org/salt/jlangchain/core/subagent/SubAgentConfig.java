@@ -19,6 +19,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.salt.jlangchain.core.skill.SkillConfig;
+import org.salt.jlangchain.rag.tools.Tool;
 
 import java.util.List;
 
@@ -61,6 +62,13 @@ public class SubAgentConfig {
      * When registered with a master agent, matching tools are injected automatically.
      */
     private List<String> allowedTools;
+
+    /**
+     * Tools private to this sub-agent.
+     * These tools are injected only into the sub-agent's internal executor and
+     * are not exposed as parent-agent marketplace capabilities.
+     */
+    private List<Tool> ownTools;
 
     /**
      * Skill knowledge to bake into this sub-agent's system prompt.
