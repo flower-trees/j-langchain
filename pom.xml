@@ -4,7 +4,7 @@
 
   <groupId>io.github.flower-trees</groupId>
   <artifactId>j-langchain</artifactId>
-  <version>1.0.18-SNAPSHOT</version>
+  <version>1.0.18</version>
   <packaging>jar</packaging>
 
   <name>j-langchain</name>
@@ -267,11 +267,12 @@
       <plugin>
         <groupId>org.sonatype.central</groupId>
         <artifactId>central-publishing-maven-plugin</artifactId>
-        <version>0.4.0</version>
+        <version>0.6.0</version>
         <extensions>true</extensions>
         <configuration>
           <publishingServerId>ossrh</publishingServerId>
-          <tokenAuth>true</tokenAuth>
+          <autoPublish>true</autoPublish>
+          <waitUntil>published</waitUntil>
         </configuration>
       </plugin>
       <plugin>
