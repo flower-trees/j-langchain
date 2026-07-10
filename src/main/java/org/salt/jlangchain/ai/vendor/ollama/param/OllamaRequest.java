@@ -26,6 +26,7 @@ public class OllamaRequest {
     private Options options;
     private boolean stream;
     private List<String> input;
+    private String format; // "json" for strict JSON output
 
     @Data
     public static class Message {

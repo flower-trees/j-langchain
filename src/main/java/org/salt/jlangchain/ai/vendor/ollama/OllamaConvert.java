@@ -45,6 +45,11 @@ public class OllamaConvert {
 
         request.setInput(aiChatInput.getInput());
 
+        if (aiChatInput.getResponseFormat() != null
+                && "json_object".equals(aiChatInput.getResponseFormat().getType())) {
+            request.setFormat("json");
+        }
+
         return request;
     }
 

@@ -122,6 +122,8 @@ public class ChatHunyuan extends BaseChatModel {
         }
     }
 
+    private boolean jsonMode = false;
+
     @Override
     public BaseChatModel copy() {
         return ChatHunyuan.builder()
@@ -130,10 +132,22 @@ public class ChatHunyuan extends BaseChatModel {
     }
 
     @Override
+    public BaseChatModel withJsonMode() {
+        ChatHunyuan copy = (ChatHunyuan) copy();
+        copy.jsonMode = true;
+        return copy;
+    }
+
+    @Override
     public void otherInformation(AiChatInput aiChatInput) {
         aiChatInput.setModel(model);
         aiChatInput.setTemperature(temperature);
         aiChatInput.setTools(tools);
+        if (jsonMode) {
+            AiChatInput.ResponseFormat responseFormat = new AiChatInput.ResponseFormat();
+            responseFormat.setType("json_object");
+            aiChatInput.setResponseFormat(responseFormat);
+        }
     }
 
     @Override

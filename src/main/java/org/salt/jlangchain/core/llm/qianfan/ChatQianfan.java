@@ -122,6 +122,8 @@ public class ChatQianfan extends BaseChatModel {
         }
     }
 
+    private boolean jsonMode = false;
+
     @Override
     public BaseChatModel copy() {
         return ChatQianfan.builder()
@@ -130,10 +132,22 @@ public class ChatQianfan extends BaseChatModel {
     }
 
     @Override
+    public BaseChatModel withJsonMode() {
+        ChatQianfan copy = (ChatQianfan) copy();
+        copy.jsonMode = true;
+        return copy;
+    }
+
+    @Override
     public void otherInformation(AiChatInput aiChatInput) {
         aiChatInput.setModel(model);
         aiChatInput.setTemperature(temperature);
         aiChatInput.setTools(tools);
+        if (jsonMode) {
+            AiChatInput.ResponseFormat responseFormat = new AiChatInput.ResponseFormat();
+            responseFormat.setType("json_object");
+            aiChatInput.setResponseFormat(responseFormat);
+        }
     }
 
     @Override

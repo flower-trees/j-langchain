@@ -122,6 +122,8 @@ public class ChatOllama extends BaseChatModel {
         }
     }
 
+    private boolean jsonMode = false;
+
     @Override
     public BaseChatModel copy() {
         return ChatOllama.builder()
@@ -130,10 +132,24 @@ public class ChatOllama extends BaseChatModel {
     }
 
     @Override
+    public BaseChatModel withJsonMode() {
+        ChatOllama copy = (ChatOllama) copy();
+        copy.jsonMode = true;
+        return copy;
+    }
+
+    @Override
     public void otherInformation(AiChatInput aiChatInput) {
         aiChatInput.setModel(model);
         aiChatInput.setTemperature(temperature);
         aiChatInput.setTools(tools);
+        if (jsonMode) {
+            // Ollama has no OpenAI-style response_format; OllamaConvert translates
+            // type=json_object into its own top-level "format":"json" request field.
+            AiChatInput.ResponseFormat responseFormat = new AiChatInput.ResponseFormat();
+            responseFormat.setType("json_object");
+            aiChatInput.setResponseFormat(responseFormat);
+        }
     }
 
     public Class<? extends AiChatActuator> getActuator() {
