@@ -28,8 +28,10 @@ import org.salt.jlangchain.core.common.CallInfo;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * A skill is a self-contained, reusable agent unit that wraps a
@@ -183,26 +185,77 @@ public class Skill {
         return builder.build();
     }
 
-    private List<Tool> collectTools() {
+    /** Package-private (not private) so tests can exercise tool assembly without a real LLM/executor. */
+    List<Tool> collectTools() {
         List<Tool> all = new ArrayList<>();
         if (config.getScripts() != null) {
             config.getScripts().stream().map(ScriptTool::from).forEach(all::add);
         }
         all.addAll(ownTools);
         all.addAll(parentTools);
+        if (hasLazyReferences()) {
+            all.add(buildReadReferenceTool());
+        }
         return all;
     }
 
-    private String buildSystemPrompt() {
+    /** Package-private (not private) so tests can assert on systemPrompt content directly. */
+    String buildSystemPrompt() {
         StringBuilder sb = new StringBuilder();
         if (config.getSystemPrompt() != null && !config.getSystemPrompt().isBlank()) {
             sb.append(config.getSystemPrompt());
         }
-        if (config.getReferences() != null && !config.getReferences().isEmpty()) {
-            sb.append("\n\n---\n\n");
-            sb.append(String.join("\n\n---\n\n", config.getReferences()));
+        List<ReferenceDoc> refs = config.getReferences();
+        if (refs == null || refs.isEmpty()) {
+            return sb.toString();
+        }
+        sb.append("\n\n---\n\n");
+        if (isLazyReferencesMode()) {
+            sb.append("Available reference documents (read on demand via read_reference):\n");
+            for (ReferenceDoc ref : refs) {
+                sb.append("- ").append(ref.filename());
+                if (ref.summary() != null && !ref.summary().isBlank()) {
+                    sb.append(": ").append(ref.summary());
+                }
+                sb.append("\n");
+            }
+        } else {
+            sb.append(refs.stream().map(ReferenceDoc::content).collect(Collectors.joining("\n\n---\n\n")));
         }
         return sb.toString();
+    }
+
+    // ── references mode helpers ───────────────────────────────────────────────
+
+    /** Null referencesMode is treated as INLINE — keeps pre-existing configs unchanged. */
+    private boolean isLazyReferencesMode() {
+        return config.getReferencesMode() == ReferencesMode.LAZY;
+    }
+
+    private boolean hasLazyReferences() {
+        return isLazyReferencesMode() && config.getReferences() != null && !config.getReferences().isEmpty();
+    }
+
+    private Tool buildReadReferenceTool() {
+        Map<String, String> byFilename = config.getReferences().stream()
+                .collect(Collectors.toMap(ReferenceDoc::filename, ReferenceDoc::content, (a, b) -> a));
+        return Tool.builder()
+                .name("read_reference")
+                .description("Read the full content of a reference document by filename. " +
+                        "Available files: " + String.join(", ", byFilename.keySet()))
+                .params("file: String")
+                .func(raw -> {
+                    String file = argString(raw, "file");
+                    String content = byFilename.get(file);
+                    return content != null ? content : "Error: reference not found: " + file;
+                })
+                .build();
+    }
+
+    private static String argString(Object raw, String key) {
+        if (!(raw instanceof Map<?, ?> map)) return "";
+        Object v = map.get(key);
+        return v != null ? v.toString().trim() : "";
     }
 
     // ── builder ──────────────────────────────────────────────────────────────

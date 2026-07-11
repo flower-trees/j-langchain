@@ -19,6 +19,7 @@ import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.agent.AgentTokenUsageEvent;
 import org.salt.jlangchain.core.agent.McpAgentExecutor;
 import org.salt.jlangchain.core.llm.BaseChatModel;
+import org.salt.jlangchain.core.skill.ReferenceDoc;
 import org.salt.jlangchain.core.skill.Skill;
 import org.salt.jlangchain.core.skill.SkillConfig;
 import org.salt.jlangchain.rag.tools.Tool;
@@ -227,8 +228,8 @@ public class SubAgent {
                     sb.append(skillConfig.getSystemPrompt());
                 }
                 if (skillConfig.getReferences() != null) {
-                    for (String ref : skillConfig.getReferences()) {
-                        sb.append("\n\n").append(ref);
+                    for (ReferenceDoc ref : skillConfig.getReferences()) {
+                        sb.append("\n\n").append(ref.content());
                     }
                 }
             }

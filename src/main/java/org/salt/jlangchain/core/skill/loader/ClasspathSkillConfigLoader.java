@@ -15,6 +15,8 @@
 package org.salt.jlangchain.core.skill.loader;
 
 import lombok.extern.slf4j.Slf4j;
+import org.salt.jlangchain.core.skill.ReferenceDoc;
+import org.salt.jlangchain.core.skill.ReferencesMode;
 import org.salt.jlangchain.core.skill.ScriptDef;
 import org.salt.jlangchain.core.skill.ScriptTool;
 import org.salt.jlangchain.core.skill.SkillConfig;
@@ -34,8 +36,8 @@ import java.util.*;
  *
  * <pre>
  * {skillDir}/
- *   SKILL.md          → frontmatter (name, description, allowed-tools) + body (systemPrompt)
- *   references/*.md   → domain knowledge injected into systemPrompt
+ *   SKILL.md          → frontmatter (name, description, allowed-tools, references-mode) + body (systemPrompt)
+ *   references/*.md   → domain knowledge, inlined or read on demand per references-mode
  *   scripts/*         → executable scripts converted to ScriptDef
  *   agents/*.md       → embedded sub-agents (no frontmatter; name from filename, body as systemPrompt)
  * </pre>
@@ -70,7 +72,7 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
         }
 
         SkillMdParsed parsed = parseSkillMd(skillMdContent);
-        List<String> references = loadReferences(dir);
+        List<ReferenceDoc> references = loadReferences(dir);
         List<ScriptDef> scripts = loadScripts(dir);
         List<SubAgentConfig> agents = loadAgents(dir);
 
@@ -80,9 +82,12 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
                 .allowedTools(parsed.allowedTools())
                 .systemPrompt(parsed.body())
                 .references(references)
+                .referencesMode(parsed.referencesMode())
                 .scripts(scripts)
                 .agents(agents)
                 .maxIterations(parsed.maxIterations())
+                .license(parsed.license())
+                .metadata(parsed.metadata())
                 .build();
     }
 
@@ -93,7 +98,7 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
         String[] parts = content.split("(?m)^---\\s*$", 3);
         if (parts.length < 3) {
             // No frontmatter — treat the whole file as systemPrompt
-            return new SkillMdParsed("", "", List.of(), null, content.trim());
+            return new SkillMdParsed("", "", List.of(), null, ReferencesMode.INLINE, null, null, content.trim());
         }
 
         // parts[0] = "" (before first ---), parts[1] = YAML, parts[2] = body
@@ -105,8 +110,22 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
                 getString(fm, "description", ""),
                 getStringList(fm, "allowed-tools"),
                 getInteger(fm, "max-iterations"),
+                getReferencesMode(fm),
+                getString(fm, "license", null),
+                getMetadata(fm),
                 body
         );
+    }
+
+    private ReferencesMode getReferencesMode(Map<String, Object> fm) {
+        String mode = getString(fm, "references-mode", "inline");
+        return "lazy".equalsIgnoreCase(mode) ? ReferencesMode.LAZY : ReferencesMode.INLINE;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getMetadata(Map<String, Object> fm) {
+        Object val = fm.get("metadata");
+        return val instanceof Map<?, ?> m ? (Map<String, Object>) m : null;
     }
 
     @SuppressWarnings("unchecked")
@@ -122,14 +141,14 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
 
     // ── references loading ───────────────────────────────────────────────────
 
-    private List<String> loadReferences(String dir) {
+    private List<ReferenceDoc> loadReferences(String dir) {
         try {
             Resource[] resources = RESOLVER.getResources("classpath:" + dir + "/references/*.md");
-            List<String> refs = new ArrayList<>();
+            List<ReferenceDoc> refs = new ArrayList<>();
             for (Resource r : resources) {
                 String content = readInputStream(r.getInputStream());
                 if (content != null && !content.isBlank()) {
-                    refs.add(content);
+                    refs.add(new ReferenceDoc(r.getFilename(), content, firstLine(content)));
                 }
             }
             return refs;
@@ -137,6 +156,16 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
             log.debug("No references in {}/references/", dir);
             return List.of();
         }
+    }
+
+    /** First non-blank line, stripped of leading markdown heading markers, used as a lazy-mode summary. */
+    private String firstLine(String content) {
+        for (String line : content.split("\n")) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty()) continue;
+            return trimmed.replaceFirst("^#+\\s*", "");
+        }
+        return "";
     }
 
     // ── scripts loading ──────────────────────────────────────────────────────
@@ -279,5 +308,7 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
         return List.of();
     }
 
-    private record SkillMdParsed(String name, String description, List<String> allowedTools, Integer maxIterations, String body) {}
+    private record SkillMdParsed(String name, String description, List<String> allowedTools, Integer maxIterations,
+                                  ReferencesMode referencesMode, String license, Map<String, Object> metadata,
+                                  String body) {}
 }

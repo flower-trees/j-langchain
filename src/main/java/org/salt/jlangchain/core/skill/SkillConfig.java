@@ -21,6 +21,7 @@ import lombok.NoArgsConstructor;
 import org.salt.jlangchain.core.subagent.SubAgentConfig;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Pure data class representing a skill's full configuration.
@@ -30,12 +31,12 @@ import java.util.List;
  * <ul>
  *   <li>frontmatter fields → name, description, allowedTools</li>
  *   <li>SKILL.md body → systemPrompt</li>
- *   <li>references/*.md → references (pre-loaded text)</li>
+ *   <li>references/*.md → references (inlined or lazily read, per referencesMode)</li>
  *   <li>scripts/* → scripts (source code, written to temp files at runtime)</li>
  * </ul>
  */
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class SkillConfig {
@@ -53,8 +54,14 @@ public class SkillConfig {
     /** Workflow instructions for the internal sub-agent (SKILL.md body). */
     private String systemPrompt;
 
-    /** Pre-loaded content from references/*.md, injected into the system prompt. */
-    private List<String> references;
+    /** Documents from references/*.md. Whether they're inlined or read on demand is
+     *  controlled by {@link #referencesMode}. */
+    private List<ReferenceDoc> references;
+
+    /** How {@link #references} are exposed to the internal executor. Null is treated as
+     *  {@link ReferencesMode#INLINE} (original behavior, backward compatible). */
+    @Builder.Default
+    private ReferencesMode referencesMode = ReferencesMode.INLINE;
 
     /** Script definitions from scripts/*, converted to Tools at runtime. */
     private List<ScriptDef> scripts;
@@ -68,4 +75,10 @@ public class SkillConfig {
 
     /** Max ReAct/FC iterations for the internal sub-agent. Null means use framework default (10). */
     private Integer maxIterations;
+
+    /** Optional license/attribution string from SKILL.md frontmatter. Passthrough only. */
+    private String license;
+
+    /** Optional arbitrary metadata from SKILL.md frontmatter. Passthrough only. */
+    private Map<String, Object> metadata;
 }
