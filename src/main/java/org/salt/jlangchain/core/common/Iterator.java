@@ -14,11 +14,14 @@
 
 package org.salt.jlangchain.core.common;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
+@Slf4j
 public class Iterator<T> {
 
     protected SynchronousQueue<T> queue = new SynchronousQueue<>(true);
@@ -33,6 +36,17 @@ public class Iterator<T> {
     }
 
     public void append(T message) throws TimeoutException {
+        // Once hasNext() reads a chunk that isLastFunction marks as final, it sets isLast=true and
+        // will never call poll() again (see the short-circuit at the top of hasNext()). So any message
+        // appended after that point is guaranteed to have no consumer waiting for it - this commonly
+        // happens when a provider sends one more frame (e.g. a usage-only trailer) after finish_reason
+        // is already STOP, before the transport-level stream actually closes. Drop it immediately
+        // instead of blocking for offerTimeout and throwing; this changes nothing on the normal
+        // consumption path, it just removes a wait that was guaranteed to fail anyway.
+        if (isLast) {
+            log.debug("iterator already finished, drop late message: {}", message);
+            return;
+        }
         try {
             boolean result = queue.offer(message, offerTimeout, TimeUnit.MILLISECONDS);
             if (!result) {
