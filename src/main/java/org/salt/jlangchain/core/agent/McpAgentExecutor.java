@@ -601,7 +601,8 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     Info.c(output -> output instanceof ChatPromptValue, output -> {
                         AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
                         throw new AgentAbortException(AgentAbortReason.MAX_STEPS,
-                                "Max iterations (" + maxIter + ") reached without a final answer.", ctx);
+                                "Max iterations (" + maxIter + ") reached without a final answer."
+                                        + summarizeStepsForDiagnostic(ctx), ctx);
                     }),
                     Info.c(new StrOutputParser())
                 )
@@ -728,6 +729,47 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     return role + ": " + content;
                 })
                 .collect(Collectors.joining("\n"));
+        }
+
+        /**
+         * Renders the last {@link #MAX_DIAGNOSTIC_STEPS} completed steps (tool call + result)
+         * as a compact trailer for the {@code MAX_STEPS} abort message, so a caller doesn't
+         * just see "ran out of iterations" but also what it spent them on — in particular
+         * repeated failed/no-op calls to the same tool, which is what actually stalls most
+         * runaway loops.
+         */
+        private static String summarizeStepsForDiagnostic(AgentTaskContext ctx) {
+            if (ctx == null) return "";
+            List<AgentStep> steps = ctx.getCompletedSteps();
+            if (CollectionUtils.isEmpty(steps)) return "";
+            int from = Math.max(0, steps.size() - MAX_DIAGNOSTIC_STEPS);
+            StringBuilder sb = new StringBuilder("\nRecent tool calls:");
+            for (int i = from; i < steps.size(); i++) {
+                AgentStep step = steps.get(i);
+                if (!(step.getAiMessage() instanceof ToolMessage toolMessage)
+                        || CollectionUtils.isEmpty(toolMessage.getToolCalls())) {
+                    continue;
+                }
+                List<AiChatOutput.ToolCall> calls = toolMessage.getToolCalls();
+                List<BaseMessage> results = step.getToolResults();
+                for (int j = 0; j < calls.size(); j++) {
+                    AiChatOutput.ToolCall call = calls.get(j);
+                    String obs = (results != null && j < results.size()) ? results.get(j).getContent() : "";
+                    sb.append("\n  ").append(i + 1).append(". ")
+                      .append(call.getFunction().getName())
+                      .append('(').append(truncateForDiagnostic(call.getFunction().getArguments(), 80)).append(')')
+                      .append(" -> ").append(truncateForDiagnostic(obs, 120));
+                }
+            }
+            return sb.toString();
+        }
+
+        private static final int MAX_DIAGNOSTIC_STEPS = 10;
+
+        private static String truncateForDiagnostic(String s, int max) {
+            if (s == null) return "";
+            String t = s.trim();
+            return t.length() <= max ? t : t.substring(0, max) + "...";
         }
 
         @SuppressWarnings("unchecked")

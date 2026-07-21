@@ -81,4 +81,22 @@ public class SkillConfig {
 
     /** Optional arbitrary metadata from SKILL.md frontmatter. Passthrough only. */
     private Map<String, Object> metadata;
+
+    /**
+     * Whether this skill was loaded from a real Claude Code-style SKILL.md directory
+     * ({@link org.salt.jlangchain.core.skill.loader.FileSystemSkillConfigLoader} /
+     * {@link org.salt.jlangchain.core.skill.loader.ClasspathSkillConfigLoader} both set this
+     * true), as opposed to being hand-built in code (e.g. {@code SkillConfig.builder()...} or
+     * an {@code @AgentSkill}-annotated class).
+     *
+     * <p>Real Claude Code skills never declare {@link #allowedTools} — that field is a
+     * j-langchain extension — because Claude Code runs skills inside the same agent that
+     * already has full filesystem/Bash access. When true and {@link #allowedTools} is empty,
+     * {@link Skill} grants a small set of scoped, sandboxed filesystem tools (see
+     * {@link SkillWorkspaceTools}) instead of leaving the skill with zero tools. Default false
+     * — code-first skills keep their exact current behavior unless explicitly opted in via
+     * {@link Skill.Builder#claudeCompatMode(boolean)}.
+     */
+    @Builder.Default
+    private boolean claudeCompatMode = false;
 }

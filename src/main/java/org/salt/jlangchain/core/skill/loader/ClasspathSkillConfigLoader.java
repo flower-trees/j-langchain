@@ -76,8 +76,14 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
         List<ScriptDef> scripts = loadScripts(dir);
         List<SubAgentConfig> agents = loadAgents(dir);
 
+        // See FileSystemSkillConfigLoader's identical fallback: SKILL.md missing its "---"
+        // frontmatter fences yields a blank name, which would otherwise produce an unfindable
+        // skill (capabilityId "<pluginId>." with an empty short name).
+        String lastSegment = dir.contains("/") ? dir.substring(dir.lastIndexOf('/') + 1) : dir;
+        String name = (parsed.name() != null && !parsed.name().isBlank()) ? parsed.name() : lastSegment;
+
         return SkillConfig.builder()
-                .name(parsed.name())
+                .name(name)
                 .description(parsed.description())
                 .allowedTools(parsed.allowedTools())
                 .systemPrompt(parsed.body())
@@ -88,6 +94,7 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
                 .maxIterations(parsed.maxIterations())
                 .license(parsed.license())
                 .metadata(parsed.metadata())
+                .claudeCompatMode(true)
                 .build();
     }
 
@@ -181,9 +188,10 @@ public class ClasspathSkillConfigLoader implements SkillConfigLoader {
                 if (!ScriptTool.supports(ext)) continue;
                 String name = filename.substring(0, filename.lastIndexOf('.'));
                 String content = readInputStream(r.getInputStream());
-                if (content != null) {
-                    scripts.add(ScriptDef.builder().name(name).type(ext).content(content).build());
-                }
+                if (content == null) continue;
+                // Skip library-only files (utils.py, __init__.py, ...) — see FileSystemSkillConfigLoader.
+                if (!ScriptTool.hasEntrypoint(ext, content)) continue;
+                scripts.add(ScriptDef.builder().name(name).type(ext).content(content).build());
             }
             return scripts;
         } catch (IOException e) {

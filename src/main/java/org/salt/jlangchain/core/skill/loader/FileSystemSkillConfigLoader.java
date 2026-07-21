@@ -72,8 +72,17 @@ public class FileSystemSkillConfigLoader implements SkillConfigLoader {
         List<ScriptDef> scripts = loadScripts(dir);
         List<SubAgentConfig> agents = loadAgents(dir);
 
+        // Falls back to the directory name when SKILL.md has no "name:" frontmatter field —
+        // most commonly because the file is missing its "---" fences entirely (e.g. an LLM
+        // authoring tool that wrote the frontmatter fields as plain text). Without this, a
+        // blank name produces an unfindable skill: capabilityId becomes "<pluginId>." with a
+        // trailing dot and an empty short name, so neither /skills listing nor short-name
+        // dispatch can reach it — silently worse than a slightly-wrong-but-present name.
+        String name = (parsed.name() != null && !parsed.name().isBlank())
+                ? parsed.name() : dir.getFileName().toString();
+
         return SkillConfig.builder()
-                .name(parsed.name())
+                .name(name)
                 .description(parsed.description())
                 .allowedTools(parsed.allowedTools())
                 .systemPrompt(parsed.body())
@@ -84,6 +93,7 @@ public class FileSystemSkillConfigLoader implements SkillConfigLoader {
                 .maxIterations(parsed.maxIterations())
                 .license(parsed.license())
                 .metadata(parsed.metadata())
+                .claudeCompatMode(true)
                 .build();
     }
 
@@ -156,6 +166,10 @@ public class FileSystemSkillConfigLoader implements SkillConfigLoader {
     private List<ScriptDef> loadScripts(Path dir) {
         Path scriptsDir = dir.resolve("scripts");
         if (!Files.isDirectory(scriptsDir)) return List.of();
+        // Scripts run in place (see ScriptTool) so sibling files — other scripts, __init__.py,
+        // references/, assets/ — stay reachable; workDir is the skill root, not scripts/ itself,
+        // so "python -m scripts.foo"-style package-relative imports resolve.
+        String workDir = dir.toAbsolutePath().toString();
         List<ScriptDef> scripts = new ArrayList<>();
         try (Stream<Path> files = Files.list(scriptsDir)) {
             files.filter(Files::isRegularFile).sorted().forEach(p -> {
@@ -165,9 +179,17 @@ public class FileSystemSkillConfigLoader implements SkillConfigLoader {
                 if (!ScriptTool.supports(ext)) return;
                 String name = filename.substring(0, filename.lastIndexOf('.'));
                 String content = readFile(p);
-                if (content != null) {
-                    scripts.add(ScriptDef.builder().name(name).type(ext).content(content).build());
-                }
+                if (content == null) return;
+                // Skip library-only files (e.g. utils.py, __init__.py) — registering them as
+                // callable tools invites the model to misuse them as a generic shell substitute.
+                // The file itself is untouched on disk, so package imports (scripts.utils) still
+                // work via ScriptTool's in-place "python -m" invocation.
+                if (!ScriptTool.hasEntrypoint(ext, content)) return;
+                scripts.add(ScriptDef.builder()
+                        .name(name).type(ext).content(content)
+                        .sourcePath(p.toAbsolutePath().toString())
+                        .workDir(workDir)
+                        .build());
             });
         } catch (IOException e) {
             log.debug("No scripts in {}/scripts/", dir);

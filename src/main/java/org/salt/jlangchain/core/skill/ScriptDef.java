@@ -39,4 +39,21 @@ public class ScriptDef {
 
     /** Full source code of the script. */
     private String content;
+
+    /**
+     * Absolute path to this script's real file on disk, when loaded from a real filesystem
+     * location (e.g. {@link org.salt.jlangchain.core.skill.loader.FileSystemSkillConfigLoader}).
+     * Null for classpath-loaded or code-first (in-memory) scripts, which have no real file to
+     * run in place — those fall back to running an extracted temp copy of {@link #content}.
+     */
+    private String sourcePath;
+
+    /**
+     * Directory to use as the process's working directory when running {@link #sourcePath} in
+     * place — typically the skill's or plugin's own root directory, so relative imports and
+     * sibling-file lookups (other scripts, {@code __init__.py}, {@code references/},
+     * {@code assets/}) resolve correctly instead of breaking against an isolated temp
+     * directory. Only meaningful when {@link #sourcePath} is set; see {@link ScriptTool}.
+     */
+    private String workDir;
 }
