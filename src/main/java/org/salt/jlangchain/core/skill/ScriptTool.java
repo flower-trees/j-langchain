@@ -28,8 +28,8 @@ import java.util.regex.Pattern;
 /**
  * Converts a {@link ScriptDef} into an executable {@link Tool}.
  *
- * <p>When {@link ScriptDef#setSourcePath} is set (filesystem-loaded scripts), the script
- * runs in place from its real location, with {@link ScriptDef#setWorkDir} as the process's
+ * <p>When {@link ScriptDef#sourcePath} is set (filesystem-loaded scripts), the script
+ * runs in place from its real location, with {@link ScriptDef#workDir} as the process's
  * working directory — this keeps sibling files (other scripts, {@code __init__.py},
  * {@code references/}, {@code assets/}) reachable, which multi-file script packages with
  * relative imports depend on. Python scripts whose own directory is a package (has an

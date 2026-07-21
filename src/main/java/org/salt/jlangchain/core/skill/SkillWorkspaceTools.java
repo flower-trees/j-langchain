@@ -27,7 +27,7 @@ import java.util.stream.Stream;
 
 /**
  * Scoped filesystem tools for {@link Skill}'s "Claude-compatible" execution mode (see
- * {@link SkillConfig#setClaudeCompatMode(boolean)} laudeCompatMode}) — a minimal stand-in for the generic filesystem
+ * {@link SkillConfig#claudeCompatMode claudeCompatMode}) — a minimal stand-in for the generic filesystem
  * access Claude Code always gives its skills. Without this, a skill with no {@code
  * allowed-tools} (true of virtually every real Claude Code skill — that frontmatter field is a
  * j-langchain extension) has zero tools to create, inspect, or write the files it needs.
