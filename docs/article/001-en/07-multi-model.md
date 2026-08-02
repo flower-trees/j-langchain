@@ -1,7 +1,7 @@
 # Integrating Multiple LLM APIs in Java: A Practical Comparison
 
 > **Audience**: Java developers who need to integrate LLM APIs, or engineers evaluating model options  
-> **Supported models**: Ollama (local), Alibaba Cloud Qwen, OpenAI, ByteDance Coze
+> **Supported models**: Ollama (local), Alibaba Cloud Qwen, OpenAI, ByteDance Doubao
 
 ---
 
@@ -21,7 +21,6 @@
 | `qwen2.5:0.5b` | Ollama (local) | Free, no network dependency, zero latency | Development/testing, private data |
 | `qwen-plus` | Alibaba Cloud | Great Chinese performance, stable, affordable | Domestic production |
 | `gpt-4` | OpenAI | Most capable | High-quality tasks |
-| Coze Bot | ByteDance | Customizable knowledge base and plugins | Enterprise customization |
 
 ---
 
@@ -182,14 +181,6 @@ aliyun:
 openai:
   api-key: ${OPENAI_KEY}
   base-url: https://api.openai.com/v1  # Or a proxy URL
-```
-
-### ByteDance Coze
-```yaml
-coze:
-  client-id: ${COZE_CLIENT_ID}
-  private-key-path: ${COZE_PRIVATE_KEY_PATH}
-  public-key-id: ${COZE_PUBLIC_KEY_ID}
 ```
 
 ---

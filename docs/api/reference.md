@@ -49,7 +49,6 @@ All implementations support `invoke`, `stream`, `streamEvent`, and `withConfig`.
 | `ChatAliyun` | `core.llm.aliyun` | `ALIYUN_KEY` | Alibaba Cloud Qwen |
 | `ChatMoonshot` | `core.llm.moonshot` | `MOONSHOT_KEY` | Moonshot (Kimi) |
 | `ChatDoubao` | `core.llm.doubao` | `DOUBAO_KEY` | Doubao (ByteDance) |
-| `ChatCoze` | `core.llm.doubao` | `COZE_KEY` | Coze |
 | `ChatDeepseek` | `core.llm.deepseek` | `DEEPSEEK_KEY` | DeepSeek-V3 / R1 |
 | `ChatHunyuan` | `core.llm.hunyuan` | `HUNYUAN_KEY` | Tencent Hunyuan |
 | `ChatQianfan` | `core.llm.qianfan` | `QIANFAN_KEY` | Baidu ERNIE |
@@ -106,15 +105,6 @@ String fullAnswer    = stream.getContent();
 ```
 
 > `getReasoningContent()` returns `null` for non-reasoning models — existing code is unaffected.
-
-### 2.4 Coze OAuth 2.0
-
-```java
-// OAuth alternative to COZE_KEY
-export COZE_CLIENT_ID=xxx
-export COZE_PRIVATE_KEY_PATH=/path/to/private-key.pem
-export COZE_PUBLIC_KEY_ID=xxx
-```
 
 ---
 
@@ -683,10 +673,6 @@ Chain building is powered by [salt-function-flow](https://github.com/flower-tree
 | `ALIYUN_KEY` | `ChatAliyun` | Alibaba Cloud Qwen |
 | `MOONSHOT_KEY` | `ChatMoonshot` | Moonshot (Kimi) |
 | `DOUBAO_KEY` | `ChatDoubao` | Doubao (ByteDance) |
-| `COZE_KEY` | `ChatCoze` | Coze API key |
-| `COZE_CLIENT_ID` | `ChatCoze` | Coze OAuth 2.0 client ID |
-| `COZE_PRIVATE_KEY_PATH` | `ChatCoze` | Coze OAuth 2.0 private key path |
-| `COZE_PUBLIC_KEY_ID` | `ChatCoze` | Coze OAuth 2.0 public key ID |
 | `DEEPSEEK_KEY` | `ChatDeepseek` | DeepSeek API key |
 | `HUNYUAN_KEY` | `ChatHunyuan` | Tencent Hunyuan |
 | `QIANFAN_KEY` | `ChatQianfan` | Baidu Qianfan (ERNIE) |

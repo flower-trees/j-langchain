@@ -228,8 +228,8 @@ Every tutorial has a runnable demo class — no setup beyond a single API key.
 
 ## ✨ Core Features at a Glance
 
-### 🎯 13+ LLM Integrations — one unified API
-OpenAI · Ollama · DeepSeek · Alibaba Qwen · Moonshot (Kimi) · Doubao · Coze · Hunyuan · Qianfan (ERNIE) · Zhipu GLM · MiniMax · Lingyi Yi · Stepfun
+### 🎯 12+ LLM Integrations — one unified API
+OpenAI · Ollama · DeepSeek · Alibaba Qwen · Moonshot (Kimi) · Doubao · Hunyuan · Qianfan (ERNIE) · Zhipu GLM · MiniMax · Lingyi Yi · Stepfun
 
 ### 🔗 Chain Orchestration
 Sequential · Parallel · Nested · Conditional routing · Streaming output · Full event lifecycle

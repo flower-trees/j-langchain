@@ -95,29 +95,6 @@ Environment variable: `MOONSHOT_KEY`
 
 ---
 
-### Coze
-
-Coze's integration differs slightly — it requires an additional `botId`. You can create a Bot in the Coze console, then set the Bot ID as the environment variable `COZE_BOT_ID`. Without it, the example uses a placeholder ID and calls will fail until replaced with a real value.
-
-The code uses JUnit's `Assume` mechanism: if `COZE_KEY` is not configured, the test is automatically skipped without affecting other test cases:
-
-```java
-@Test
-public void chainCoze() {
-    // Auto-skip if COZE_KEY is not configured, no error thrown
-    Assume.assumeTrue("需要 COZE_KEY", StringUtils.isNotBlank(System.getenv("COZE_KEY")));
-    String botId = StringUtils.defaultIfBlank(System.getenv("COZE_BOT_ID"), "751971414224112XXXX");
-    runSimpleDomesticChain(
-        "扣子 Coze",
-        ChatCoze.builder().botId(botId).build()
-    );
-}
-```
-
-Environment variables: `COZE_KEY` + `COZE_BOT_ID`
-
----
-
 ### DeepSeek
 
 ```java
@@ -237,7 +214,6 @@ Environment variable: `STEPFUN_KEY`
 | Aliyun Qwen | `ChatAliyun` | `ALIYUN_KEY` | `qwen-plus` |
 | Doubao (Volcengine) | `ChatDoubao` | `DOUBAO_KEY` | `doubao-1-5-lite-32k-250115` |
 | Moonshot (Kimi) | `ChatMoonshot` | `MOONSHOT_KEY` | `moonshot-v1-8k` |
-| Coze | `ChatCoze` | `COZE_KEY` + `COZE_BOT_ID` | — |
 | DeepSeek | `ChatDeepseek` | `DEEPSEEK_KEY` | `deepseek-chat` |
 | Tencent Hunyuan | `ChatHunyuan` | `HUNYUAN_KEY` | `hunyuan-turbo` |
 | Baidu Qianfan | `ChatQianfan` | `QIANFAN_KEY` | `ernie-4.5-8k` |
@@ -268,7 +244,7 @@ Run all:
 mvn test -Dtest=Article17DomesticVendorsChain
 ```
 
-Vendors whose keys are not configured will throw an authentication exception without affecting other test cases. Coze is the only special case that uses `Assume` to actively skip, because it additionally depends on `botId` and there's no generic way to detect readiness.
+Vendors whose keys are not configured will throw an authentication exception without affecting other test cases.
 
 ---
 

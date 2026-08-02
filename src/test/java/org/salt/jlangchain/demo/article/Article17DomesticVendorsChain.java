@@ -14,20 +14,15 @@
 
 package org.salt.jlangchain.demo.article;
 
-import com.coze.openapi.client.auth.OAuthToken;
-import org.apache.commons.lang3.StringUtils;
-import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.salt.function.flow.FlowInstance;
 import org.salt.jlangchain.TestApplication;
-import org.salt.jlangchain.ai.vendor.doubao.coze.auth.CozeOAuthHelper;
 import org.salt.jlangchain.core.BaseRunnable;
 import org.salt.jlangchain.core.ChainActor;
 import org.salt.jlangchain.core.llm.BaseChatModel;
 import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
 import org.salt.jlangchain.core.llm.deepseek.ChatDeepseek;
-import org.salt.jlangchain.core.llm.doubao.ChatCoze;
 import org.salt.jlangchain.core.llm.doubao.ChatDoubao;
 import org.salt.jlangchain.core.llm.hunyuan.ChatHunyuan;
 import org.salt.jlangchain.core.llm.lingyi.ChatLingyi;
@@ -63,9 +58,6 @@ public class Article17DomesticVendorsChain {
     @Autowired
     ChainActor chainActor;
 
-    @Autowired
-    CozeOAuthHelper cozeOAuthHelper;
-
     private void runSimpleDomesticChain(String banner, BaseChatModel llm) {
         BaseRunnable<StringPromptValue, ?> prompt = PromptTemplate.fromTemplate(
             "请用一句话（不超过40字）中文回答：${topic}"
@@ -96,17 +88,6 @@ public class Article17DomesticVendorsChain {
     @Test
     public void chainMoonshot() {
         runSimpleDomesticChain("Moonshot Kimi（MOONSHOT_KEY）", ChatMoonshot.builder().model("moonshot-v1-8k").build());
-    }
-
-    /**
-     * 需要 {@code COZE_KEY}；{@code COZE_BOT_ID} 可选，未设置时使用占位，请替换为控制台真实 Bot。
-     */
-    @Test
-    public void chainCoze() {
-        Assume.assumeTrue("需要 COZE_KEY", StringUtils.isNotBlank(System.getenv("COZE_KEY")));
-        OAuthToken oAuthToken = cozeOAuthHelper.getAccessToken();
-        String botId = StringUtils.defaultIfBlank(System.getenv("COZE_BOT_ID"), "751971414224112XXXX");
-        runSimpleDomesticChain("扣子 Coze（COZE_KEY + 有效 COZE_BOT_ID）", ChatCoze.builder().botId(botId).key(oAuthToken.getAccessToken()).build());
     }
 
     @Test

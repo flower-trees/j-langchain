@@ -49,7 +49,6 @@ String result = chainActor.invoke(chain, Map.of("topic", "AI"));
 | `ChatAliyun` | `core.llm.aliyun` | `ALIYUN_KEY` | 阿里云千问 |
 | `ChatMoonshot` | `core.llm.moonshot` | `MOONSHOT_KEY` | Moonshot (Kimi) |
 | `ChatDoubao` | `core.llm.doubao` | `DOUBAO_KEY` | 豆包（字节跳动） |
-| `ChatCoze` | `core.llm.doubao` | `COZE_KEY` | 扣子 |
 | `ChatDeepseek` | `core.llm.deepseek` | `DEEPSEEK_KEY` | DeepSeek-V3 / R1 |
 | `ChatHunyuan` | `core.llm.hunyuan` | `HUNYUAN_KEY` | 腾讯混元 |
 | `ChatQianfan` | `core.llm.qianfan` | `QIANFAN_KEY` | 百度文心（ERNIE） |
@@ -106,15 +105,6 @@ String fullAnswer    = stream.getContent();
 ```
 
 > 非推理模型的 `getReasoningContent()` 返回 `null`，不影响现有代码。
-
-### 2.4 扣子 OAuth 2.0
-
-```bash
-# COZE_KEY 的替代方案
-export COZE_CLIENT_ID=xxx
-export COZE_PRIVATE_KEY_PATH=/path/to/private-key.pem
-export COZE_PUBLIC_KEY_ID=xxx
-```
 
 ---
 
@@ -682,10 +672,6 @@ TtsCardChunk audio = tts.stream("你好，欢迎使用 J-LangChain！");
 | `ALIYUN_KEY` | `ChatAliyun` | 阿里云千问 |
 | `MOONSHOT_KEY` | `ChatMoonshot` | Moonshot (Kimi) |
 | `DOUBAO_KEY` | `ChatDoubao` | 豆包 |
-| `COZE_KEY` | `ChatCoze` | 扣子 API Key |
-| `COZE_CLIENT_ID` | `ChatCoze` | 扣子 OAuth 2.0 Client ID |
-| `COZE_PRIVATE_KEY_PATH` | `ChatCoze` | 扣子 OAuth 2.0 私钥路径 |
-| `COZE_PUBLIC_KEY_ID` | `ChatCoze` | 扣子 OAuth 2.0 公钥 ID |
 | `DEEPSEEK_KEY` | `ChatDeepseek` | DeepSeek |
 | `HUNYUAN_KEY` | `ChatHunyuan` | 腾讯混元 |
 | `QIANFAN_KEY` | `ChatQianfan` | 百度千帆（文心） |

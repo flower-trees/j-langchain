@@ -23,18 +23,12 @@ import org.salt.function.flow.context.ContextBus;
 import org.salt.function.flow.thread.TheadHelper;
 import org.salt.jlangchain.ai.chat.sse.SseListenerStrategy;
 import org.salt.jlangchain.ai.client.AiException;
-import org.salt.jlangchain.ai.vendor.doubao.coze.SseEventType;
 import org.salt.jlangchain.utils.JsonUtil;
 import org.springframework.beans.factory.InitializingBean;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +36,10 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Data
 public class HttpSseClient implements InitializingBean {
+
+    public static final String DEFAULT_EVENT = "message";
+    public static final String STOP_EVENT = "stop";
+    public static final String COMPLETED_EVENT = "done";
 
     private TheadHelper theadHelper;
 
@@ -74,24 +72,6 @@ public class HttpSseClient implements InitializingBean {
             Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort));
             builder.proxy(proxy);
         }
-
-        TrustManager[] trustAllCerts = new TrustManager[]{
-                new X509TrustManager() {
-                    public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {}
-                    public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) {}
-                    public java.security.cert.X509Certificate[] getAcceptedIssuers() { return new java.security.cert.X509Certificate[0]; }
-                }
-        };
-        SSLContext sslContext = null;
-        try {
-            sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
-        } catch (NoSuchAlgorithmException | KeyManagementException e) {
-            throw new RuntimeException(e);
-        }
-
-        builder.sslSocketFactory(sslContext.getSocketFactory(), (X509TrustManager) trustAllCerts[0]);
-        builder.hostnameVerifier((hostname, session) -> true);
 
         okHttpClient = builder.build();
         okHttpClient.dispatcher().setMaxRequests(maxConnections);
@@ -140,13 +120,13 @@ public class HttpSseClient implements InitializingBean {
                 if (responseBody != null) {
                     try {
                         BufferedSource source = responseBody.source();
-                        String event = null;
+                        String event = DEFAULT_EVENT;
                         while (!source.exhausted()) {
                             // is stop call
                             if (ContextBus.get() != null && ((ContextBus) ContextBus.get()).isStopProcess()) {
                                 log.info("http stream call stop");
-                                dealContent("stop","stop", strategyList);
-                                dealContent("done", "[DONE]", strategyList);
+                                dealContent(STOP_EVENT, STOP_EVENT, strategyList);
+                                dealContent(COMPLETED_EVENT, "[DONE]", strategyList);
                                 break;
                             }
 
@@ -167,8 +147,8 @@ public class HttpSseClient implements InitializingBean {
                                 dealContent(event, content, strategyList);
                             } else if (lineComplete.startsWith("event:")) {
                                 event = getEvent(lineComplete);
-                            } else {
-                                dealContent(lineComplete, strategyList);
+                            } else if (!lineComplete.startsWith(":")) {
+                                dealContent(DEFAULT_EVENT, lineComplete, strategyList);
                                 break;
                             }
                         }
@@ -219,7 +199,7 @@ public class HttpSseClient implements InitializingBean {
 
     private String getEvent(String lineComplete) {
         int index = "event:".length();
-        return lineComplete.substring(index);
+        return lineComplete.substring(index).trim();
     }
 
     private void dealContent(String event, String content, List<SseListenerStrategy> strategyList) {
@@ -229,12 +209,6 @@ public class HttpSseClient implements InitializingBean {
         } else {
             closeForEach(strategyList);
         }
-    }
-
-    private void dealContent(String content, List<SseListenerStrategy> strategyList) {
-        messageForEach(strategyList, SseEventType.MESSAGE_DELTA.getCode(), content);
-        messageForEach(strategyList, SseEventType.CHAT_COMPLETED.getCode(), "[DONE]");
-//        closeForEach(strategyList);
     }
 
     private void openForEach(List<SseListenerStrategy> strategyList) {
@@ -292,6 +266,7 @@ public class HttpSseClient implements InitializingBean {
             try {
                 Thread.sleep(sleepTime);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 log.warn("http stream call pause, e:{}", e.getMessage());
             }
         }
