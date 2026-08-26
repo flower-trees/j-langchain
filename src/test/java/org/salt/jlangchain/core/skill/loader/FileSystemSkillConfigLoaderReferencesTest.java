@@ -30,8 +30,7 @@ import java.util.Map;
 import static org.junit.Assert.*;
 
 /**
- * Covers §2.2 (references-mode) and §2.4 (license/metadata passthrough) of
- * skill-claude-code-compat.md at the loader level.
+ * Covers references-mode (INLINE vs LAZY) and license/metadata passthrough at the loader level.
  */
 public class FileSystemSkillConfigLoaderReferencesTest {
 

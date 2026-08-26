@@ -28,8 +28,8 @@ import java.util.Optional;
 import static org.junit.Assert.*;
 
 /**
- * Verifies references-mode behavior (§2.2 of skill-claude-code-compat.md) without needing
- * a real LLM or executor — {@link Skill#buildSystemPrompt()} / {@link Skill#collectTools()}
+ * Verifies references-mode behavior (INLINE vs LAZY handling of {@code references/*.md}) without
+ * needing a real LLM or executor — {@link Skill#buildSystemPrompt()} / {@link Skill#collectTools()}
  * only read {@link SkillConfig}, so a stub {@link BaseChatModel} is enough to satisfy
  * {@link Skill.Builder#build()}.
  */
