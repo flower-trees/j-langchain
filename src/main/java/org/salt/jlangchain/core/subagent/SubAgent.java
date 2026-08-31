@@ -68,6 +68,7 @@ public class SubAgent {
     private final List<Tool> ownTools;
     private final List<Skill> callableSkills;
     private final int maxIterations;
+    private final int maxConsecutiveToolFailures;
     private final Consumer<String> onLlm;
     private final Consumer<String> onToolCall;
     private final Consumer<String> onObservation;
@@ -81,6 +82,7 @@ public class SubAgent {
     private SubAgent(SubAgentConfig config, ChainActor chainActor, BaseChatModel llm,
                      Function<String, BaseChatModel> llmFactory,
                      List<Tool> ownTools, List<Skill> callableSkills, int maxIterations,
+                     int maxConsecutiveToolFailures,
                      Consumer<String> onLlm, Consumer<String> onToolCall, Consumer<String> onObservation,
                      Consumer<AgentTokenUsageEvent> onTokenUsage) {
         this.config = config;
@@ -90,6 +92,7 @@ public class SubAgent {
         this.ownTools = new ArrayList<>(ownTools);
         this.callableSkills = new ArrayList<>(callableSkills);
         this.maxIterations = maxIterations;
+        this.maxConsecutiveToolFailures = maxConsecutiveToolFailures;
         this.onLlm = onLlm;
         this.onToolCall = onToolCall;
         this.onObservation = onObservation;
@@ -187,7 +190,8 @@ public class SubAgent {
                 .llm(resolvedLlm)
                 .systemPrompt(buildSystemPrompt())
                 .tools(allTools)
-                .maxIterations(maxIterations);
+                .maxIterations(maxIterations)
+                .maxConsecutiveToolFailures(maxConsecutiveToolFailures);
 
         for (Skill skill : callableSkills) {
             builder.skill(skill);
@@ -250,6 +254,7 @@ public class SubAgent {
         private final List<Tool> ownTools = new ArrayList<>();
         private final List<Skill> callableSkills = new ArrayList<>();
         private Integer maxIterations;
+        private Integer maxConsecutiveToolFailures;
         private Consumer<String> onLlm;
         private Consumer<String> onToolCall;
         private Consumer<String> onObservation;
@@ -299,6 +304,20 @@ public class SubAgent {
         /** Override max iterations. Priority: this > SubAgentConfig.maxIterations > default (10). */
         public Builder maxIterations(int maxIterations) {
             this.maxIterations = maxIterations;
+            return this;
+        }
+
+        /**
+         * Caps consecutive tool-call failures before this sub-agent's own executor aborts its
+         * round early, same purpose as {@code McpAgentExecutor.Builder.maxConsecutiveToolFailures}
+         * (which this passes straight through in {@link #buildExecutor()}). Previously had no
+         * way to be set at all for sub-agents — they always ran with the disabled default (0),
+         * regardless of what the parent agent configured, since nothing here forwarded it into
+         * the sub-agent's own internal executor. Unset defaults to 0 (disabled), matching
+         * McpAgentExecutor's own default.
+         */
+        public Builder maxConsecutiveToolFailures(int maxConsecutiveToolFailures) {
+            this.maxConsecutiveToolFailures = maxConsecutiveToolFailures;
             return this;
         }
 
@@ -353,8 +372,9 @@ public class SubAgent {
             }
             int resolvedMaxIter = maxIterations != null ? maxIterations
                     : (config.getMaxIterations() != null ? config.getMaxIterations() : DEFAULT_MAX_ITERATIONS);
+            int resolvedMaxConsecFail = maxConsecutiveToolFailures != null ? maxConsecutiveToolFailures : 0;
             return new SubAgent(config, chainActor, llm, llmFactory, ownTools, callableSkills,
-                    resolvedMaxIter, onLlm, onToolCall, onObservation, onTokenUsage);
+                    resolvedMaxIter, resolvedMaxConsecFail, onLlm, onToolCall, onObservation, onTokenUsage);
         }
     }
 }

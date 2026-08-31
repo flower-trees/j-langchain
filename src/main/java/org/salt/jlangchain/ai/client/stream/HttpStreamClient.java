@@ -204,7 +204,11 @@ public class HttpStreamClient implements InitializingBean {
         if (body instanceof String) {
             bodyJson = (String) body;
         } else {
-            bodyJson = JsonUtil.toJson(body);
+            // Use the strict (non-Long-stringifying) mapper here: this body goes straight to a
+            // third-party LLM vendor, whose strict JSON Schema validation on the `tools` payload
+            // will reject a numeric bound that our normal Long->String convention turned into a
+            // string. See JsonUtil.strictObjectMapper's javadoc for the real incident this fixes.
+            bodyJson = JsonUtil.toJsonStrict(body);
         }
 
         assert bodyJson != null;
@@ -214,7 +218,7 @@ public class HttpStreamClient implements InitializingBean {
                 .post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyJson))
                 .build();
 
-        log.debug("http stream call, url:{}, headers:{}, body:{}", url, headers, JsonUtil.toJson(body));
+        log.debug("http stream call, url:{}, headers:{}, body:{}", url, headers, bodyJson);
 
         return request;
     }

@@ -43,13 +43,16 @@ public abstract class SseBaseAiChatActuator<O, I> implements AiChatActuator {
         this.httpSseClient = httpSseClient;
     }
 
+    // Note: every request body below is serialized with JsonUtil.toJsonStrict(), not toJson() —
+    // see BaseAiChatActuator's matching note / JsonUtil.strictObjectMapper's javadoc for why.
+
     //sync request vendor api
     @Override
     public AiChatOutput invoke(AiChatInput aiChatInput) {
         Map<String, String> headers = buildHeaders(aiChatInput);
         I request = convertRequest(aiChatInput);
 
-        O response = httpSseClient.request(getChatUrl(), JsonUtil.toJson(request), headers, responseType());
+        O response = httpSseClient.request(getChatUrl(), JsonUtil.toJsonStrict(request), headers, responseType());
         return convertResponse(response);
     }
 
@@ -60,7 +63,7 @@ public abstract class SseBaseAiChatActuator<O, I> implements AiChatActuator {
         I request = convertRequest(aiChatInput);
 
         AtomicReference<AiChatOutput> r = new AtomicReference<>();
-        httpSseClient.stream(getChatUrl(), JsonUtil.toJson(request), headers, List.of(getListenerStrategy(aiChatInput, responder, (input, output) -> r.set(output))));
+        httpSseClient.stream(getChatUrl(), JsonUtil.toJsonStrict(request), headers, List.of(getListenerStrategy(aiChatInput, responder, (input, output) -> r.set(output))));
         return r.get();
     }
 
@@ -70,7 +73,7 @@ public abstract class SseBaseAiChatActuator<O, I> implements AiChatActuator {
         Map<String, String> headers = buildHeaders(aiChatInput);
         I request = convertRequest(aiChatInput);
 
-        httpSseClient.astream(getChatUrl(), JsonUtil.toJson(request), headers, List.of(getListenerStrategy(aiChatInput, responder, null)));
+        httpSseClient.astream(getChatUrl(), JsonUtil.toJsonStrict(request), headers, List.of(getListenerStrategy(aiChatInput, responder, null)));
     }
 
     @Override
@@ -78,7 +81,7 @@ public abstract class SseBaseAiChatActuator<O, I> implements AiChatActuator {
         Map<String, String> headers = buildHeaders(aiChatInput);
         I request = convertRequest(aiChatInput);
 
-        httpSseClient.astream(getChatUrl(), JsonUtil.toJson(request), headers, List.of(getListenerStrategy(aiChatInput, responder, completeCallback)));
+        httpSseClient.astream(getChatUrl(), JsonUtil.toJsonStrict(request), headers, List.of(getListenerStrategy(aiChatInput, responder, completeCallback)));
     }
 
     // build vendor api headers

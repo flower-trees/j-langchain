@@ -41,13 +41,20 @@ public abstract class BaseAiChatActuator<O, I> implements AiChatActuator {
         this.commonHttpClient = commonHttpClient;
     }
 
+    // Note: every request body below is serialized with JsonUtil.toJsonStrict(), not toJson().
+    // toJson() runs a global Long->String rule meant to protect large snowflake IDs from JS
+    // Number precision loss in *our own* API responses; applied here to a vendor request body
+    // it can silently turn a numeric JSON Schema bound (e.g. a passthrough MCP tool schema's
+    // `maximum: 9007199254740991`) into a JSON string, which the vendor then rejects outright.
+    // See JsonUtil.strictObjectMapper's javadoc for the real incident this fixes.
+
     //sync request vendor api
     @Override
     public AiChatOutput invoke(AiChatInput aiChatInput) {
         Map<String, String> headers = buildHeaders();
         I request = convertRequest(aiChatInput);
 
-        O response = commonHttpClient.request(getChatUrl(), JsonUtil.toJson(request), headers, responseType());
+        O response = commonHttpClient.request(getChatUrl(), JsonUtil.toJsonStrict(request), headers, responseType());
         return convertResponse(response);
     }
 
@@ -58,7 +65,7 @@ public abstract class BaseAiChatActuator<O, I> implements AiChatActuator {
         I request = convertRequest(aiChatInput);
 
         AtomicReference<AiChatOutput> r = new AtomicReference<>();
-        commonHttpClient.stream(getChatUrl(), JsonUtil.toJson(request), headers, List.of(getListenerStrategy(aiChatInput, responder, (input, output) -> r.set(output))));
+        commonHttpClient.stream(getChatUrl(), JsonUtil.toJsonStrict(request), headers, List.of(getListenerStrategy(aiChatInput, responder, (input, output) -> r.set(output))));
         return r.get();
     }
 
@@ -68,7 +75,7 @@ public abstract class BaseAiChatActuator<O, I> implements AiChatActuator {
         Map<String, String> headers = buildHeaders();
         I request = convertRequest(aiChatInput);
 
-        commonHttpClient.astream(getChatUrl(), JsonUtil.toJson(request), headers, List.of(getListenerStrategy(aiChatInput, responder, null)));
+        commonHttpClient.astream(getChatUrl(), JsonUtil.toJsonStrict(request), headers, List.of(getListenerStrategy(aiChatInput, responder, null)));
     }
 
     @Override
@@ -76,7 +83,7 @@ public abstract class BaseAiChatActuator<O, I> implements AiChatActuator {
         Map<String, String> headers = buildHeaders();
         I request = convertRequest(aiChatInput);
 
-        commonHttpClient.astream(getChatUrl(), JsonUtil.toJson(request), headers, List.of(getListenerStrategy(aiChatInput, responder, completeCallback)));
+        commonHttpClient.astream(getChatUrl(), JsonUtil.toJsonStrict(request), headers, List.of(getListenerStrategy(aiChatInput, responder, completeCallback)));
     }
 
     //sync request vendor embedding api
@@ -85,7 +92,7 @@ public abstract class BaseAiChatActuator<O, I> implements AiChatActuator {
         Map<String, String> headers = buildHeaders();
         I request = convertRequest(aiChatInput);
 
-        O response = commonHttpClient.request(getEmbeddingUrl(), JsonUtil.toJson(request), headers, responseType());
+        O response = commonHttpClient.request(getEmbeddingUrl(), JsonUtil.toJsonStrict(request), headers, responseType());
         return convertResponse(response);
     }
 

@@ -174,7 +174,9 @@ public class HttpSseClient implements InitializingBean {
         if (body instanceof String) {
             bodyJson = (String) body;
         } else {
-            bodyJson = JsonUtil.toJson(body);
+            // Strict (non-Long-stringifying) mapper: this body goes straight to a third-party
+            // LLM vendor. See JsonUtil.strictObjectMapper's javadoc for the incident this fixes.
+            bodyJson = JsonUtil.toJsonStrict(body);
         }
 
         assert bodyJson != null;
@@ -184,7 +186,7 @@ public class HttpSseClient implements InitializingBean {
                 .post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyJson))
                 .build();
 
-        log.info("http stream call, url:{}, body:{}", url, JsonUtil.toJson(body));
+        log.info("http stream call, url:{}, body:{}", url, bodyJson);
 
         return request;
     }

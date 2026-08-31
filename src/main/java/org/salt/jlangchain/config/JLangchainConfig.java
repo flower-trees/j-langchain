@@ -25,6 +25,7 @@ import org.salt.jlangchain.ai.tts.aliyun.TtsAliyunClient;
 import org.salt.jlangchain.ai.tts.doubao.TtsDoubaoClient;
 import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 import org.salt.jlangchain.ai.vendor.chatgpt.ChatGPTActuator;
+import org.salt.jlangchain.ai.vendor.custom.CustomActuator;
 import org.salt.jlangchain.ai.vendor.deepseek.DeepseekActuator;
 import org.salt.jlangchain.ai.vendor.doubao.DoubaoActuator;
 import org.salt.jlangchain.ai.vendor.hunyuan.HunyuanActuator;
@@ -128,6 +129,11 @@ public class JLangchainConfig {
     @Bean
     public ChatGPTActuator chatGPTActuator(HttpStreamClient chatGPTHttpClient) {
         return new ChatGPTActuator(chatGPTHttpClient);
+    }
+
+    @Bean
+    public CustomActuator customActuator(HttpStreamClient commonHttpClient) {
+        return new CustomActuator(commonHttpClient);
     }
 
     @Bean

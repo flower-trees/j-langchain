@@ -151,6 +151,8 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
 
         private static final String LLM_STARTED_AT = "MCP_AGENT_EXECUTOR_LLM_STARTED_AT";
         private static final String LAST_TOOL_RESULT = "MCP_AGENT_EXECUTOR_LAST_TOOL_RESULT";
+        /** How many rounds before {@code maxIterations} the "wrap up now" notice starts firing. */
+        private static final int NEAR_LIMIT_WARNING_ROUNDS = 2;
 
         private final ChainActor chainActor;
         private BaseChatModel llm;
@@ -245,13 +247,26 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             return this;
         }
 
+        @SuppressWarnings("unchecked")
         public Builder tools(McpClient mcpClient, String serverName) {
             List<ToolDesc> descs = mcpClient.listAllTools().getOrDefault(serverName, List.of());
             this.tools.addAll(descs.stream()
-                .map(desc -> Tool.builder()
+                .map(desc -> {
+                    // Send the server's real schema straight through as the native function-
+                    // calling parameters — matches toAiTool()'s own preference and avoids
+                    // buildSchema(params)'s lossy re-derivation (it marks every param required
+                    // regardless of the source schema's actual required[] array). Without this,
+                    // any Tool built via this bridge silently fell back to that lossy path even
+                    // after Tool gained parametersSchema — this bridge predates that field and
+                    // nobody had circled back to wire it in here too.
+                    Object rawSchema = desc.getInputSchema();
+                    Map<String, Object> parametersSchema =
+                            rawSchema instanceof Map<?, ?> ? (Map<String, Object>) rawSchema : null;
+                    return Tool.builder()
                     .name(desc.getName())
                     .description(desc.getDescription() != null ? desc.getDescription() : desc.getName())
                     .params(schemaToParams(desc.getInputSchema()))
+                    .parametersSchema(parametersSchema)
                     .func(args -> {
                         @SuppressWarnings("unchecked")
                         Map<String, Object> argsMap = (args instanceof Map) ? (Map<String, Object>) args : Map.of();
@@ -261,7 +276,8 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                             ? "Error: " + result.getFirstText()
                             : (result.getFirstText() != null ? result.getFirstText() : "");
                     })
-                    .build())
+                    .build();
+                })
                 .collect(Collectors.toList()));
             return this;
         }
@@ -459,8 +475,13 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             boolean returnLastToolResultFinal = this.returnLastToolResult;
             AtomicLong startTimeMs = new AtomicLong(0);
             AtomicInteger consecutiveFailures = new AtomicInteger(0);
+            // Tracks the round about to run (the same "i" shouldContinue is deciding on) so
+            // executeTool can tell how close it is to maxIter and warn the model before the hard
+            // cutoff — see NEAR_LIMIT_WARNING_ROUNDS below.
+            AtomicInteger currentRound = new AtomicInteger(0);
 
             Function<Integer, Boolean> shouldContinue = i -> {
+                currentRound.set(i);
                 AtomicBoolean signal = ContextBus.get().getTransmit(CallInfo.STOP_SIGNAL.name());
                 if (signal != null && signal.get()) {
                     AgentTaskContext ctx = ContextBus.get().getTransmit(CallInfo.AGENT_TASK_CTX.name());
@@ -500,7 +521,9 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                 if (ctx != null) ctx.addToolCalls(toolMessage.getToolCalls().size());
 
                 List<BaseMessage> toolResults = new ArrayList<>();
-                for (AiChatOutput.ToolCall toolCall : toolMessage.getToolCalls()) {
+                List<AiChatOutput.ToolCall> callsThisRound = toolMessage.getToolCalls();
+                for (int callIdx = 0; callIdx < callsThisRound.size(); callIdx++) {
+                    AiChatOutput.ToolCall toolCall = callsThisRound.get(callIdx);
                     String toolName = toolCall.getFunction().getName();
                     String argsJson = toolCall.getFunction().getArguments();
 
@@ -572,6 +595,24 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
                     else log.debug("Observation: {}", observation);
                     ContextBus.get().putTransmit(LAST_TOOL_RESULT, observation);
 
+                    // On the last tool result of a round that's within NEAR_LIMIT_WARNING_ROUNDS
+                    // of the hard maxIterations cutoff, tack on a heads-up so the model can wrap
+                    // up on its own terms instead of getting hard-aborted mid-task. Found via a
+                    // real run where the substantive work (a dry-run DB preview) had already
+                    // succeeded, but the agent kept going and got cut off by
+                    // "Max iterations reached without a final answer" one step before it would
+                    // have produced its closing summary — this notice is meant to catch that class
+                    // of failure before it happens, not just after.
+                    if (callIdx == callsThisRound.size() - 1) {
+                        int remaining = maxIter - currentRound.get();
+                        if (remaining > 0 && remaining <= NEAR_LIMIT_WARNING_ROUNDS) {
+                            observation += "\n\n[SYSTEM NOTICE] Only " + remaining
+                                    + " tool-call round(s) left before this task is force-stopped. "
+                                    + "If you already have enough information, stop calling tools now "
+                                    + "and give your best final answer instead.";
+                        }
+                    }
+
                     toolResults.add(BaseMessage.fromMessage(MessageType.TOOL.getCode(), observation,
                             toolName, toolCall.getId()));
                 }
@@ -635,7 +676,15 @@ public class McpAgentExecutor extends BaseRunnable<ChatGeneration, Object> {
             aiTool.setFunction(new AiChatInput.Tool.FunctionTool());
             aiTool.getFunction().setName(tool.getName());
             aiTool.getFunction().setDescription(tool.getDescription());
-            aiTool.getFunction().setParameters(buildSchema(tool.getParams()));
+            // Prefer the tool's own raw JSON Schema when it supplied one — buildSchema(params)
+            // degrades to a flat "name: Type" string and, worse, marks every listed name required
+            // regardless of the source schema's real required[] array (see Tool.parametersSchema's
+            // javadoc for why that's not just cosmetic — it forces the model to fill in fields,
+            // including mutually-exclusive ones, that the tool never required).
+            Map<String, Object> schema = tool.getParametersSchema() != null
+                    ? tool.getParametersSchema()
+                    : buildSchema(tool.getParams());
+            aiTool.getFunction().setParameters(schema);
             return aiTool;
         }
 
