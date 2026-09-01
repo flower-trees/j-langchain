@@ -92,8 +92,12 @@ public class HttpSseClient implements InitializingBean {
                 log.debug("http stream request open");
                 return JsonUtil.fromJson(response.body().string(), clazz);
             } else {
-                log.error("http request call fail, e:response code: {}, msg:{}", response.code(), response.body() != null ? new String(response.body().bytes()) : "");
-                throw new RuntimeException("Request failed with code: " + response.code());
+                // See HttpStreamClient.failureException()'s javadoc — same reasoning, kept as a
+                // structured AiException(code, body) instead of a flat "code: N" string so callers
+                // can tell a 402/401 apart from a 429/500-series apart from a 403/404.
+                String bodyText = response.body() != null ? response.body().string() : "";
+                log.error("http request call fail, e:response code: {}, msg:{}", response.code(), bodyText);
+                throw new RuntimeException(new AiException(response.code(), bodyText));
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

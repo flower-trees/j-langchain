@@ -97,7 +97,7 @@ public class Article17DomesticVendorsChain {
 
     @Test
     public void chainHunyuan() {
-        runSimpleDomesticChain("腾讯混元（HUNYUAN_KEY）", ChatHunyuan.builder().model("hunyuan-turbo").build());
+        runSimpleDomesticChain("腾讯混元（HUNYUAN_KEY）", ChatHunyuan.builder().model("hy3").build());
     }
 
     @Test

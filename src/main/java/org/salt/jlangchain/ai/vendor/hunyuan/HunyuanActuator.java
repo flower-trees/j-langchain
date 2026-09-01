@@ -20,7 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 public class HunyuanActuator extends OpenAIActuator {
 
-    @Value("${models.hunyuan.chat-url:https://api.hunyuan.cloud.tencent.com/v1/chat/completions}")
+    @Value("${models.hunyuan.chat-url:https://tokenhub.tencentmaas.com/v1/chat/completions}")
     private String chatUrl;
 
     @Value("${models.hunyuan.chat-key:${HUNYUAN_KEY:}}")
