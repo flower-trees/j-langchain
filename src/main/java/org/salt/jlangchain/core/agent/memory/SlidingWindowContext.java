@@ -154,6 +154,16 @@ public class SlidingWindowContext implements AgentContext {
         }
 
         @Override
+        public String getEarlyStepsSummary() {
+            return earlyStepsSummary;
+        }
+
+        @Override
+        public void restoreSummary(String summary) {
+            this.earlyStepsSummary = summary;
+        }
+
+        @Override
         public void addHumanTurn(String message) {
             reopenForResume();
             if (message != null) this.resumeInput = message;
