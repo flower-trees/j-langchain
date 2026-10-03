@@ -203,7 +203,7 @@ public class ChainAgentContextTest {
     @Test
     public void testMcpAgentExecutorWithConversationStorer() {
         InMemoryConversationStorage conversationStorage = new InMemoryConversationStorage();
-        Long appId = 0L, userId = 1L, sessionId = 100L;
+        String appId = "0", userId = "1", sessionId = "100";
 
         ConversationBufferMemoryStorer storer = ConversationBufferMemoryStorer.builder()
                 .storage(conversationStorage)
@@ -243,7 +243,7 @@ public class ChainAgentContextTest {
     public void testMcpAgentExecutorFullIntegration() {
         InMemoryConversationStorage conversationStorage = new InMemoryConversationStorage();
         InMemoryAgentTaskStorage taskStorage = new InMemoryAgentTaskStorage();
-        Long appId = 0L, userId = 2L, sessionId = 200L;
+        String appId = "0", userId = "2", sessionId = "200";
 
         ConversationBufferMemoryStorer storer = ConversationBufferMemoryStorer.builder()
                 .storage(conversationStorage)
@@ -445,7 +445,7 @@ public class ChainAgentContextTest {
     @Test
     public void testAgentExecutorMultipleCallsEachStoreOneTurn() {
         InMemoryConversationStorage conversationStorage = new InMemoryConversationStorage();
-        Long appId = 0L, userId = 5L, sessionId = 500L;
+        String appId = "0", userId = "5", sessionId = "500";
 
         ConversationBufferMemoryStorer storer = ConversationBufferMemoryStorer.builder()
                 .storage(conversationStorage).appId(appId).userId(userId).sessionId(sessionId).build();
@@ -487,7 +487,7 @@ public class ChainAgentContextTest {
     @Test
     public void testMcpAgentConversationStorerWritesTwoMessagesPerTurn() {
         InMemoryConversationStorage conversationStorage = new InMemoryConversationStorage();
-        Long appId = 0L, userId = 6L, sessionId = 600L;
+        String appId = "0", userId = "6", sessionId = "600";
 
         ConversationBufferMemoryStorer storer = ConversationBufferMemoryStorer.builder()
                 .storage(conversationStorage).appId(appId).userId(userId).sessionId(sessionId).build();

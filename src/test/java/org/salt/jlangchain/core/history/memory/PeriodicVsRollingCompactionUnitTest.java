@@ -42,12 +42,12 @@ public class PeriodicVsRollingCompactionUnitTest {
 
         CountingChatModel rollingLlm = new CountingChatModel();
         ConversationSummaryBufferMemory rolling = ConversationSummaryBufferMemory.builder()
-                .appId(0L).userId(0L).sessionId(1L)
+                .appId("0").userId("0").sessionId("1")
                 .maxSize(maxSize).storage(new InMemoryConversationStorage()).llm(rollingLlm).build();
 
         CountingChatModel periodicLlm = new CountingChatModel();
         PeriodicConversationSummaryMemory periodic = PeriodicConversationSummaryMemory.builder()
-                .appId(0L).userId(0L).sessionId(2L)
+                .appId("0").userId("0").sessionId("2")
                 .maxSize(maxSize).storage(new InMemoryConversationStorage()).llm(periodicLlm).build();
 
         for (int i = 1; i <= totalTurns; i++) {
@@ -75,7 +75,7 @@ public class PeriodicVsRollingCompactionUnitTest {
         CountingChatModel llm = new CountingChatModel();
         InMemoryConversationStorage storage = new InMemoryConversationStorage();
         PeriodicConversationSummaryMemory memory = PeriodicConversationSummaryMemory.builder()
-                .appId(0L).userId(0L).sessionId(3L)
+                .appId("0").userId("0").sessionId("3")
                 .maxSize(maxSize).storage(storage).llm(llm).build();
 
         for (int i = 1; i <= maxSize - 1; i++) {

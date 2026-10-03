@@ -26,17 +26,17 @@ import java.util.List;
 public interface ConversationStorage {
 
     /** Load all stored turns (including any summary entry) for the given session. */
-    List<HistoryInfos> loadAll(Long appId, Long userId, Long sessionId);
+    List<HistoryInfos> loadAll(String appId, String userId, String sessionId);
 
     /** Append one turn to the end of the session history. */
-    void append(Long appId, Long userId, Long sessionId, HistoryInfos turn);
+    void append(String appId, String userId, String sessionId, HistoryInfos turn);
 
     /**
      * Atomically replace the entire session history with the compacted list.
      * Used by summary strategies after compression.
      */
-    void replace(Long appId, Long userId, Long sessionId, List<HistoryInfos> compacted);
+    void replace(String appId, String userId, String sessionId, List<HistoryInfos> compacted);
 
     /** Remove all turns for the given session. */
-    void clear(Long appId, Long userId, Long sessionId);
+    void clear(String appId, String userId, String sessionId);
 }
