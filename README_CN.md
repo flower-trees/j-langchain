@@ -2,56 +2,36 @@
 
 # J-LangChain
 
-**🚀 Java 版 LangChain —— 用 Spring Boot 分钟级构建 LLM 应用**
+**面向 Java / Spring Boot 的 AI 工作流与 Agent 框架**
+
+将大模型、业务工具、MCP、Skill 和 SubAgent 组合成可控的执行流程。
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.flower-trees/j-langchain.svg)](https://search.maven.org/artifact/io.github.flower-trees/j-langchain)
-[![GitHub stars](https://img.shields.io/github/stars/flower-trees/j-langchain?style=social)](https://github.com/flower-trees/j-langchain)
-[![GitHub forks](https://img.shields.io/github/forks/flower-trees/j-langchain?style=social)](https://github.com/flower-trees/j-langchain/fork)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 [![Java](https://img.shields.io/badge/Java-17+-green.svg)](https://www.oracle.com/java/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2+-green.svg)](https://spring.io/projects/spring-boot)
 
-[English](./README.md) | [中文文档](#)
+[English](./README.md) | [中文](./README_CN.md)
 
-**不用再重复造轮子。** J-LangChain 是面向 Java/Spring Boot 开发者的生产级 AI 框架，一个依赖搞定：调用链编排、Agent、RAG、MCP 与 13+ 主流大模型。
-
-⭐ **如果这个项目对你有帮助，请点个 Star，这对项目非常重要！** ⭐
+[快速开始](#quick-start) · [业务工具 Agent](#tool-agent) · [架构](#architecture) · [示例与教程](#examples) · [API](./docs/api/reference_cn.md)
 
 </div>
 
----
+## 为什么选择 J-LangChain？
 
-## 🏛️ 架构优势
+| 能力 | 你可以怎样使用 |
+|---|---|
+| **流程与 Agent 统一编排** | 基于 salt-function-flow，将模型、工具和 Agent 作为流程节点，组合串行、并行、条件和嵌套执行。 |
+| **Tool → Skill → SubAgent** | 从注解业务方法开始，逐步接入 MCP、SKILL.md 技能和独立子 Agent，通过 Tool 接口组合能力。 |
+| **长任务可控、可观测** | 在安全检查点停止或暂停，携带上下文恢复；通过摘要管理历史，并读取 Token 用量、执行指标和回调。 |
 
-J-LangChain 围绕三个设计原则构建，使复杂 AI 应用在 Java 中变得可处理：
+<a id="quick-start"></a>
 
-**1. 以流程编排为一等公民**
+## 快速开始
 
-基于 [salt-function-flow](https://github.com/flower-trees/salt-function-flow)，每个组件 —— LLM 调用、Agent、工具、RAG —— 都是可组合的流程节点。串行、并行、条件、循环编排统一工作，内置完整事件生命周期和流式输出。你用写 Spring Bean 的方式来组合 AI 工作流。
+准备一个 Java 17、Spring Boot 3.2.x 的 Maven 应用，以及可用的阿里云千问 API Key。模型调用需要网络和可用额度。
 
-**2. 分层 Agent 体系**
-
-不是单一的庞大 Agent，j-langchain 提供清晰的层次结构：
-
-```
-McpAgentExecutor（主 Agent）
-  ├─ Tool              ← 普通函数调用
-  ├─ Skill             ← 封装的子工作流（SKILL.md 约定）
-  │     └─ SubAgent    ← 内嵌于 Skill 的轻量专项代理
-  └─ SubAgent          ← 拥有自有工具与 LLM 策略的自主子代理
-```
-
-每一层都向上暴露相同的 `Tool` 接口 —— 主 Agent 无需知道"工具调用"究竟是在运行函数、内部 Agent 循环，还是两级嵌套。Skill 和 SubAgent 可以从配置文件（`SKILL.md` / `AGENT.md`）加载、用代码构造或独立运行 —— 三种方式完全等价。
-
-**3. 可控的长时运行执行**
-
-长时运行的 Agent 可在任意安全检查点调用 `stop()` 停止。`AgentStoppedException` 携带已完成步骤的 `partialContext`，支持三种恢复策略：重新开始、断点续传或将旧步骤注入新指令。停止信号从主 Agent 级联传播至 SubAgent 及 Skill 内部执行器 —— 整个调用链同步停止。
-
----
-
-## 🚀 5 分钟快速上手
-
-### 1. 添加依赖
+**1. 添加依赖**
 
 ```xml
 <dependency>
@@ -61,193 +41,134 @@ McpAgentExecutor（主 Agent）
 </dependency>
 ```
 
+<details>
+<summary>Gradle</summary>
+
 ```groovy
-// Gradle
 implementation 'io.github.flower-trees:j-langchain:1.0.19'
 ```
 
-### 2. 导入配置
+</details>
+
+**2. 设置环境变量**
+
+```bash
+export ALIYUN_KEY="your-api-key"
+```
+
+**3. 创建 Application.java**
+
+放到 `src/main/java/com/example/demo/Application.java`。完整示例包括配置导入、模型调用和结果输出。
 
 ```java
+package com.example.demo;
+
+import java.util.Map;
+import org.salt.function.flow.FlowInstance;
+import org.salt.jlangchain.config.JLangchainConfig;
+import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
+import org.salt.jlangchain.core.parser.StrOutputParser;
+import org.salt.jlangchain.core.parser.generation.ChatGeneration;
+import org.salt.jlangchain.core.prompt.string.PromptTemplate;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Import;
+
 @SpringBootApplication
 @Import(JLangchainConfig.class)
-public class Application {
+public class Application implements CommandLineRunner {
+    private final ChainActor chainActor;
+
+    public Application(ChainActor chainActor) {
+        this.chainActor = chainActor;
+    }
+
     public static void main(String[] args) {
         SpringApplication.run(Application.class, args);
+    }
+
+    @Override
+    public void run(String... args) {
+        FlowInstance chain = chainActor.builder()
+                .next(PromptTemplate.fromTemplate("用一句话解释 ${topic}"))
+                .next(ChatAliyun.builder().model("qwen-plus").build())
+                .next(new StrOutputParser())
+                .build();
+
+        ChatGeneration result = chainActor.invoke(chain, Map.of("topic", "RAG"));
+        System.out.println(result.getText());
     }
 }
 ```
 
-### 3. 配置 API Key 并运行
+**4. 运行**
 
 ```bash
-export ALIYUN_KEY=sk-xxx...   # 或 CHATGPT_KEY / DEEPSEEK_KEY / OLLAMA_KEY1 ...
+mvn spring-boot:run
 ```
 
-> 环境变量及对应模型类：[API 参考 → 环境变量](./docs/api/reference_cn.md#12-环境变量)
+控制台会输出模型生成的解释。`StrOutputParser` 返回 Generation 对象，使用 `ChatGeneration.getText()` 读取文本。
+
+更多配置和模型切换见 [入门指南](./docs/guide/quickstart_cn.md) 和 [API](./docs/api/reference_cn.md)。
+
+<a id="tool-agent"></a>
+
+## 业务工具 Agent
+
+用 `@AgentTool` 描述业务方法，将已有 Service、Dubbo 或 Feign 调用包装为 Agent 工具。下面用固定订单数据演示工具接入，实际项目中替换为业务服务调用。
+
+在同一包下创建 `OrderAssistant.java`：
 
 ```java
-@Autowired ChainActor chainActor;
+package com.example.demo;
 
-FlowInstance chain = chainActor.builder()
-    .next(PromptTemplate.fromTemplate("给我讲一个关于 ${topic} 的笑话"))
-    .next(ChatAliyun.builder().model("qwen-plus").build())
-    .next(new StrOutputParser())
-    .build();
+import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.agent.AgentExecutor;
+import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
+import org.salt.jlangchain.rag.tools.annotation.AgentTool;
+import org.salt.jlangchain.rag.tools.annotation.Param;
 
-String result = chainActor.invoke(chain, Map.of("topic", "程序员"));
-// → 为什么程序员喜欢暗色主题？因为光明会吸引 Bug！🐛
-```
+public class OrderAssistant {
+    private final ChainActor chainActor;
 
-✅ Prompt → 大模型 → 解析器，就是这么简单。
+    public OrderAssistant(ChainActor chainActor) {
+        this.chainActor = chainActor;
+    }
 
----
+    @AgentTool("根据订单号查询订单状态")
+    public String queryOrder(@Param("订单号，例如 ORD-1001") String orderId) {
+        return "ORD-1001".equals(orderId.trim())
+                ? "ORD-1001: 已发货，预计明天送达"
+                : "未找到该订单";
+    }
 
-## 💡 能做什么？
-
-### ⚡ 流式输出 — 3 行实现打字机效果
-
-```java
-ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
-AIMessageChunk chunk = llm.stream("简单解释一下量子计算");
-chunk.getIterator().forEachRemaining(c -> System.out.print(c.getContent()));
-// 量子| 计算| 利用| 量子比特|...
-```
-
-### 🤖 ReAct Agent — 一个注解，一个 Agent
-
-```java
-@AgentTool(description = "查询两城市间的机票价格")
-public String searchFlights(
-    @Param("出发城市") String from,
-    @Param("目的城市") String to) {
-    return from + "→" + to + "：经济舱 ¥999 / 商务舱 ¥3999";
+    public String ask(String question) {
+        return AgentExecutor.builder(chainActor)
+                .llm(ChatAliyun.builder().model("qwen-plus").build())
+                .tools(this)
+                .maxIterations(4)
+                .build()
+                .invoke(question)
+                .getText();
+    }
 }
-
-AgentExecutor agent = AgentExecutor.builder()
-    .llm(ChatAliyun.builder().model("qwen-plus").build())
-    .toolScanner(new ToolScanner(this))
-    .build();
-
-agent.invoke("帮我查一下北京到上海最便宜的航班");
-// Agent 自主推理 → 调用 searchFlights → 分析结果 → 给出答案 ✅
 ```
 
-### 🔀 并行 Agent — 扇出调研，汇聚总结
+将上面 `Application.run()` 的方法体替换为：
 
 ```java
-// 三个专项 Agent 并发运行，结果自动合并
-FlowInstance researchChain = chainActor.builder()
-    .concurrent(
-        cAlias("flights",  flightAgent),
-        cAlias("hotels",   hotelAgent),
-        cAlias("weather",  weatherAgent)
-    )
-    .next(summaryAgent)   // 汇总三路结果
-    .build();
-
-// 参考教程 18：Article18ParallelTravelResearch.java
+String answer = new OrderAssistant(chainActor)
+        .ask("请查询订单 ORD-1001 的状态");
+System.out.println(answer);
 ```
 
-### 📚 RAG — 50 行搞定 PDF 问答
+模型根据问题选择工具，框架执行方法并将结果交给模型生成回答。工具路由和最终措辞由模型决定。进一步阅读： [AgentExecutor](./docs/article/001/09-agent-executor.md) · [RPC 工具接入](./docs/article/001/19-rpc-vo-param.md)。
 
-```java
-PdfboxLoader loader = new PdfboxLoader("report.pdf");
-List<Document> chunks = StanfordNLPTextSplitter.builder()
-    .chunkSize(500).chunkOverlap(50).build()
-    .splitDocument(loader.load());
+<a id="architecture"></a>
 
-Milvus vectorStore = new Milvus(new OllamaEmbeddings());
-vectorStore.addDocuments(chunks);
-
-List<Document> relevant = vectorStore.similaritySearch("这份报告的结论是什么？", 3);
-String answer = chainActor.invoke(qaChain, Map.of("context", relevant, "question", "..."));
-```
-
-### 🔧 RPC 零侵入 — 两个注解把 Dubbo/Feign 接口变成 AI 工具
-
-```java
-// 完全不改动现有 RPC 接口
-@AgentTool(description = "查询订单状态")
-public OrderVO queryOrder(@Param("订单ID") String orderId) {
-    return orderService.query(orderId);  // 原有 RPC 调用不变
-}
-// VO 字段加 @ParamDesc → 自动生成参数 Schema
-// 参考教程 19：Article19RpcMcpTools.java
-```
-
-### 🎙️ LLM + TTS — 让 AI 开口说话
-
-```java
-AIMessageChunk llmStream = llm.stream("今天天气怎么样？");
-TtsCardChunk audio = aliyunTts.stream(llmStream);
-// 实时流式推送音频块；括号内容自动过滤后再合成
-```
-
----
-
-## 📖 31 篇教程：从 Hello World 到多 Agent 系统
-
-每篇教程都有可运行的示例类，只需一个 API Key。
-
-| 教程 | 你将构建什么 | 难度 |
-|------|-------------|------|
-| [01 · 第一个 AI 应用](./docs/article/001/01-hello-ai.md) | Prompt→LLM→Parser，流式，JSON 输出 | ⭐ |
-| [02 · 5 种链式编排](./docs/article/001/02-chain-patterns.md) | 串行 / 并行 / 条件 / 嵌套链 | ⭐⭐ |
-| [06 · 流式输出](./docs/article/001/06-streaming.md) | `stream` / `streamEvent` / stop，SSE 推送 | ⭐⭐ |
-| [07 · 多模型接入](./docs/article/001/07-multi-model.md) | 统一 API 对接 13+ 主流大模型，动态切换 | ⭐ |
-| [03 · RAG 全流程](./docs/article/001/03-rag-pipeline.md) | PDF → 分割 → 嵌入 → Milvus → 问答 | ⭐⭐⭐ |
-| [04 · ReAct Agent](./docs/article/001/04-react-agent.md) | 工具定义、ReAct 推理循环从零实现 | ⭐⭐⭐ |
-| [09 · AgentExecutor](./docs/article/001/09-agent-executor.md) | 一行启动 ReAct Agent，`@AgentTool` 注解 | ⭐⭐ |
-| [10 · 航司比价 Agent](./docs/article/001/10-flight-compare-agent.md) | 多步工具调用：比价 + 自动订票 | ⭐⭐ |
-| [05 · LLM + TTS](./docs/article/001/05-llm-tts.md) | 大模型→语音，流式合成 | ⭐⭐ |
-| [08 · MCP 基础](./docs/article/001/08-mcp.md) | MCP 协议，McpManager / McpClient | ⭐⭐⭐ |
-| [11 · MCP Function-Calling ReAct](./docs/article/001/11-mcp-react-agent.md) | 原生 ToolCall、MCP manifest、循环控制 | ⭐⭐⭐ |
-| [12 · MCP Manager Agent](./docs/article/001/12-mcp-manager-agent.md) | McpAgentExecutor 调用 HTTP MCP 工具组 | ⭐⭐⭐ |
-| [13 · MCP Client Agent](./docs/article/001/13-mcp-client-agent.md) | NPX 进程型 MCP 服务，自动选择工具 | ⭐⭐⭐ |
-| [14 · 混合 MCP Agent](./docs/article/001/14-mcp-mixed-agent.md) | 跨 HTTP 与 NPX MCP 工具的多步任务 | ⭐⭐⭐ |
-| [15 · 旅行规划 Agent](./docs/article/001/15-agent-executor-embed.md) | AgentExecutor 嵌入调用链 | ⭐⭐ |
-| [16 · 客服双 Agent](./docs/article/001/16-multi-agent-executor.md) | ReAct + MCP 串联，投诉分析 + 文件写入 | ⭐⭐⭐ |
-| [17 · 国内厂商顺序链](./docs/article/001/17-domestic-vendors-chain.md) | 逐个对接国内 `Chat*` 模型接口 | ⭐ |
-| [18 · 并行 Agent](./docs/article/001/18-parallel-agent-concurrent.md) | 3 Agent 并发调研，扇出/汇聚 | ⭐⭐⭐ |
-| [19 · RPC 零侵入](./docs/article/001/19-rpc-vo-param.md) | Dubbo/Feign → AI 工具，2 个注解搞定 | ⭐⭐ |
-| [20 · 双 Agent 自我纠错](./docs/article/001/20-two-agent-self-correct.md) | 生成 Agent + 测试 Agent 循环，真实 javac 执行 | ⭐⭐⭐ |
-| [21 · Proposer-Critic 辩论](./docs/article/001/21-proposer-critic-debate.md) | 两个 LLM Agent 迭代至共识，无工具 | ⭐⭐ |
-| [22 · Skill Agent ✨](./docs/article/001/22-skill-agent.md) | SKILL.md 封装，allowedTools 借用 | ⭐⭐⭐ |
-| [23a · SubAgent 基础 ✨](./docs/article/001/23a-subagent-basic.md) | 自主子代理，自有工具，AGENT.md | ⭐⭐⭐ |
-| [23b · SubAgent 进阶 ✨](./docs/article/001/23b-subagent-advanced.md) | model=inherit，llmFactory，allowedTools，嵌套 | ⭐⭐⭐ |
-| [24 · 停止与恢复 ✨](./docs/article/001/24-stop-and-resume.md) | stop()，partialContext，三种恢复策略 | ⭐⭐⭐ |
-| [25 · 扫描 PDF 文档问答 Agent ✨](./docs/article/001/25-scanned-pdf-document-qa-agent.md) | OCR → 页级 chunk → 内存向量库 → 可溯源 RAG | ⭐⭐⭐ |
-| [25 · 扫描 PDF RAG 博客版 ✨](./docs/article/001/25-scanned-pdf-rag-agent-blog.md) | 从扫描件判断、OCR 解析到 Hybrid Retrieval | ⭐⭐⭐ |
-| [26 · Agent 停止类型 ✨](./docs/article/001/26-agent-stop-types.md) | MAX_STEPS、TIMEOUT、工具失败、语义暂停恢复 | ⭐⭐⭐ |
-| [27 · Human-in-the-Loop ✨](./docs/article/001/27-human-in-the-loop.md) | 执行中途等待用户确认，partialContext 恢复 | ⭐⭐⭐ |
-| [28 · 可观测性 ✨](./docs/article/001/28-observability.md) | Token 用量统计、执行指标、回调事件 | ⭐⭐ |
-| [29 · 推理内容 ✨](./docs/article/001/29-reasoning-content.md) | 读取 DeepSeek-R1 与 Qwen3 的思考内容 | ⭐⭐ |
-
-➡️ [查看完整教程目录（含阅读顺序）→](./docs/article/001/README.md)
-
----
-
-## ✨ 核心特性速览
-
-### 🎯 13+ 主流大模型 — 统一 API 调用
-OpenAI · Ollama · DeepSeek · 阿里云千问 · Moonshot (Kimi) · 豆包 · 扣子 · 腾讯混元 · 百度文心 · 智谱 GLM · MiniMax · 零一万物 · 阶跃星辰
-
-### 🔗 调用链编排
-串行 · 并行 · 嵌套 · 条件路由 · 流式输出 · 完整事件生命周期
-
-### 📚 RAG
-PDF / Word / OCR 文档加载 · 智能文本分割 · OpenAI / Ollama / 阿里云嵌入 · Milvus 向量存储
-
-### 🤖 Agent & MCP
-`AgentExecutor`（ReAct）· `McpAgentExecutor`（Function Calling）· `@AgentTool` / `ToolScanner` · MCP Stdio / SSE / HTTP · 多应用历史管理（线程安全）· **Skill**（子工作流封装，SKILL.md）· **SubAgent**（自主子代理，三层 LLM 策略）· **停止与恢复**（安全检查点，partialContext，信号级联）
-
-### 🎤 TTS
-阿里云 · 豆包 · 智能分句 · 括号自动过滤 · 实时流式音频
-
----
-
-## 🏗️ 架构
+## 架构
 
 <p align="center">
   <img src="./docs/images/v1.0.19-图1_J-LangChain总体架构.png" alt="J-LangChain 总体架构" width="680">
@@ -255,49 +176,58 @@ PDF / Word / OCR 文档加载 · 智能文本分割 · OpenAI / Ollama / 阿里�
 
 [draw.io 可编辑源文件](./docs/images/v1.0.19-图1_J-LangChain总体架构.drawio)
 
----
+<a id="examples"></a>
 
-## 📄 文档
+## 示例与教程
 
-| | |
-|--|--|
-| [快速开始](./docs/guide/quickstart_cn.md) | 详细入门教程 |
-| [中文系列教程](./docs/article/001/README.md) | 31 篇，含阅读顺序和可运行示例 |
-| [English Tutorials](./docs/article/001-en/README.md) | English article series |
-| [示例代码](./src/test/java/org/salt/jlangchain/demo/) | 30+ 可运行案例 |
-| [API 文档](./docs/api/reference_cn.md) | 完整 API 参考 |
+| 我想做什么 | 从这里开始 | 所需环境 |
+|---|---|---|
+| 调用模型、解析输出与流式响应 | [第一个 AI 应用](./docs/article/001/01-hello-ai.md) · [流式输出](./docs/article/001/06-streaming.md) | 对应模型服务；云端调用需 Key 和额度 |
+| 将业务方法接入 Agent | [AgentExecutor](./docs/article/001/09-agent-executor.md) · [RPC](./docs/article/001/19-rpc-vo-param.md) | 模型服务与业务工具 |
+| 连接 MCP 工具 | [MCP](./docs/article/001/08-mcp.md) · [MCP Agent](./docs/article/001/13-mcp-client-agent.md) | 模型服务、MCP 服务；NPX 示例需要 Node.js |
+| 构建文档知识库问答 | [RAG](./docs/article/001/03-rag-pipeline.md) | 示例使用 Ollama、Milvus 和本地文档 |
+| 复用技能并组合多个 Agent | [Skill](./docs/article/001/22-skill-agent.md) · [SubAgent](./docs/article/001/23a-subagent-basic.md) · [并行编排](./docs/article/001/18-parallel-agent-concurrent.md) | 模型服务；脚本技能需对应运行时与依赖 |
+| 人工确认、暂停与恢复 | [Human-in-the-Loop](./docs/article/001/27-human-in-the-loop.md) · [停止与恢复](./docs/article/001/24-stop-and-resume.md) | 模型服务；恢复时传入保存的上下文 |
 
----
+[完整中文教程目录](./docs/article/001/README.md) · [可运行示例源码](./src/test/java/org/salt/jlangchain/demo/article/)
 
-## 🤝 参与贡献
+## 模型与扩展能力
 
-- 🐛 [提交 Bug](https://github.com/flower-trees/j-langchain/issues)
-- 💡 [功能建议](https://github.com/flower-trees/j-langchain/issues)
-- 🔧 [提交 PR](https://github.com/flower-trees/j-langchain/pulls)
+| 类别 | 支持内容 |
+|---|---|
+| 模型接入 | OpenAI · Ollama · DeepSeek · Qwen · Moonshot · Doubao · Hunyuan · Qianfan · Zhipu · MiniMax · Lingyi · Stepfun |
+| 自定义接口 | `ChatCustom` — 接入 OpenAI Chat Completions 兼容接口 |
+| 文档与检索 | PDF / Word / OCR · 文本切分 · OpenAI / Ollama / Aliyun Embeddings · Milvus |
+| 语音合成 | 阿里云与豆包 TTS，支持分句、文本过滤和音频流 |
+| 状态与观测 | 会话记忆、周期性摘要、任务上下文、Token 用量和执行指标 |
+
+模型的工具调用、JSON 输出和推理内容支持取决于目标服务及模型。 [模型与配置 API](./docs/api/reference_cn.md)
+
+## 文档与开发
+
+| 入口 | 内容 |
+|---|---|
+| [快速开始](./docs/guide/quickstart_cn.md) | 配置与入门示例 |
+| [API 参考](./docs/api/reference_cn.md) | 模型、编排、工具、记忆及回调接口 |
+| [发布说明](./docs/release/pr-1.0.19.md) | 版本变化与迁移说明 |
+| [构建与验证](./docs/guide/release-validation.md) | 本地回归与集成验收说明 |
+
+在项目根目录运行本地回归及打包检查（需要 Java 17、Maven 和 Python）：
 
 ```bash
-git checkout -b feature/your-feature
-git commit -m 'Add your feature'
-git push origin feature/your-feature
-# 然后提交 Pull Request
+mvn clean verify -Plocal-tests -Dgpg.skip=true
 ```
 
----
+本地配置选择无需真实模型或 MCP 服务的回归测试。供应商、RAG、TTS 等集成用例需要单独准备环境，详见验证说明。
 
-## 📄 开源协议
+## 参与贡献
+
+欢迎提交 [Issue](https://github.com/flower-trees/j-langchain/issues) 反馈问题或建议，也欢迎通过 [Pull Request](https://github.com/flower-trees/j-langchain/pulls) 贡献代码、测试与文档。
+
+## 开源协议与致谢
 
 [Apache License 2.0](./LICENSE)
 
-## 🙏 致谢
+基于 [salt-function-flow](https://github.com/flower-trees/salt-function-flow) · [Spring Boot](https://spring.io/projects/spring-boot) · 设计参考 [LangChain](https://github.com/langchain-ai/langchain)
 
-[LangChain](https://github.com/langchain-ai/langchain) · [salt-function-flow](https://github.com/flower-trees/salt-function-flow) · [Spring Boot](https://spring.io/projects/spring-boot)
-
----
-
-<div align="center">
-
-**⭐ 觉得有用？点个 Star 只需 2 秒，却能帮助项目走得更远 —— 感谢！⭐**
-
-[快速开始](#-5-分钟快速上手) · [31 篇教程](#-31-篇教程从-hello-world-到多-agent-系统) · [示例代码](./src/test/java/org/salt/jlangchain/demo/) · [提 Issue](https://github.com/flower-trees/j-langchain/issues)
-
-</div>
+如果项目对你有帮助，欢迎 Star 支持。

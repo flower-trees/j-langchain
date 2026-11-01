@@ -2,56 +2,36 @@
 
 # J-LangChain
 
-**🚀 The LangChain for Java — Build LLM Applications with Spring Boot in Minutes**
+**AI workflows and agents for Java / Spring Boot**
+
+Compose models, business tools, MCP, Skills, and SubAgents into workflows you can control.
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.flower-trees/j-langchain.svg)](https://search.maven.org/artifact/io.github.flower-trees/j-langchain)
-[![GitHub stars](https://img.shields.io/github/stars/flower-trees/j-langchain?style=social)](https://github.com/flower-trees/j-langchain)
-[![GitHub forks](https://img.shields.io/github/forks/flower-trees/j-langchain?style=social)](https://github.com/flower-trees/j-langchain/fork)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 [![Java](https://img.shields.io/badge/Java-17+-green.svg)](https://www.oracle.com/java/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2+-green.svg)](https://spring.io/projects/spring-boot)
 
-[English](#) | [中文文档](./README_CN.md)
+[English](./README.md) | [中文](./README_CN.md)
 
-**Stop rewriting LLM boilerplate.** J-LangChain gives Spring Boot developers chains, agents, RAG, MCP, and 13+ LLM vendors — all in one dependency.
-
-⭐ **If this saves you time, please give it a Star — it really helps!** ⭐
+[Quick start](#quick-start) · [Business tool agent](#tool-agent) · [Architecture](#architecture) · [Examples and tutorials](#examples) · [API](./docs/api/reference.md)
 
 </div>
 
----
+## Why J-LangChain?
 
-## 🏛️ Architecture Advantages
+| Capability | What you can do |
+|---|---|
+| **Compose workflows and agents** | Use salt-function-flow to compose models, tools, and agents as sequential, parallel, conditional, and nested flow nodes. |
+| **Tool → Skill → SubAgent** | Start with annotated business methods, then add MCP tools, SKILL.md skills, and autonomous subagents through a shared Tool interface. |
+| **Control and observe long tasks** | Stop or pause at safe checkpoints, resume with context, manage history through summaries, and inspect token usage, execution metrics, and callbacks. |
 
-J-LangChain is built around three design principles that make complex AI applications tractable in Java:
+<a id="quick-start"></a>
 
-**1. Flow Orchestration as First-Class Citizen**
+## Quick start
 
-Powered by [salt-function-flow](https://github.com/flower-trees/salt-function-flow), every component — LLM calls, agents, tools, RAG — is a composable flow node. Sequential, parallel, conditional, and loop orchestration work uniformly, with full event lifecycle and streaming output baked in. You compose AI workflows the same way you write Spring beans.
+Use a Java 17 / Spring Boot 3.2.x Maven application and an Alibaba Cloud Qwen API key. Model calls require network access and available quota.
 
-**2. Layered Agent Architecture**
-
-Rather than one monolithic agent, j-langchain provides a clear hierarchy:
-
-```
-McpAgentExecutor (master)
-  ├─ Tool              ← plain function call
-  ├─ Skill             ← encapsulated sub-workflow (SKILL.md convention)
-  │     └─ SubAgent    ← lightweight specialized agent embedded in Skill
-  └─ SubAgent          ← autonomous sub-agent with its own tools + LLM strategy
-```
-
-Each layer exposes the same `Tool` interface to its parent — the master Agent never needs to know whether a "tool call" runs a function, an inner agent loop, or a two-level nesting. Skill and SubAgent can be loaded from a config file (`SKILL.md` / `AGENT.md`), constructed in code, or run standalone — all three modes are equivalent.
-
-**3. Controllable Long-Running Execution**
-
-Long-running agents are `stop()`-able at any safe checkpoint. `AgentStoppedException` carries a `partialContext` of completed steps, enabling three resumption strategies: restart, checkpoint resume, or inject prior steps into a new instruction. Stop signals cascade from master Agent through SubAgents and into Skill inner executors — the entire call chain halts synchronously.
-
----
-
-## 🚀 Quick Start (5 Minutes)
-
-### 1. Add Dependency
+**1. Add the dependency**
 
 ```xml
 <dependency>
@@ -60,242 +40,194 @@ Long-running agents are `stop()`-able at any safe checkpoint. `AgentStoppedExcep
     <version>1.0.19</version>
 </dependency>
 ```
+
+<details>
+<summary>Gradle</summary>
+
 ```groovy
-// Gradle
 implementation 'io.github.flower-trees:j-langchain:1.0.19'
 ```
 
-### 2. Import Config
+</details>
+
+**2. Set the environment variable**
+
+```bash
+export ALIYUN_KEY="your-api-key"
+```
+
+**3. Create Application.java**
+
+Save this as `src/main/java/com/example/demo/Application.java`. It imports the configuration, calls the model, and prints the result.
 
 ```java
+package com.example.demo;
+
+import java.util.Map;
+import org.salt.function.flow.FlowInstance;
+import org.salt.jlangchain.config.JLangchainConfig;
+import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
+import org.salt.jlangchain.core.parser.StrOutputParser;
+import org.salt.jlangchain.core.parser.generation.ChatGeneration;
+import org.salt.jlangchain.core.prompt.string.PromptTemplate;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Import;
+
 @SpringBootApplication
 @Import(JLangchainConfig.class)
-public class Application {
+public class Application implements CommandLineRunner {
+    private final ChainActor chainActor;
+
+    public Application(ChainActor chainActor) {
+        this.chainActor = chainActor;
+    }
+
     public static void main(String[] args) {
         SpringApplication.run(Application.class, args);
+    }
+
+    @Override
+    public void run(String... args) {
+        FlowInstance chain = chainActor.builder()
+                .next(PromptTemplate.fromTemplate("Explain ${topic} in one sentence"))
+                .next(ChatAliyun.builder().model("qwen-plus").build())
+                .next(new StrOutputParser())
+                .build();
+
+        ChatGeneration result = chainActor.invoke(chain, Map.of("topic", "RAG"));
+        System.out.println(result.getText());
     }
 }
 ```
 
-### 3. Set API Key & Run
+**4. Run**
 
 ```bash
-export ALIYUN_KEY=sk-xxx...   # or CHATGPT_KEY / DEEPSEEK_KEY / OLLAMA_KEY1 ...
+mvn spring-boot:run
 ```
 
-> Environment variables and their corresponding model classes: [API Reference → Environment Variables](./docs/api/reference.md#12-environment-variables)
+The console prints the generated explanation. `StrOutputParser` returns a Generation object; read its text with `ChatGeneration.getText()`.
+
+For configuration and model alternatives, see [the setup guide](./docs/guide/quickstart.md) and [API](./docs/api/reference.md).
+
+<a id="tool-agent"></a>
+
+## Business tool agent
+
+Describe business methods with `@AgentTool` and wrap existing Service, Dubbo, or Feign calls as agent tools. This example uses fixed order data; replace the method body with your business service call.
+
+Create `OrderAssistant.java` in the same package:
 
 ```java
-@Autowired ChainActor chainActor;
+package com.example.demo;
 
-FlowInstance chain = chainActor.builder()
-    .next(PromptTemplate.fromTemplate("Tell me a joke about ${topic}"))
-    .next(ChatAliyun.builder().model("qwen-plus").build())
-    .next(new StrOutputParser())
-    .build();
+import org.salt.jlangchain.core.ChainActor;
+import org.salt.jlangchain.core.agent.AgentExecutor;
+import org.salt.jlangchain.core.llm.aliyun.ChatAliyun;
+import org.salt.jlangchain.rag.tools.annotation.AgentTool;
+import org.salt.jlangchain.rag.tools.annotation.Param;
 
-String result = chainActor.invoke(chain, Map.of("topic", "programmers"));
-// → Why do programmers prefer dark mode? Because light attracts bugs! 🐛
-```
+public class OrderAssistant {
+    private final ChainActor chainActor;
 
-✅ Prompt → LLM → Parser. That's it.
+    public OrderAssistant(ChainActor chainActor) {
+        this.chainActor = chainActor;
+    }
 
----
+    @AgentTool("Look up order status by order ID")
+    public String queryOrder(@Param("Order ID, for example ORD-1001") String orderId) {
+        return "ORD-1001".equals(orderId.trim())
+                ? "ORD-1001: shipped, expected delivery tomorrow"
+                : "Order not found";
+    }
 
-## 💡 What Can You Build?
-
-### ⚡ Streaming Output — ChatGPT-style typewriter in 3 lines
-
-```java
-ChatOllama llm = ChatOllama.builder().model("llama3:8b").build();
-AIMessageChunk chunk = llm.stream("Explain quantum computing simply");
-chunk.getIterator().forEachRemaining(c -> System.out.print(c.getContent()));
-// Quantum| computing| uses| qubits|...
-```
-
-### 🤖 ReAct Agent — annotate a method, get an agent
-
-```java
-@AgentTool(description = "Search flight prices between two cities")
-public String searchFlights(
-    @Param("departure city") String from,
-    @Param("destination city") String to) {
-    return from + "→" + to + ": Economy $299 / Business $899";
+    public String ask(String question) {
+        return AgentExecutor.builder(chainActor)
+                .llm(ChatAliyun.builder().model("qwen-plus").build())
+                .tools(this)
+                .maxIterations(4)
+                .build()
+                .invoke(question)
+                .getText();
+    }
 }
-
-AgentExecutor agent = AgentExecutor.builder()
-    .llm(ChatAliyun.builder().model("qwen-plus").build())
-    .toolScanner(new ToolScanner(this))
-    .build();
-
-agent.invoke("Find the cheapest flight from Beijing to Shanghai");
-// Agent thinks → calls searchFlights → reasons → gives answer ✅
 ```
 
-### 🔀 Parallel Agents — fan-out research, fan-in summary
+Replace the body of `Application.run()` above with:
 
 ```java
-// Three specialized agents run concurrently, results merged automatically
-FlowInstance researchChain = chainActor.builder()
-    .concurrent(
-        cAlias("flights",  flightAgent),
-        cAlias("hotels",   hotelAgent),
-        cAlias("weather",  weatherAgent)
-    )
-    .next(summaryAgent)   // merges all three results
-    .build();
-
-// Article 18: Article18ParallelTravelResearch.java
+String answer = new OrderAssistant(chainActor)
+        .ask("Please look up the status of order ORD-1001");
+System.out.println(answer);
 ```
 
-### 📚 RAG — PDF to Q&A in 50 lines
+The model selects a tool, the framework executes the method, and the model uses the result to answer. Tool routing and final wording depend on the model. Read more: [AgentExecutor](./docs/article/001-en/09-agent-executor.md) · [RPC integration](./docs/article/001-en/19-rpc-vo-param.md).
 
-```java
-PdfboxLoader loader = new PdfboxLoader("report.pdf");
-List<Document> chunks = StanfordNLPTextSplitter.builder()
-    .chunkSize(500).chunkOverlap(50).build()
-    .splitDocument(loader.load());
+<a id="architecture"></a>
 
-Milvus vectorStore = new Milvus(new OllamaEmbeddings());
-vectorStore.addDocuments(chunks);
-
-// Retrieve + answer
-List<Document> relevant = vectorStore.similaritySearch("What is the conclusion?", 3);
-String answer = chainActor.invoke(qaChain, Map.of("context", relevant, "question", "..."));
-```
-
-### 🔧 RPC Zero-Intrusion — expose Dubbo/Feign as AI tools with 2 annotations
-
-```java
-// No changes to your existing RPC interface
-@AgentTool(description = "Query order status")
-public OrderVO queryOrder(@Param("order ID") String orderId) {
-    return orderService.query(orderId);  // existing RPC call unchanged
-}
-// @ParamDesc on VO fields → auto schema generation
-// Article 19: Article19RpcMcpTools.java
-```
-
-### 🎙️ LLM → TTS — make your AI speak
-
-```java
-AIMessageChunk llmStream = llm.stream("Tell me about the weather today");
-TtsCardChunk audio = aliyunTts.stream(llmStream);
-// Streams audio chunks in real time; brackets auto-filtered before synthesis
-```
-
----
-
-## 📖 29 Tutorials: From Hello World to Multi-Agent Systems
-
-Every tutorial has a runnable demo class — no setup beyond a single API key.
-
-| Tutorial | What You Build | Level |
-|----------|----------------|-------|
-| [01 · First AI App](./docs/article/001-en/01-hello-ai.md) | Prompt→LLM→Parser, streaming, JSON output | ⭐ |
-| [02 · Chain Patterns](./docs/article/001-en/02-chain-patterns.md) | Sequential / Parallel / Conditional / Nested chains | ⭐⭐ |
-| [06 · Streaming](./docs/article/001-en/06-streaming.md) | `stream` / `streamEvent` / stop, SSE push | ⭐⭐ |
-| [07 · Multi-Model](./docs/article/001-en/07-multi-model.md) | Unified API across 13+ LLMs, hot-swap | ⭐ |
-| [03 · RAG Pipeline](./docs/article/001-en/03-rag-pipeline.md) | PDF → split → embed → Milvus → Q&A | ⭐⭐⭐ |
-| [04 · ReAct Agent](./docs/article/001-en/04-react-agent.md) | Tool definition, ReAct reasoning loop from scratch | ⭐⭐⭐ |
-| [09 · AgentExecutor](./docs/article/001-en/09-agent-executor.md) | One-line ReAct agent, `@AgentTool` annotation | ⭐⭐ |
-| [10 · Flight Price Agent](./docs/article/001-en/10-flight-compare-agent.md) | Multi-step tool-calling: compare & book flights | ⭐⭐ |
-| [05 · LLM + TTS](./docs/article/001-en/05-llm-tts.md) | LLM → speech, smart stream synthesis | ⭐⭐ |
-| [08 · MCP Basics](./docs/article/001-en/08-mcp.md) | MCP protocol, McpManager / McpClient | ⭐⭐⭐ |
-| [11 · MCP Function-Calling ReAct](./docs/article/001-en/11-mcp-react-agent.md) | Native tool calls, MCP manifest, loop control | ⭐⭐⭐ |
-| [12 · MCP Manager Agent](./docs/article/001-en/12-mcp-manager-agent.md) | McpAgentExecutor with HTTP MCP tools | ⭐⭐⭐ |
-| [13 · MCP Client Agent](./docs/article/001-en/13-mcp-client-agent.md) | NPX process-based MCP servers, auto tool selection | ⭐⭐⭐ |
-| [14 · Mixed MCP Agent](./docs/article/001-en/14-mcp-mixed-agent.md) | Multi-step tasks across HTTP and NPX MCP tools | ⭐⭐⭐ |
-| [15 · Travel Planner](./docs/article/001-en/15-agent-executor-embed.md) | Nested AgentExecutor inside a chain | ⭐⭐ |
-| [16 · Dual-Agent Service](./docs/article/001-en/16-multi-agent-executor.md) | ReAct + MCP serial pipeline, file output | ⭐⭐⭐ |
-| [17 · Domestic Vendors](./docs/article/001-en/17-domestic-vendors-chain.md) | Sequential chain across domestic `Chat*` APIs | ⭐ |
-| [18 · Parallel Agents](./docs/article/001-en/18-parallel-agent-concurrent.md) | 3 concurrent agents, fan-out/fan-in | ⭐⭐⭐ |
-| [19 · RPC Zero-Intrusion](./docs/article/001-en/19-rpc-vo-param.md) | Dubbo/Feign → AI tool, 2 annotations | ⭐⭐ |
-| [20 · Dual-Agent Self-Correction](./docs/article/001-en/20-two-agent-self-correct.md) | Write Agent + Test Agent loop, real javac execution | ⭐⭐⭐ |
-| [21 · Proposer-Critic Debate](./docs/article/001-en/21-proposer-critic-debate.md) | Two LLM agents iterate to consensus, no tools | ⭐⭐ |
-| [22 · Skill Agent ✨](./docs/article/001-en/22-skill-agent.md) | SKILL.md encapsulation, allowedTools borrowing | ⭐⭐⭐ |
-| [23 · SubAgent Basics ✨](./docs/article/001-en/23-subagent-basic.md) | Autonomous sub-agent with own tools, AGENT.md | ⭐⭐⭐ |
-| [23 · SubAgent Advanced ✨](./docs/article/001-en/23-subagent-advanced.md) | model=inherit, llmFactory, allowedTools, nesting | ⭐⭐⭐ |
-| [24 · Stop & Resume ✨](./docs/article/001-en/24-stop-and-resume.md) | stop(), partialContext, 3 resumption strategies | ⭐⭐⭐ |
-| [26 · Agent Stop Types ✨](./docs/article/001-en/26-agent-stop-types.md) | MAX_STEPS, TIMEOUT, tool failures, pause/resume | ⭐⭐⭐ |
-| [27 · Human-in-the-Loop ✨](./docs/article/001-en/27-human-in-the-loop.md) | Pause for user confirmation, resume with partialContext | ⭐⭐⭐ |
-| [28 · Observability ✨](./docs/article/001-en/28-observability.md) | Token usage stats, execution metrics, callbacks | ⭐⭐ |
-| [29 · Reasoning Content ✨](./docs/article/001-en/29-reasoning-content.md) | DeepSeek-R1 / Qwen3 reasoning content access | ⭐⭐ |
-
-➡️ [Full tutorial index with reading order →](./docs/article/001-en/README.md)
-
----
-
-## ✨ Core Features at a Glance
-
-### 🎯 12+ LLM Integrations — one unified API
-OpenAI · Ollama · DeepSeek · Alibaba Qwen · Moonshot (Kimi) · Doubao · Hunyuan · Qianfan (ERNIE) · Zhipu GLM · MiniMax · Lingyi Yi · Stepfun
-
-### 🔗 Chain Orchestration
-Sequential · Parallel · Nested · Conditional routing · Streaming output · Full event lifecycle
-
-### 📚 RAG
-PDF / Word / OCR loaders · Smart text splitting · OpenAI / Ollama / Alibaba embeddings · Milvus vector store
-
-### 🤖 Agent & MCP
-`AgentExecutor` (ReAct) · `McpAgentExecutor` (Function Calling) · `@AgentTool` / `ToolScanner` · MCP Stdio / SSE / HTTP · Multi-app history with thread safety · **Skill** (sub-workflow encapsulation, SKILL.md) · **SubAgent** (autonomous agents with own tools, 3-tier LLM strategy) · **Stop & Resume** (safe checkpoint, partialContext, signal cascading)
-
-### 🎤 TTS
-Alibaba Cloud · Doubao · Smart sentence splitting · Bracket auto-filter · Real-time audio streaming
-
----
-
-## 🏗️ Architecture
+## Architecture
 
 <p align="center">
   <img src="./docs/images/v1.0.19-fig1_J-LangChain-architecture-en.png" alt="J-LangChain architecture" width="680">
 </p>
 
-[Editable draw.io source](./docs/images/v1.0.19-fig1_J-LangChain-architecture-en.drawio)
+[draw.io editable source](./docs/images/v1.0.19-fig1_J-LangChain-architecture-en.drawio)
 
----
+<a id="examples"></a>
 
-## 📄 Documentation
+## Examples and tutorials
 
-| | |
-|--|--|
-| [Quick Start](./docs/guide/quickstart.md) | Detailed setup guide |
-| [Tutorial Series (EN)](./docs/article/001-en/README.md) | 29 tutorials, reading order, runnable demos |
-| [Tutorial Series (CN)](./docs/article/001/README.md) | 中文系列教程 |
-| [Sample Code](./src/test/java/org/salt/jlangchain/demo/) | 30+ runnable examples |
-| [API Reference](./docs/api/reference.md) | Full API docs |
+| I want to… | Start here | Requirements |
+|---|---|---|
+| Call models, parse output, and stream responses | [First AI application](./docs/article/001-en/01-hello-ai.md) · [Streaming](./docs/article/001-en/06-streaming.md) | A model service; cloud APIs need a key and quota |
+| Expose business methods to an agent | [AgentExecutor](./docs/article/001-en/09-agent-executor.md) · [RPC](./docs/article/001-en/19-rpc-vo-param.md) | A model service and business tools |
+| Connect MCP tools | [MCP](./docs/article/001-en/08-mcp.md) · [MCP Agent](./docs/article/001-en/13-mcp-client-agent.md) | A model service and MCP server; NPX examples need Node.js |
+| Build document Q&A | [RAG](./docs/article/001-en/03-rag-pipeline.md) | The example uses Ollama, Milvus, and local documents |
+| Reuse skills and compose agents | [Skill](./docs/article/001-en/22-skill-agent.md) · [SubAgent](./docs/article/001-en/23-subagent-basic.md) · [Parallel flows](./docs/article/001-en/18-parallel-agent-concurrent.md) | A model service; script skills also need their runtime and dependencies |
+| Add approval, pause, and resume | [Human-in-the-Loop](./docs/article/001-en/27-human-in-the-loop.md) · [Stop and resume](./docs/article/001-en/24-stop-and-resume.md) | A model service; pass saved context when resuming |
 
----
+[Full English tutorial index](./docs/article/001-en/README.md) · [Runnable example source](./src/test/java/org/salt/jlangchain/demo/article/)
 
-## 🤝 Contributing
+## Models and integrations
 
-- 🐛 [Report a Bug](https://github.com/flower-trees/j-langchain/issues)
-- 💡 [Suggest a Feature](https://github.com/flower-trees/j-langchain/issues)
-- 🔧 [Submit a Pull Request](https://github.com/flower-trees/j-langchain/pulls)
+| Category | Support |
+|---|---|
+| Models | OpenAI · Ollama · DeepSeek · Qwen · Moonshot · Doubao · Hunyuan · Qianfan · Zhipu · MiniMax · Lingyi · Stepfun |
+| Custom endpoints | `ChatCustom` — connect to OpenAI Chat Completions-compatible APIs |
+| Documents and retrieval | PDF / Word / OCR · Text splitting · OpenAI / Ollama / Aliyun Embeddings · Milvus |
+| Speech synthesis | Alibaba Cloud and Doubao TTS with sentence splitting, text filtering, and streaming audio |
+| State and observability | Conversation memory, periodic summaries, task context, token usage, and execution metrics |
+
+Tool calling, JSON output, and reasoning content support depend on the target service and model. [Model and configuration API](./docs/api/reference.md)
+
+## Documentation and development
+
+| Resource | Contents |
+|---|---|
+| [Setup guide](./docs/guide/quickstart.md) | Configuration and introductory examples |
+| [API reference](./docs/api/reference.md) | Models, flows, tools, memory, and callbacks |
+| [Release notes](./docs/release/pr-1.0.19-en.md) | Changes and migration guidance |
+| [Build and validation](./docs/guide/release-validation.md) | Local regression and integration acceptance guide (Chinese) |
+
+Run local regression and packaging checks from the repository root (requires Java 17, Maven, and Python):
 
 ```bash
-git checkout -b feature/your-feature
-git commit -m 'Add your feature'
-git push origin feature/your-feature
-# Then open a Pull Request
+mvn clean verify -Plocal-tests -Dgpg.skip=true
 ```
 
----
+The local profile selects regression tests without real model or MCP calls. Vendor, RAG, and TTS integration tests need their respective environments; see the validation guide.
 
-## 📄 License
+## Contributing
+
+Contributions are welcome through [Issue](https://github.com/flower-trees/j-langchain/issues) for bugs and ideas, or [Pull Request](https://github.com/flower-trees/j-langchain/pulls) for code, tests, and documentation.
+
+## License and acknowledgments
 
 [Apache License 2.0](./LICENSE)
 
-## 🙏 Acknowledgments
+Built with [salt-function-flow](https://github.com/flower-trees/salt-function-flow) · [Spring Boot](https://spring.io/projects/spring-boot) · Inspired by [LangChain](https://github.com/langchain-ai/langchain)
 
-[LangChain](https://github.com/langchain-ai/langchain) · [salt-function-flow](https://github.com/flower-trees/salt-function-flow) · [Spring Boot](https://spring.io/projects/spring-boot)
-
----
-
-<div align="center">
-
-**⭐ Found this useful? A Star takes 2 seconds and helps the project grow — thank you! ⭐**
-
-[Quick Start](#-quick-start-5-minutes) · [29 Tutorials](#-29-tutorials-from-hello-world-to-multi-agent-systems) · [Sample Code](./src/test/java/org/salt/jlangchain/demo/) · [Issues](https://github.com/flower-trees/j-langchain/issues)
-
-</div>
+If this project helps you, consider giving it a Star.
