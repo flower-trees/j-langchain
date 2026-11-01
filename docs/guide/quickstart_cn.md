@@ -1,6 +1,6 @@
 # J-LangChain 快速开始
 
-5 分钟让你跑起来。详细示例见 [README 核心能力展示](../../README_CN.md#-核心能力展示) 和 [MyFirstAIApp 源码](../../src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java)。
+5 分钟让你跑起来。详细示例见 [README 示例与教程](../../README_CN.md#examples) 和 [MyFirstAIApp 源码](../../src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java)。
 
 ---
 
@@ -10,7 +10,7 @@
 <dependency>
     <groupId>io.github.flower-trees</groupId>
     <artifactId>j-langchain</artifactId>
-    <version>1.0.18</version>
+    <version>1.0.19</version>
 </dependency>
 ```
 
@@ -119,4 +119,4 @@ AIMessage response = llm.invoke("北京今天天气怎么样？");
 
 ---
 
-**更多**：动态路由、并行执行、流式输出、JSON 解析、事件监控 → [README](../../README_CN.md#-核心能力展示) | [MyFirstAIApp](../../src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java)
+**更多**：动态路由、并行执行、流式输出、JSON 解析、事件监控 → [README](../../README_CN.md#examples) | [MyFirstAIApp](../../src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java)

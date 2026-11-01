@@ -90,7 +90,7 @@ public abstract class SseDoListener implements SseListenerStrategy {
     public void onComplete() {
 
         String msg = msgCache.toString();
-        if (!StringUtils.isNotEmpty(msg)) {
+        if (StringUtils.isNotEmpty(msg)) {
             AiChatOutput.Message message = new AiChatOutput.Message();
             message.setRole(MessageType.AI.getCode());
             message.setType(org.salt.jlangchain.ai.common.enums.MessageType.MARKDOWN.getCode());

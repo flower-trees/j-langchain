@@ -131,6 +131,16 @@ public abstract class BaseChatModel extends BaseRunnable<BaseMessage, Object> {
     public abstract Class<? extends AiChatActuator> getActuator();
     public abstract BaseChatModel copy();
 
+    /**
+     * Returns a variant of this model that requests strict JSON output from the vendor API
+     * (e.g. response_format: json_object), for callers that parse a structured JSON response
+     * (planners, reflectors) rather than free-form text or tool calls. Default: no-op — vendors
+     * that don't support this override it; callers that don't need it simply don't call it.
+     */
+    public BaseChatModel withJsonMode() {
+        return this;
+    }
+
     protected List<AiChatInput.Message> convertMessage(Object input) {
         if (input instanceof StringPromptValue stringPromptValue) {
             return List.of(new AiChatInput.Message(RoleType.USER.getCode(), stringPromptValue.getText()));

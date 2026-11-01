@@ -92,14 +92,14 @@ public class HistoryMemoryUnitTest {
     @Test
     public void testConversationStorageEmptyOnFirstLoad() {
         InMemoryConversationStorage storage = new InMemoryConversationStorage();
-        List<HistoryInfos> result = storage.loadAll(0L, 1L, 1L);
+        List<HistoryInfos> result = storage.loadAll("0", "1", "1");
         Assert.assertTrue("fresh session must be empty", result.isEmpty());
     }
 
     @Test
     public void testConversationStorageAppendIncreasesSize() {
         InMemoryConversationStorage storage = new InMemoryConversationStorage();
-        Long appId = 0L, userId = 1L, sessionId = 1L;
+        String appId = "0", userId = "1", sessionId = "1";
 
         storage.append(appId, userId, sessionId, turn("hello", "hi"));
         Assert.assertEquals(1, storage.loadAll(appId, userId, sessionId).size());
@@ -111,7 +111,7 @@ public class HistoryMemoryUnitTest {
     @Test
     public void testConversationStorageReplaceIsAtomic() {
         InMemoryConversationStorage storage = new InMemoryConversationStorage();
-        Long appId = 0L, userId = 1L, sessionId = 1L;
+        String appId = "0", userId = "1", sessionId = "1";
 
         storage.append(appId, userId, sessionId, turn("a", "1"));
         storage.append(appId, userId, sessionId, turn("b", "2"));
@@ -131,7 +131,7 @@ public class HistoryMemoryUnitTest {
     @Test
     public void testConversationStorageClearEmptiesSession() {
         InMemoryConversationStorage storage = new InMemoryConversationStorage();
-        Long appId = 0L, userId = 1L, sessionId = 1L;
+        String appId = "0", userId = "1", sessionId = "1";
 
         storage.append(appId, userId, sessionId, turn("x", "y"));
         storage.append(appId, userId, sessionId, turn("x", "y"));
@@ -143,47 +143,47 @@ public class HistoryMemoryUnitTest {
     @Test
     public void testConversationStorageSessionIsolation() {
         InMemoryConversationStorage storage = new InMemoryConversationStorage();
-        Long appId = 0L, userId = 1L;
+        String appId = "0", userId = "1";
 
-        storage.append(appId, userId, 10L, turn("s10", "r10"));
-        storage.append(appId, userId, 20L, turn("s20a", "r20a"));
-        storage.append(appId, userId, 20L, turn("s20b", "r20b"));
+        storage.append(appId, userId, "10", turn("s10", "r10"));
+        storage.append(appId, userId, "20", turn("s20a", "r20a"));
+        storage.append(appId, userId, "20", turn("s20b", "r20b"));
 
-        Assert.assertEquals(1, storage.loadAll(appId, userId, 10L).size());
-        Assert.assertEquals(2, storage.loadAll(appId, userId, 20L).size());
-        Assert.assertTrue(storage.loadAll(appId, userId, 99L).isEmpty());
+        Assert.assertEquals(1, storage.loadAll(appId, userId, "10").size());
+        Assert.assertEquals(2, storage.loadAll(appId, userId, "20").size());
+        Assert.assertTrue(storage.loadAll(appId, userId, "99").isEmpty());
     }
 
     @Test
     public void testConversationStorageUserIsolation() {
         InMemoryConversationStorage storage = new InMemoryConversationStorage();
-        Long appId = 0L, sessionId = 1L;
+        String appId = "0", sessionId = "1";
 
-        storage.append(appId, 100L, sessionId, turn("u100", "r"));
-        storage.append(appId, 200L, sessionId, turn("u200a", "r"));
-        storage.append(appId, 200L, sessionId, turn("u200b", "r"));
+        storage.append(appId, "100", sessionId, turn("u100", "r"));
+        storage.append(appId, "200", sessionId, turn("u200a", "r"));
+        storage.append(appId, "200", sessionId, turn("u200b", "r"));
 
-        Assert.assertEquals(1, storage.loadAll(appId, 100L, sessionId).size());
-        Assert.assertEquals(2, storage.loadAll(appId, 200L, sessionId).size());
+        Assert.assertEquals(1, storage.loadAll(appId, "100", sessionId).size());
+        Assert.assertEquals(2, storage.loadAll(appId, "200", sessionId).size());
     }
 
     @Test
     public void testConversationStorageClearDoesNotAffectOtherSessions() {
         InMemoryConversationStorage storage = new InMemoryConversationStorage();
-        Long appId = 0L, userId = 1L;
+        String appId = "0", userId = "1";
 
-        storage.append(appId, userId, 1L, turn("a", "b"));
-        storage.append(appId, userId, 2L, turn("c", "d"));
-        storage.clear(appId, userId, 1L);
+        storage.append(appId, userId, "1", turn("a", "b"));
+        storage.append(appId, userId, "2", turn("c", "d"));
+        storage.clear(appId, userId, "1");
 
-        Assert.assertTrue(storage.loadAll(appId, userId, 1L).isEmpty());
-        Assert.assertEquals(1, storage.loadAll(appId, userId, 2L).size());
+        Assert.assertTrue(storage.loadAll(appId, userId, "1").isEmpty());
+        Assert.assertEquals(1, storage.loadAll(appId, userId, "2").size());
     }
 
     @Test
     public void testConversationStorageLoadAllReturnsCopy() {
         InMemoryConversationStorage storage = new InMemoryConversationStorage();
-        Long appId = 0L, userId = 1L, sessionId = 1L;
+        String appId = "0", userId = "1", sessionId = "1";
         storage.append(appId, userId, sessionId, turn("a", "b"));
 
         List<HistoryInfos> list1 = storage.loadAll(appId, userId, sessionId);

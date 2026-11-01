@@ -26,10 +26,15 @@ import org.salt.jlangchain.rag.tools.Tool;
 import org.salt.function.flow.context.ContextBus;
 import org.salt.jlangchain.core.common.CallInfo;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * A skill is a self-contained, reusable agent unit that wraps a
@@ -67,13 +72,18 @@ public class Skill {
     private final Consumer<String> onToolCall;
     private final Consumer<String> onObservation;
     private final Consumer<AgentTokenUsageEvent> onTokenUsage;
+    private final boolean claudeCompatMode;
+    private final Path claudeCompatWorkspace;
+    private final boolean claudeCompatBash;
     private List<Tool> parentTools = new ArrayList<>();
     private volatile McpAgentExecutor executor;
+    private volatile Path resolvedWorkspace;
 
     private Skill(SkillConfig config, ChainActor chainActor, BaseChatModel llm,
                   List<Tool> ownTools, int maxIterations, boolean verbose,
                   Consumer<String> onLlm, Consumer<String> onToolCall, Consumer<String> onObservation,
-                  Consumer<AgentTokenUsageEvent> onTokenUsage) {
+                  Consumer<AgentTokenUsageEvent> onTokenUsage,
+                  boolean claudeCompatMode, Path claudeCompatWorkspace, boolean claudeCompatBash) {
         this.config = config;
         this.chainActor = chainActor;
         this.llm = llm;
@@ -84,6 +94,9 @@ public class Skill {
         this.onToolCall = onToolCall;
         this.onObservation = onObservation;
         this.onTokenUsage = onTokenUsage;
+        this.claudeCompatMode = claudeCompatMode;
+        this.claudeCompatWorkspace = claudeCompatWorkspace;
+        this.claudeCompatBash = claudeCompatBash;
     }
 
     public static Builder from(SkillConfig config, ChainActor chainActor) {
@@ -183,26 +196,113 @@ public class Skill {
         return builder.build();
     }
 
-    private List<Tool> collectTools() {
+    /** Package-private (not private) so tests can exercise tool assembly without a real LLM/executor. */
+    List<Tool> collectTools() {
         List<Tool> all = new ArrayList<>();
         if (config.getScripts() != null) {
             config.getScripts().stream().map(ScriptTool::from).forEach(all::add);
         }
         all.addAll(ownTools);
         all.addAll(parentTools);
+        if (hasLazyReferences()) {
+            all.add(buildReadReferenceTool());
+        }
+        if (claudeCompatMode && getAllowedTools().isEmpty()) {
+            all.addAll(SkillWorkspaceTools.forRoot(resolveWorkspace()));
+            if (claudeCompatBash) {
+                all.add(SkillWorkspaceTools.scopedBashTool(resolveWorkspace()));
+            }
+        }
         return all;
     }
 
-    private String buildSystemPrompt() {
+    /**
+     * Lazily resolves the Claude-compatible mode workspace root, creating a fresh temp
+     * directory the first time if the caller didn't set one explicitly via
+     * {@link Builder#claudeCompatWorkspace(Path)}. Cached per {@code Skill} instance so
+     * repeated tool calls within one invocation (and any later re-invocation of the same
+     * instance) share the same sandboxed directory.
+     */
+    Path resolveWorkspace() {
+        if (claudeCompatWorkspace != null) return claudeCompatWorkspace;
+        Path cached = resolvedWorkspace;
+        if (cached != null) return cached;
+        synchronized (this) {
+            if (resolvedWorkspace == null) {
+                try {
+                    resolvedWorkspace = Files.createTempDirectory("jlangchain-skill-workspace-" + config.getName() + "-");
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to create skill workspace for: " + config.getName(), e);
+                }
+            }
+            return resolvedWorkspace;
+        }
+    }
+
+    /** Package-private (not private) so tests can assert on systemPrompt content directly. */
+    String buildSystemPrompt() {
         StringBuilder sb = new StringBuilder();
         if (config.getSystemPrompt() != null && !config.getSystemPrompt().isBlank()) {
             sb.append(config.getSystemPrompt());
         }
-        if (config.getReferences() != null && !config.getReferences().isEmpty()) {
+        List<ReferenceDoc> refs = config.getReferences();
+        if (refs != null && !refs.isEmpty()) {
             sb.append("\n\n---\n\n");
-            sb.append(String.join("\n\n---\n\n", config.getReferences()));
+            if (isLazyReferencesMode()) {
+                sb.append("Available reference documents (read on demand via read_reference):\n");
+                for (ReferenceDoc ref : refs) {
+                    sb.append("- ").append(ref.filename());
+                    if (ref.summary() != null && !ref.summary().isBlank()) {
+                        sb.append(": ").append(ref.summary());
+                    }
+                    sb.append("\n");
+                }
+            } else {
+                sb.append(refs.stream().map(ReferenceDoc::content).collect(Collectors.joining("\n\n---\n\n")));
+            }
+        }
+        if (claudeCompatMode && getAllowedTools().isEmpty()) {
+            sb.append("\n\n---\n\n")
+              .append("Your sandboxed workspace root is: ").append(resolveWorkspace()).append("\n")
+              .append("create_directory/write_file/read_file/list_directory/file_exists paths are relative to ")
+              .append("this root. Bundled scripts (if any) take real filesystem paths, not relative ones — pass ")
+              .append("the absolute path shown above (or the absolute path returned by create_directory/write_file) ")
+              .append("when invoking them.");
         }
         return sb.toString();
+    }
+
+    // ── references mode helpers ───────────────────────────────────────────────
+
+    /** Null referencesMode is treated as INLINE — keeps pre-existing configs unchanged. */
+    private boolean isLazyReferencesMode() {
+        return config.getReferencesMode() == ReferencesMode.LAZY;
+    }
+
+    private boolean hasLazyReferences() {
+        return isLazyReferencesMode() && config.getReferences() != null && !config.getReferences().isEmpty();
+    }
+
+    private Tool buildReadReferenceTool() {
+        Map<String, String> byFilename = config.getReferences().stream()
+                .collect(Collectors.toMap(ReferenceDoc::filename, ReferenceDoc::content, (a, b) -> a));
+        return Tool.builder()
+                .name("read_reference")
+                .description("Read the full content of a reference document by filename. " +
+                        "Available files: " + String.join(", ", byFilename.keySet()))
+                .params("file: String")
+                .func(raw -> {
+                    String file = argString(raw, "file");
+                    String content = byFilename.get(file);
+                    return content != null ? content : "Error: reference not found: " + file;
+                })
+                .build();
+    }
+
+    private static String argString(Object raw, String key) {
+        if (!(raw instanceof Map<?, ?> map)) return "";
+        Object v = map.get(key);
+        return v != null ? v.toString().trim() : "";
     }
 
     // ── builder ──────────────────────────────────────────────────────────────
@@ -221,6 +321,9 @@ public class Skill {
         private Consumer<String> onToolCall;
         private Consumer<String> onObservation;
         private Consumer<AgentTokenUsageEvent> onTokenUsage;
+        private Boolean claudeCompatModeOverride;
+        private Path claudeCompatWorkspace;
+        private boolean claudeCompatBash = false;
 
         private Builder(SkillConfig config, ChainActor chainActor) {
             this.config = config;
@@ -299,14 +402,49 @@ public class Skill {
             return this;
         }
 
+        /**
+         * Explicitly force Claude-compatible mode on/off, overriding whatever
+         * {@link SkillConfig#claudeCompatMode} says. Most callers don't need this — the
+         * loader that produced the {@link SkillConfig} already sets the right default
+         * (true for {@code FileSystemSkillConfigLoader}/{@code ClasspathSkillConfigLoader},
+         * false for code-first configs).
+         */
+        public Builder claudeCompatMode(boolean enabled) {
+            this.claudeCompatModeOverride = enabled;
+            return this;
+        }
+
+        /**
+         * Root directory for Claude-compatible mode's scoped filesystem tools. If not set and
+         * the mode ends up enabled, a fresh temp directory is created lazily on first use.
+         */
+        public Builder claudeCompatWorkspace(Path workspace) {
+            this.claudeCompatWorkspace = workspace;
+            return this;
+        }
+
+        /**
+         * Opt in to also granting a workspace-scoped {@code bash} tool in Claude-compatible
+         * mode. Off by default — Claude-compatible mode alone only grants the five filesystem
+         * tools in {@link SkillWorkspaceTools}, never a shell. Note this is a much weaker
+         * sandbox than the filesystem tools (cwd-scoped only, not path-escape-proof).
+         */
+        public Builder claudeCompatBash(boolean enabled) {
+            this.claudeCompatBash = enabled;
+            return this;
+        }
+
         public Skill build() {
             if (llm == null) {
                 throw new IllegalStateException("llm must be set for skill: " + config.getName());
             }
             int resolvedMaxIter = maxIterations != null ? maxIterations
                     : (config.getMaxIterations() != null ? config.getMaxIterations() : DEFAULT_MAX_ITERATIONS);
+            boolean resolvedClaudeCompatMode = claudeCompatModeOverride != null
+                    ? claudeCompatModeOverride : config.isClaudeCompatMode();
             return new Skill(config, chainActor, llm, ownTools, resolvedMaxIter, verbose,
-                    onLlm, onToolCall, onObservation, onTokenUsage);
+                    onLlm, onToolCall, onObservation, onTokenUsage,
+                    resolvedClaudeCompatMode, claudeCompatWorkspace, claudeCompatBash);
         }
     }
 }

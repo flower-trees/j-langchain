@@ -1,6 +1,6 @@
 # J-LangChain Quick Start
 
-Get up and running in 5 minutes. For more examples, see [README Core Capabilities](../../README.md#-core-capabilities) and [MyFirstAIApp source](../../src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java).
+Get up and running in 5 minutes. For more examples, see [README Examples and Tutorials](../../README.md#examples) and [MyFirstAIApp source](../../src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java).
 
 ---
 
@@ -10,7 +10,7 @@ Get up and running in 5 minutes. For more examples, see [README Core Capabilitie
 <dependency>
     <groupId>io.github.flower-trees</groupId>
     <artifactId>j-langchain</artifactId>
-    <version>1.0.18</version>
+    <version>1.0.19</version>
 </dependency>
 ```
 
@@ -119,4 +119,4 @@ AIMessage response = llm.invoke("What's the weather in Beijing?");
 
 ---
 
-**More**: Dynamic routing, parallel execution, streaming, JSON parsing, event monitoring → [README](../../README.md#-core-capabilities) | [MyFirstAIApp](../../src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java)
+**More**: Dynamic routing, parallel execution, streaming, JSON parsing, event monitoring → [README](../../README.md#examples) | [MyFirstAIApp](../../src/test/java/org/salt/jlangchain/demo/flow/MyFirstAIApp.java)

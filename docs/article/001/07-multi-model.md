@@ -1,7 +1,7 @@
 # Java 接入多家大模型 API 实战对比
 
 > **适合人群**：需要接入大模型 API 的 Java 开发者，或正在做模型选型的工程师  
-> **支持模型**：Ollama（本地）、阿里云通义千问、OpenAI、豆包 Coze
+> **支持模型**：Ollama（本地）、阿里云通义千问、OpenAI、豆包
 
 ---
 
@@ -21,7 +21,6 @@
 | `qwen2.5:0.5b` | Ollama（本地） | 免费、无网络依赖、0延迟 | 开发测试、隐私数据 |
 | `qwen-plus` | 阿里云 | 中文效果好、稳定、价格低 | 国内生产环境 |
 | `gpt-4` | OpenAI | 能力最强 | 高质量任务 |
-| Coze Bot | 字节跳动 | 可自定义知识库和插件 | 企业定制 |
 
 ---
 
@@ -182,14 +181,6 @@ aliyun:
 openai:
   api-key: ${OPENAI_KEY}
   base-url: https://api.openai.com/v1  # 或代理地址
-```
-
-### 豆包 Coze
-```yaml
-coze:
-  client-id: ${COZE_CLIENT_ID}
-  private-key-path: ${COZE_PRIVATE_KEY_PATH}
-  public-key-id: ${COZE_PUBLIC_KEY_ID}
 ```
 
 ---

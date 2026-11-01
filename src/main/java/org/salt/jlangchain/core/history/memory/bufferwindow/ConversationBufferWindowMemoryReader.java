@@ -45,15 +45,15 @@ public class ConversationBufferWindowMemoryReader extends ConversationMemoryRead
     public static Builder builder() { return new Builder(); }
 
     public static final class Builder {
-        private Long appId;
-        private Long userId;
-        private Long sessionId;
+        private String appId;
+        private String userId;
+        private String sessionId;
         private Integer limit;
         private ConversationStorage storage;
 
-        public Builder appId(Long v)                  { this.appId = v;     return this; }
-        public Builder userId(Long v)                 { this.userId = v;    return this; }
-        public Builder sessionId(Long v)              { this.sessionId = v; return this; }
+        public Builder appId(String v)                  { this.appId = v;     return this; }
+        public Builder userId(String v)                 { this.userId = v;    return this; }
+        public Builder sessionId(String v)              { this.sessionId = v; return this; }
         public Builder limit(Integer v)               { this.limit = v;     return this; }
         public Builder storage(ConversationStorage v) { this.storage = v;   return this; }
 

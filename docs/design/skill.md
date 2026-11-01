@@ -94,6 +94,10 @@ max-iterations: 8
 | `description` | String | 主 LLM 看到的 Tool 描述，影响路由决策 |
 | `allowed-tools` | List | 允许从父 Agent 借用的工具名称列表 |
 | `max-iterations` | Integer | 内部执行器最大迭代次数，默认 10 |
+| `license` | String | 可选，来源/授权声明，仅透传存储，不参与执行逻辑 |
+| `metadata` | Map | 可选，任意附加信息，仅透传存储 |
+
+> **与 Claude Code 语义对齐说明**：Claude Code 的 `allowed-tools` 限制的是"技能运行期间能用主 Agent 的哪些工具"——因为 Claude Code 的技能就运行在主 Agent 会话里，内置工具本质上就是主 Agent 自己的工具，没有第二个工具来源。j-langchain 的 Skill 工具来源分三层（见 §5），其中脚本工具和自有工具是 Skill 作者构建时显式挑选的封闭小集合，天然不需要再收紧；唯一开放的、可能很大的外部工具面就是父 Agent 的工具（`parentTools`）。所以 `allowed-tools` 只过滤 `parentTools` 这一层、决定借用父 Agent 哪些工具，和 Claude Code "限制技能可用主 Agent 工具范围"其实是同一件事，只是用"白名单借用"的方式实现了同样的收紧效果——两者语义一致，不需要拆分成"借用"和"收紧"两个字段。
 
 ---
 
@@ -107,13 +111,20 @@ max-iterations: 8
 public class SkillConfig {
     private String name;
     private String description;
-    private List<String> allowedTools;   // 允许借用的父工具
-    private String systemPrompt;          // SKILL.md 正文
-    private List<String> references;      // references/*.md 预加载内容
-    private List<ScriptDef> scripts;      // scripts/* 脚本定义
-    private List<SubAgentConfig> agents;  // agents/*.md 嵌入式子代理
+    private List<String> allowedTools;      // 允许借用的父工具
+    private String systemPrompt;             // SKILL.md 正文
+    private List<ReferenceDoc> references;   // references/*.md，内容按 referencesMode 决定是否预加载
+    private ReferencesMode referencesMode;   // INLINE(默认) | LAZY
+    private List<ScriptDef> scripts;         // scripts/* 脚本定义
+    private List<SubAgentConfig> agents;     // agents/*.md 嵌入式子代理
     private Integer maxIterations;
+    private String license;                  // 可选，透传
+    private Map<String, Object> metadata;    // 可选，透传
 }
+
+public record ReferenceDoc(String filename, String content, String summary) {}
+
+public enum ReferencesMode { INLINE, LAZY }
 ```
 
 `SkillConfig` 与存储介质无关——同一配置结构既可从 classpath 加载（`ClasspathSkillConfigLoader`），也可从数据库或代码构造。
@@ -142,7 +153,9 @@ Skill 内部执行器的工具集由三个来源合并：
 3      parentTools       McpAgentExecutor 按 allowedTools 注入
 ```
 
-**ScriptTools（脚本工具）**
+**ScriptTools（脚本工具，j-langchain 扩展）**
+
+> Claude Code 规范里，`scripts/` 下的文件是普通文件，由模型自己判断，通过 Bash 工具按需执行；j-langchain 在加载阶段就把每个脚本自动转成一个独立具名 Tool，模型直接 function-call 调用，不经过 Bash——这是增值封装，不是规范要求，但完全向下兼容：一个真实的 Claude Code Skill 包里的 `scripts/*` 一样能被自动转成 Tool 使用。
 
 每个脚本文件在 `ScriptTool.from(ScriptDef)` 时被写入系统临时目录，由 `ProcessBuilder` 执行。只有 stdout 被捕获作为工具返回值，脚本源码不进入任何 LLM 上下文：
 
@@ -180,7 +193,13 @@ for (Skill skill : skills) {
 
 ## 6. 知识库注入（references）
 
-`references/*.md` 中的文档在加载时预读入内存，拼接到系统提示尾部，以 `---` 分隔：
+`references/*.md` 中的文档支持两种加载模式，由前言字段 `references-mode` 控制：
+
+```yaml
+references-mode: inline   # inline(默认) | lazy
+```
+
+**`inline`（默认，向下兼容原有行为）**：文档在加载时预读入内存，拼接到系统提示尾部，以 `---` 分隔：
 
 ```
 [SKILL.md 正文]
@@ -196,9 +215,25 @@ for (Skill skill : skills) {
 
 这样 Skill 内部的 LLM 在每次调用时都能"看见"领域知识，而不需要额外的 RAG 检索开销。适合体量小但高度稳定的参考文档（价目表、政策文本、工作流规范等）。
 
+**`lazy`（可选，贴近 Claude Code 的渐进式加载）**：系统提示尾部只拼接一份文件清单（文件名 + 首行摘要），不预加载全文；Skill 内部执行器额外挂载一个 `read_reference(file: String)` 工具，需要时自己按需读取全文：
+
+```
+[SKILL.md 正文]
+
 ---
 
-## 7. 嵌入式子代理（agents/ 目录）
+Available reference documents (read on demand via read_reference):
+- destinations.md: 目的地城市概览与最佳旅行季节
+- booking-policy.md: 退改签与预订政策
+```
+
+适合体量较大、并非每次调用都用得上的参考文档，避免每次调用都消耗额外 token。
+
+---
+
+## 7. 嵌入式子代理（agents/ 目录，j-langchain 扩展）
+
+> Claude Code 里 Skill 和 SubAgent（`.claude/agents/*.md`）是两个独立的顶层概念，SKILL.md 目录不会有 `agents/` 子目录。以下"技能内嵌子代理"是 j-langchain 自己的设计，不是 Claude Code 规范组成部分；遇到真实的 Claude Code Skill 包（没有这个目录）也不影响加载——`loadAgents()` 找不到目录会安全返回空列表。
 
 Skill 内部可以嵌入轻量的 `SubAgent`，用于进一步的任务分解：
 

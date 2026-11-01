@@ -15,6 +15,8 @@
 package org.salt.jlangchain.core.skill.loader;
 
 import lombok.extern.slf4j.Slf4j;
+import org.salt.jlangchain.core.skill.ReferenceDoc;
+import org.salt.jlangchain.core.skill.ReferencesMode;
 import org.salt.jlangchain.core.skill.ScriptDef;
 import org.salt.jlangchain.core.skill.ScriptTool;
 import org.salt.jlangchain.core.skill.SkillConfig;
@@ -28,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 /**
@@ -37,8 +40,8 @@ import java.util.stream.Stream;
  *
  * <pre>
  * {skillDir}/
- *   SKILL.md          → frontmatter (name, description, allowed-tools) + body (systemPrompt)
- *   references/*.md   → domain knowledge injected into systemPrompt
+ *   SKILL.md          → frontmatter (name, description, allowed-tools, references-mode) + body (systemPrompt)
+ *   references/*.md   → domain knowledge, inlined or read on demand per references-mode
  *   scripts/*         → executable scripts converted to ScriptDef
  *   agents/*.md       → embedded sub-agents
  * </pre>
@@ -65,19 +68,32 @@ public class FileSystemSkillConfigLoader implements SkillConfigLoader {
 
         String content = readFile(skillMd);
         SkillMdParsed parsed = parseSkillMd(content);
-        List<String> references = loadReferences(dir);
+        List<ReferenceDoc> references = loadReferences(dir);
         List<ScriptDef> scripts = loadScripts(dir);
         List<SubAgentConfig> agents = loadAgents(dir);
 
+        // Falls back to the directory name when SKILL.md has no "name:" frontmatter field —
+        // most commonly because the file is missing its "---" fences entirely (e.g. an LLM
+        // authoring tool that wrote the frontmatter fields as plain text). Without this, a
+        // blank name produces an unfindable skill: capabilityId becomes "<pluginId>." with a
+        // trailing dot and an empty short name, so neither /skills listing nor short-name
+        // dispatch can reach it — silently worse than a slightly-wrong-but-present name.
+        String name = (parsed.name() != null && !parsed.name().isBlank())
+                ? parsed.name() : dir.getFileName().toString();
+
         return SkillConfig.builder()
-                .name(parsed.name())
+                .name(name)
                 .description(parsed.description())
                 .allowedTools(parsed.allowedTools())
                 .systemPrompt(parsed.body())
                 .references(references)
+                .referencesMode(parsed.referencesMode())
                 .scripts(scripts)
                 .agents(agents)
                 .maxIterations(parsed.maxIterations())
+                .license(parsed.license())
+                .metadata(parsed.metadata())
+                .claudeCompatMode(true)
                 .build();
     }
 
@@ -86,7 +102,7 @@ public class FileSystemSkillConfigLoader implements SkillConfigLoader {
     private SkillMdParsed parseSkillMd(String content) {
         String[] parts = content.split("(?m)^---\\s*$", 3);
         if (parts.length < 3) {
-            return new SkillMdParsed("", "", List.of(), null, content.trim());
+            return new SkillMdParsed("", "", List.of(), null, ReferencesMode.INLINE, null, null, content.trim());
         }
         Map<String, Object> fm = parseFrontmatter(parts[1].trim());
         String body = parts[2].trim();
@@ -95,20 +111,39 @@ public class FileSystemSkillConfigLoader implements SkillConfigLoader {
                 getString(fm, "description", ""),
                 getStringList(fm, "allowed-tools"),
                 getInteger(fm, "max-iterations"),
+                getReferencesMode(fm),
+                getString(fm, "license", null),
+                getMetadata(fm),
                 body
         );
     }
 
+    private ReferencesMode getReferencesMode(Map<String, Object> fm) {
+        String mode = getString(fm, "references-mode", "inline");
+        return "lazy".equalsIgnoreCase(mode) ? ReferencesMode.LAZY : ReferencesMode.INLINE;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getMetadata(Map<String, Object> fm) {
+        Object val = fm.get("metadata");
+        return val instanceof Map<?, ?> m ? (Map<String, Object>) m : null;
+    }
+
     // ── references loading ───────────────────────────────────────────────────
 
-    private List<String> loadReferences(Path dir) {
+    private List<ReferenceDoc> loadReferences(Path dir) {
         Path refDir = dir.resolve("references");
         if (!Files.isDirectory(refDir)) return List.of();
         try (Stream<Path> files = Files.list(refDir)) {
             return files.filter(p -> p.getFileName().toString().endsWith(".md"))
                     .sorted()
-                    .map(this::readFile)
-                    .filter(c -> c != null && !c.isBlank())
+                    .map(p -> {
+                        String content = readFile(p);
+                        return content != null && !content.isBlank()
+                                ? new ReferenceDoc(p.getFileName().toString(), content, firstLine(content))
+                                : null;
+                    })
+                    .filter(Objects::nonNull)
                     .toList();
         } catch (IOException e) {
             log.debug("No references in {}/references/", dir);
@@ -116,11 +151,25 @@ public class FileSystemSkillConfigLoader implements SkillConfigLoader {
         }
     }
 
+    /** First non-blank line, stripped of leading markdown heading markers, used as a lazy-mode summary. */
+    private String firstLine(String content) {
+        for (String line : content.split("\n")) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty()) continue;
+            return trimmed.replaceFirst("^#+\\s*", "");
+        }
+        return "";
+    }
+
     // ── scripts loading ──────────────────────────────────────────────────────
 
     private List<ScriptDef> loadScripts(Path dir) {
         Path scriptsDir = dir.resolve("scripts");
         if (!Files.isDirectory(scriptsDir)) return List.of();
+        // Scripts run in place (see ScriptTool) so sibling files — other scripts, __init__.py,
+        // references/, assets/ — stay reachable; workDir is the skill root, not scripts/ itself,
+        // so "python -m scripts.foo"-style package-relative imports resolve.
+        String workDir = dir.toAbsolutePath().toString();
         List<ScriptDef> scripts = new ArrayList<>();
         try (Stream<Path> files = Files.list(scriptsDir)) {
             files.filter(Files::isRegularFile).sorted().forEach(p -> {
@@ -130,9 +179,17 @@ public class FileSystemSkillConfigLoader implements SkillConfigLoader {
                 if (!ScriptTool.supports(ext)) return;
                 String name = filename.substring(0, filename.lastIndexOf('.'));
                 String content = readFile(p);
-                if (content != null) {
-                    scripts.add(ScriptDef.builder().name(name).type(ext).content(content).build());
-                }
+                if (content == null) return;
+                // Skip library-only files (e.g. utils.py, __init__.py) — registering them as
+                // callable tools invites the model to misuse them as a generic shell substitute.
+                // The file itself is untouched on disk, so package imports (scripts.utils) still
+                // work via ScriptTool's in-place "python -m" invocation.
+                if (!ScriptTool.hasEntrypoint(ext, content)) return;
+                scripts.add(ScriptDef.builder()
+                        .name(name).type(ext).content(content)
+                        .sourcePath(p.toAbsolutePath().toString())
+                        .workDir(workDir)
+                        .build());
             });
         } catch (IOException e) {
             log.debug("No scripts in {}/scripts/", dir);
@@ -234,6 +291,7 @@ public class FileSystemSkillConfigLoader implements SkillConfigLoader {
         return List.of();
     }
 
-    private record SkillMdParsed(String name, String description, List<String> allowedTools,
-                                  Integer maxIterations, String body) {}
+    private record SkillMdParsed(String name, String description, List<String> allowedTools, Integer maxIterations,
+                                  ReferencesMode referencesMode, String license, Map<String, Object> metadata,
+                                  String body) {}
 }

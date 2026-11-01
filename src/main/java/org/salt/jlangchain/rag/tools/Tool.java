@@ -17,6 +17,7 @@ package org.salt.jlangchain.rag.tools;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.util.Map;
 import java.util.function.Function;
 
 @EqualsAndHashCode(callSuper = true)
@@ -28,11 +29,27 @@ public class Tool extends BaseTool<Object, Object>{
     String description;
     Function<Object, Object> func;
 
+    /**
+     * Optional raw JSON Schema for this tool's parameters (the {@code inputSchema} an MCP server
+     * hands back verbatim, or any hand-built schema). When present, {@code McpAgentExecutor}'s
+     * {@code toAiTool()} sends this directly as the native function-calling {@code parameters}
+     * field instead of re-deriving one from {@link #params} — {@code params} degrades a schema to
+     * a flat {@code "name: Type"} string and its consumer, {@code buildSchema()}, marks every
+     * listed name required regardless of the source schema's own {@code required} array, which
+     * silently forces the model to supply values (including mutually-exclusive or genuinely
+     * optional ones) it shouldn't have to. Set this whenever the real schema is available so the
+     * model sees accurate types, descriptions, and required/optional status; {@link #params}
+     * still drives whatever text-based tool listing renders elsewhere (e.g. {@code PromptTemplate}),
+     * so keep setting it too — the two aren't redundant, they feed different consumers.
+     */
+    Map<String, Object> parametersSchema;
+
     private Tool(ToolBuilder builder) {
         this.name = builder.name;
         this.params = builder.params;
         this.description = builder.description;
         this.func = builder.func;
+        this.parametersSchema = builder.parametersSchema;
     }
 
     public Tool() {
@@ -47,6 +64,7 @@ public class Tool extends BaseTool<Object, Object>{
         private String params;
         private String description;
         private Function<Object, Object> func;
+        private Map<String, Object> parametersSchema;
 
         private ToolBuilder() {
         }
@@ -68,6 +86,12 @@ public class Tool extends BaseTool<Object, Object>{
 
         public ToolBuilder func(Function<Object, Object> func) {
             this.func = func;
+            return this;
+        }
+
+        /** See {@link Tool#parametersSchema}. */
+        public ToolBuilder parametersSchema(Map<String, Object> parametersSchema) {
+            this.parametersSchema = parametersSchema;
             return this;
         }
 

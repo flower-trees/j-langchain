@@ -95,29 +95,6 @@ public void chainMoonshot() {
 
 ---
 
-### 扣子（Coze）
-
-扣子的接入方式稍有不同，需要额外提供 `botId`。可以在控制台创建 Bot 后，将 Bot ID 设置为环境变量 `COZE_BOT_ID`。未设置时示例使用占位 ID，调用会失败直至替换为真实值。
-
-代码中使用了 JUnit 的 `Assume` 机制，如果 `COZE_KEY` 未配置，该测试会自动跳过，不影响其他用例运行：
-
-```java
-@Test
-public void chainCoze() {
-    // 未配置 COZE_KEY 时自动跳过，不报错
-    Assume.assumeTrue("需要 COZE_KEY", StringUtils.isNotBlank(System.getenv("COZE_KEY")));
-    String botId = StringUtils.defaultIfBlank(System.getenv("COZE_BOT_ID"), "751971414224112XXXX");
-    runSimpleDomesticChain(
-        "扣子 Coze",
-        ChatCoze.builder().botId(botId).build()
-    );
-}
-```
-
-环境变量：`COZE_KEY` + `COZE_BOT_ID`
-
----
-
 ### DeepSeek
 
 ```java
@@ -237,7 +214,6 @@ public void chainStepfun() {
 | 阿里云通义 | `ChatAliyun` | `ALIYUN_KEY` | `qwen-plus` |
 | 豆包（火山方舟） | `ChatDoubao` | `DOUBAO_KEY` | `doubao-1-5-lite-32k-250115` |
 | Moonshot（Kimi） | `ChatMoonshot` | `MOONSHOT_KEY` | `moonshot-v1-8k` |
-| 扣子 Coze | `ChatCoze` | `COZE_KEY` + `COZE_BOT_ID` | — |
 | DeepSeek | `ChatDeepseek` | `DEEPSEEK_KEY` | `deepseek-chat` |
 | 腾讯混元 | `ChatHunyuan` | `HUNYUAN_KEY` | `hunyuan-turbo` |
 | 百度千帆 | `ChatQianfan` | `QIANFAN_KEY` | `ernie-4.5-8k` |
@@ -268,7 +244,7 @@ mvn test -Dtest=Article17DomesticVendorsChain#chainDeepseek
 mvn test -Dtest=Article17DomesticVendorsChain
 ```
 
-未配置 Key 的厂商会抛出认证异常，不影响其他用例。扣子是唯一使用 `Assume` 主动跳过的特例，因为它额外依赖 `botId` 且无法用通用方式感知是否就绪。
+未配置 Key 的厂商会抛出认证异常，不影响其他用例。
 
 ---
 

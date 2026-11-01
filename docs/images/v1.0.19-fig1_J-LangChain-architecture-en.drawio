@@ -1,0 +1,98 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" version="26.0.0" type="device">
+  <diagram id="jlangchain-architecture" name="Architecture">
+    <mxGraphModel dx="1240" dy="1120" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="1120" math="0" shadow="0" background="#FFFFFF">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="J-LangChain" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=30;align=center;verticalAlign=middle;spacing=0;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="1120" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="LLM application orchestration for Java / Spring Boot" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=17;align=center;verticalAlign=middle;spacing=0;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="40" y="72" width="1120" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="app" value="&lt;b&gt;Your Application&lt;/b&gt;&lt;br&gt;AI assistants · Knowledge Q&amp;amp;A · Automated workflows" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EEF0F3;strokeColor=#9CA3AF;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="220" y="120" width="760" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="boundary" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="245" width="1120" height="650" as="geometry" />
+        </mxCell>
+        <mxCell id="coretitle" value="J-LangChain · Composable execution" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=18;align=center;verticalAlign=middle;spacing=0;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="256" width="500" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="flow" value="&lt;b&gt;ChainActor / salt-function-flow&lt;/b&gt;&lt;br&gt;Sequential · Parallel · Conditional · Nested flows&lt;br&gt;PromptTemplate → LLM → OutputParser" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E3ECF8;strokeColor=#4A7BC0;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="70" y="300" width="1060" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="agentbg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FBF9FE;strokeColor=#8A63B5;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="70" y="450" width="700" height="265" as="geometry" />
+        </mxCell>
+        <mxCell id="agenttitle" value="Agent Execution &amp;amp; Composition" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=17;align=center;verticalAlign=middle;spacing=0;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="465" width="660" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="react" value="&lt;b&gt;AgentExecutor&lt;/b&gt;&lt;br&gt;ReAct" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#8A63B5;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="95" y="505" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="fc" value="&lt;b&gt;McpAgentExecutor&lt;/b&gt;&lt;br&gt;Function Calling" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EDE5F6;strokeColor=#8A63B5;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="365" y="505" width="375" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="agentnote" value="Shared Tool interface · SubAgents can run inside Skills" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=0;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="95" y="577" width="645" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="tool" value="&lt;b&gt;Tool&lt;/b&gt;&lt;br&gt;Local functions / MCP&lt;br&gt;Stdio · SSE · HTTP" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF9E3;strokeColor=#D6B656;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="95" y="615" width="195" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="skill" value="&lt;b&gt;Skill&lt;/b&gt;&lt;br&gt;SKILL.md&lt;br&gt;Scripts · References · Workspace" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EDE5F6;strokeColor=#8A63B5;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="315" y="615" width="205" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="subagent" value="&lt;b&gt;SubAgent&lt;/b&gt;&lt;br&gt;AGENT.md&lt;br&gt;Own tools &amp;amp; model policy" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EEF7EA;strokeColor=#5E9E4F;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="545" y="615" width="195" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="state" value="&lt;b&gt;Memory &amp;amp; Execution Control&lt;/b&gt;&lt;br&gt;&lt;br&gt;Conversation memory &amp;amp; periodic summaries&lt;br&gt;ConversationStorage&lt;br&gt;&lt;br&gt;Task context &amp;amp; earlier-step summaries&lt;br&gt;AgentTaskContext&lt;br&gt;&lt;br&gt;Stop · Pause · Resume&lt;br&gt;Token usage · Metrics · Callbacks" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EEF7EA;strokeColor=#5E9E4F;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=12;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="800" y="450" width="330" height="265" as="geometry" />
+        </mxCell>
+        <mxCell id="llm" value="&lt;b&gt;Model Integrations&lt;/b&gt;&lt;br&gt;BaseChatModel / ChatCustom&lt;br&gt;Multi-vendor · JSON mode · Streaming" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E3ECF8;strokeColor=#4A7BC0;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="70" y="790" width="330" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="rag" value="&lt;b&gt;RAG&lt;/b&gt;&lt;br&gt;PDF / Word / OCR → Split → Embed&lt;br&gt;Retrieve → Augment context" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF4E5;strokeColor=#D79B00;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="435" y="790" width="330" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="tts" value="&lt;b&gt;Speech Synthesis&lt;/b&gt;&lt;br&gt;Sentence splitting · Text filtering&lt;br&gt;Streaming audio" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E4F1E0;strokeColor=#5E9E4F;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="800" y="790" width="330" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="corefoot" value="Capabilities compose as flow nodes; arrows show relationships, not a fixed execution order." style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=12;align=center;verticalAlign=middle;spacing=0;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="70" y="1100" width="1060" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="providers" value="&lt;b&gt;Cloud Models / Local Inference / Gateways&lt;/b&gt;&lt;br&gt;OpenAI · Qwen · DeepSeek · Ollama · …" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F7FAFE;strokeColor=#4A7BC0;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="70" y="1010" width="330" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="vector" value="&lt;b&gt;Vector Store&lt;/b&gt;&lt;br&gt;Milvus" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF4E5;strokeColor=#D79B00;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=12;" vertex="1" parent="1">
+          <mxGeometry x="435" y="1000" width="330" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="speech" value="&lt;b&gt;Speech Services&lt;/b&gt;&lt;br&gt;Alibaba Cloud · Doubao" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F3F9F1;strokeColor=#5E9E4F;strokeWidth=1.5;fontColor=#1F2937;fontFamily=Helvetica;fontSize=13;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="800" y="1010" width="330" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="appflow" value="1  Integrate &amp;amp; invoke" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;dashPattern=5 4;strokeColor=#7A7A7A;strokeWidth=1.3;fontColor=#1F2937;fontSize=13;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="app" target="flow">
+          <mxGeometry relative="1" x="-0.55" as="geometry" />
+        </mxCell>
+        <mxCell id="flowagent" value="2  Orchestrate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;dashPattern=5 4;strokeColor=#8A63B5;strokeWidth=1.3;fontColor=#1F2937;fontSize=13;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;exitX=0.33;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="flow" target="agentbg">
+          <mxGeometry relative="1" x="0" as="geometry" />
+        </mxCell>
+        <mxCell id="flowstate" value="3  State &amp;amp; control" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;dashPattern=5 4;strokeColor=#5E9E4F;strokeWidth=1.3;fontColor=#1F2937;fontSize=13;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;exitX=0.845;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="flow" target="state">
+          <mxGeometry relative="1" x="0" as="geometry" />
+        </mxCell>
+        <mxCell id="agentllm" value="4  Model calls" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;dashPattern=5 4;strokeColor=#4A7BC0;strokeWidth=1.3;fontColor=#1F2937;fontSize=13;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;exitX=0.235;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="agentbg" target="llm">
+          <mxGeometry relative="1" x="0" as="geometry" />
+        </mxCell>
+        <mxCell id="vendor" value="5  Requests &amp;amp; streaming" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;dashPattern=5 4;strokeColor=#4A7BC0;strokeWidth=1.3;fontColor=#1F2937;fontSize=13;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="llm" target="providers">
+          <mxGeometry relative="1" x="0" as="geometry" />
+        </mxCell>
+        <mxCell id="vectoredge" value="6  Store &amp;amp; retrieve" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;dashPattern=5 4;strokeColor=#D79B00;strokeWidth=1.3;fontColor=#1F2937;fontSize=13;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="rag" target="vector">
+          <mxGeometry relative="1" x="0" as="geometry" />
+        </mxCell>
+        <mxCell id="ttsedge" value="7  Synthesize audio" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;dashPattern=5 4;strokeColor=#5E9E4F;strokeWidth=1.3;fontColor=#1F2937;fontSize=13;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="tts" target="speech">
+          <mxGeometry relative="1" x="0" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

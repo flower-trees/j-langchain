@@ -34,7 +34,7 @@ public class InMemoryConversationStorage implements ConversationStorage {
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<String, List<HistoryInfos>>>> store
             = new ConcurrentHashMap<>();
 
-    private List<HistoryInfos> getOrCreate(Long appId, Long userId, Long sessionId) {
+    private List<HistoryInfos> getOrCreate(String appId, String userId, String sessionId) {
         return store
                 .computeIfAbsent(String.valueOf(appId),    k -> new ConcurrentHashMap<>())
                 .computeIfAbsent(String.valueOf(userId),   k -> new ConcurrentHashMap<>())
@@ -42,7 +42,7 @@ public class InMemoryConversationStorage implements ConversationStorage {
     }
 
     @Override
-    public List<HistoryInfos> loadAll(Long appId, Long userId, Long sessionId) {
+    public List<HistoryInfos> loadAll(String appId, String userId, String sessionId) {
         List<HistoryInfos> list = getOrCreate(appId, userId, sessionId);
         synchronized (list) {
             return new ArrayList<>(list);
@@ -50,7 +50,7 @@ public class InMemoryConversationStorage implements ConversationStorage {
     }
 
     @Override
-    public void append(Long appId, Long userId, Long sessionId, HistoryInfos turn) {
+    public void append(String appId, String userId, String sessionId, HistoryInfos turn) {
         List<HistoryInfos> list = getOrCreate(appId, userId, sessionId);
         synchronized (list) {
             list.add(turn);
@@ -58,7 +58,7 @@ public class InMemoryConversationStorage implements ConversationStorage {
     }
 
     @Override
-    public void replace(Long appId, Long userId, Long sessionId, List<HistoryInfos> compacted) {
+    public void replace(String appId, String userId, String sessionId, List<HistoryInfos> compacted) {
         List<HistoryInfos> list = getOrCreate(appId, userId, sessionId);
         synchronized (list) {
             list.clear();
@@ -67,7 +67,7 @@ public class InMemoryConversationStorage implements ConversationStorage {
     }
 
     @Override
-    public void clear(Long appId, Long userId, Long sessionId) {
+    public void clear(String appId, String userId, String sessionId) {
         List<HistoryInfos> list = getOrCreate(appId, userId, sessionId);
         synchronized (list) {
             list.clear();

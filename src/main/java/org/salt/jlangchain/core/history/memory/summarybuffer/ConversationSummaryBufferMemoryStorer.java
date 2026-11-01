@@ -124,16 +124,16 @@ public class ConversationSummaryBufferMemoryStorer extends ConversationMemorySto
     public static Builder builder() { return new Builder(); }
 
     public static final class Builder {
-        private Long appId;
-        private Long userId;
-        private Long sessionId;
+        private String appId;
+        private String userId;
+        private String sessionId;
         private Integer maxSize;
         private ConversationStorage storage;
         private BaseChatModel llm;
 
-        public Builder appId(Long v)                 { this.appId = v;     return this; }
-        public Builder userId(Long v)                { this.userId = v;    return this; }
-        public Builder sessionId(Long v)             { this.sessionId = v; return this; }
+        public Builder appId(String v)                 { this.appId = v;     return this; }
+        public Builder userId(String v)                { this.userId = v;    return this; }
+        public Builder sessionId(String v)             { this.sessionId = v; return this; }
         public Builder maxSize(Integer v)            { this.maxSize = v;   return this; }
         public Builder storage(ConversationStorage v){ this.storage = v;   return this; }
         public Builder llm(BaseChatModel v)          { this.llm = v;       return this; }

@@ -95,7 +95,7 @@ src/test/java/org/salt/jlangchain/demo/article/
 | `11-mcp-react-agent.md` | Node.js + `ALIYUN_KEY` (MCP HTTP tools + ReAct) |
 | `12-mcp-manager-agent.md`, `13-mcp-client-agent.md`, `14-mcp-mixed-agent.md` | Node.js + `ALIYUN_KEY` (`McpAgentExecutor` + `qwen3.6-plus`) |
 | `Article16CustomerService` (sample) | Node.js + `ALIYUN_KEY` (ReAct + filesystem MCP) |
-| `17-domestic-vendors-chain.md` / `Article17DomesticVendorsChain` | Configure the required vendor API keys as needed (see table in the article); Coze also requires a valid `COZE_BOT_ID` |
+| `17-domestic-vendors-chain.md` / `Article17DomesticVendorsChain` | Configure the required vendor API keys as needed (see table in the article) |
 | `18-parallel-agent-concurrent.md` / `Article18ParallelTravelResearch` | `ALIYUN_KEY` (`qwen-plus`) |
 | `19-rpc-vo-param.md` / `Article19RpcMcpTools` | `ALIYUN_KEY` (`qwen-plus`) |
 | `20-two-agent-self-correct.md` / `Article20TwoAgentSelfCorrect` | JDK 17+, Node.js, `ALIYUN_KEY` (`qwen3.6-plus`) |

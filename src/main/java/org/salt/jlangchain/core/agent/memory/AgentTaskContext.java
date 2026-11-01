@@ -56,6 +56,24 @@ public interface AgentTaskContext {
     }
 
     /**
+     * Returns the compacted summary of steps already dropped out of {@link #getCompletedSteps()}
+     * by implementations that compress old steps (e.g. {@link SlidingWindowContext}), or null if
+     * this implementation doesn't compact or nothing has been compacted yet. Needed to persist
+     * that summary across invocations that don't reuse the same in-memory instance — pair with
+     * {@link #restoreSummary}.
+     */
+    default String getEarlyStepsSummary() {
+        return null;
+    }
+
+    /**
+     * Restores a previously-retrieved {@link #getEarlyStepsSummary()} value into a freshly created
+     * context, without re-running any compaction. No-op for implementations that don't compact.
+     */
+    default void restoreSummary(String summary) {
+    }
+
+    /**
      * Append a new human turn after the accumulated steps.
      *
      * <p>Called during resume when the caller provides follow-up input (e.g. a user

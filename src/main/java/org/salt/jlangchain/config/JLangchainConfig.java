@@ -25,11 +25,9 @@ import org.salt.jlangchain.ai.tts.aliyun.TtsAliyunClient;
 import org.salt.jlangchain.ai.tts.doubao.TtsDoubaoClient;
 import org.salt.jlangchain.ai.vendor.aliyun.AliyunActuator;
 import org.salt.jlangchain.ai.vendor.chatgpt.ChatGPTActuator;
+import org.salt.jlangchain.ai.vendor.custom.CustomActuator;
 import org.salt.jlangchain.ai.vendor.deepseek.DeepseekActuator;
 import org.salt.jlangchain.ai.vendor.doubao.DoubaoActuator;
-import org.salt.jlangchain.ai.vendor.doubao.coze.CozeActuator;
-import org.salt.jlangchain.ai.vendor.doubao.coze.auth.CozeOAuthHelper;
-import org.salt.jlangchain.ai.vendor.doubao.coze.auth.CozeProperties;
 import org.salt.jlangchain.ai.vendor.hunyuan.HunyuanActuator;
 import org.salt.jlangchain.ai.vendor.lingyi.LingyiActuator;
 import org.salt.jlangchain.ai.vendor.minimax.MinimaxActuator;
@@ -134,6 +132,11 @@ public class JLangchainConfig {
     }
 
     @Bean
+    public CustomActuator customActuator(HttpStreamClient commonHttpClient) {
+        return new CustomActuator(commonHttpClient);
+    }
+
+    @Bean
     public OllamaActuator ollamaActuator(HttpStreamClient commonHttpClient) {
         return new OllamaActuator(commonHttpClient);
     }
@@ -208,21 +211,6 @@ public class JLangchainConfig {
         client.setWriteTimeout(sseWriteTimeoutMs);
         client.setCallTimeout(sseCallTimeoutMs);
         return client;
-    }
-
-    @Bean
-    public CozeActuator cozeActuator(HttpSseClient httpSseClient) {
-        return new CozeActuator(httpSseClient);
-    }
-
-    @Bean
-    public CozeProperties cozeProperties() {
-        return new CozeProperties();
-    }
-
-    @Bean
-    public CozeOAuthHelper cozeOAuthHelper() {
-        return new CozeOAuthHelper(cozeProperties());
     }
 
     @Bean

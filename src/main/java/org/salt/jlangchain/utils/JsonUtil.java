@@ -35,6 +35,26 @@ public class JsonUtil {
     @Getter
     public static final ObjectMapper objectMapper = new ObjectMapper();
 
+    /**
+     * Same wire format as {@link #objectMapper} (snake_case field names, tolerant of unknown
+     * properties, omits nulls) but WITHOUT the Long-&gt;String serializer below.
+     * <p>
+     * Use this (via {@link #toJsonStrict(Object)}) for any payload that must stay a faithful,
+     * spec-compliant JSON encoding of its Java types — most notably outgoing LLM API request
+     * bodies. The Long-&gt;String rule exists to protect large snowflake-style IDs from
+     * JavaScript's Number precision loss when *our own* responses reach a browser; it has
+     * nothing to do with third-party API payloads. Passed through unchanged, it silently
+     * corrupts them: a passthrough MCP tool JSON Schema can carry a numeric bound that happens
+     * to exceed Integer range (e.g. zod-to-json-schema emits `maximum: Number.MAX_SAFE_INTEGER`
+     * = 9007199254740991 for `z.number().int()`), which Jackson deserializes as a Java Long:
+     * fine on its own, but {@link #objectMapper} then re-serializes that Long as the JSON string
+     * "9007199254740991" instead of a bare number, and the vendor rejects the whole tool-call
+     * request with "... is not of type number" — observed for real against DeepSeek with the
+     * Playwright MCP server's browser_network_request tool.
+     */
+    @Getter
+    public static final ObjectMapper strictObjectMapper = new ObjectMapper();
+
     static {
         SimpleModule module = new SimpleModule();
         module.addSerializer(Long.class, new ToStringSerializer());
@@ -43,6 +63,11 @@ public class JsonUtil {
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         objectMapper.setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+
+        strictObjectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        strictObjectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        strictObjectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        strictObjectMapper.setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
     }
 
     public static boolean isValidJson(String json) {
@@ -59,6 +84,19 @@ public class JsonUtil {
             return objectMapper.writeValueAsString(o);
         } catch (JsonProcessingException e) {
             log.warn("toJson error:{}", e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Like {@link #toJson(Object)} but via {@link #strictObjectMapper}: numbers stay numbers.
+     * See that field's javadoc for why this matters for outgoing third-party API request bodies.
+     */
+    public static String toJsonStrict(Object o) {
+        try {
+            return strictObjectMapper.writeValueAsString(o);
+        } catch (JsonProcessingException e) {
+            log.warn("toJsonStrict error:{}", e.getMessage());
         }
         return null;
     }

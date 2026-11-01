@@ -118,6 +118,8 @@ public class ChatOpenAI extends BaseChatModel {
         }
     }
 
+    private boolean jsonMode = false;
+
     @Override
     public BaseChatModel copy() {
         return ChatOpenAI.builder()
@@ -126,10 +128,22 @@ public class ChatOpenAI extends BaseChatModel {
     }
 
     @Override
+    public BaseChatModel withJsonMode() {
+        ChatOpenAI copy = (ChatOpenAI) copy();
+        copy.jsonMode = true;
+        return copy;
+    }
+
+    @Override
     public void otherInformation(AiChatInput aiChatInput) {
         aiChatInput.setModel(model);
         aiChatInput.setTemperature(temperature);
         aiChatInput.setTools(tools);
+        if (jsonMode) {
+            AiChatInput.ResponseFormat responseFormat = new AiChatInput.ResponseFormat();
+            responseFormat.setType("json_object");
+            aiChatInput.setResponseFormat(responseFormat);
+        }
     }
 
     @Override

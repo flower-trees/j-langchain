@@ -24,7 +24,7 @@ import org.salt.jlangchain.core.BaseRunnable;
 @EqualsAndHashCode(callSuper = true)
 public abstract class HistoryBase extends BaseRunnable<Object, Object> {
 
-    protected Long appId = 0L;
-    protected Long userId = 0L;
-    protected Long sessionId = 0L;
+    protected String appId = "0";
+    protected String userId = "0";
+    protected String sessionId;
 }

@@ -12,18 +12,15 @@
  * limitations under the License.
  */
 
-package org.salt.jlangchain.ai.vendor.doubao.coze.dto;
+package org.salt.jlangchain.core.skill;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class SseEvent<T> {
-    /** Event name, such as conversion.chat.created */
-    private String event;
-    /** data Object after deserialization of the region */
-    private T data;
+/**
+ * A single {@code references/*.md} document loaded for a skill.
+ *
+ * @param filename file name including extension (e.g. "destinations.md")
+ * @param content  full file content
+ * @param summary  first non-blank line of the file, used as a one-line manifest
+ *                 entry when {@link ReferencesMode#LAZY} is active; may be blank
+ */
+public record ReferenceDoc(String filename, String content, String summary) {
 }

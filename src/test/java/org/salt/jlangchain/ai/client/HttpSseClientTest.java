@@ -14,59 +14,73 @@
 
 package org.salt.jlangchain.ai.client;
 
-import jakarta.annotation.Resource;
+import com.sun.net.httpserver.HttpServer;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.salt.jlangchain.TestApplication;
 import org.salt.jlangchain.ai.chat.sse.SseListenerStrategy;
 import org.salt.jlangchain.ai.client.stream.HttpSseClient;
-import org.springframework.boot.SpringBootConfiguration;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.SpringRunner;
 
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-@RunWith(SpringRunner.class)
-@SpringBootTest(classes = TestApplication.class)
-@SpringBootConfiguration
+import static org.junit.Assert.assertEquals;
+
 public class HttpSseClientTest {
 
-    @Resource
-    HttpSseClient httpSseClient;
-
     @Test
-    public void cozeChatStream() {
+    public void parsesGenericSseEvents() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/events", exchange -> {
+            byte[] body = ("event: chunk\n"
+                    + "data: hello\n\n"
+                    + "data: [DONE]\n\n").getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "text/event-stream");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
 
-        String url = "https://api.coze.cn/v3/chat";
+        try {
+            HttpSseClient client = new HttpSseClient(null);
+            client.afterPropertiesSet();
+            List<String> lifecycle = new ArrayList<>();
+            List<String> messages = new ArrayList<>();
+            SseListenerStrategy listener = new SseListenerStrategy() {
+                @Override
+                public void onOpen() {
+                    lifecycle.add("open");
+                }
 
-        Map<String, ?> body = Map.of(
-                "bot_id", "7519714142241128500",
-                "user_id", "123456789",
-                "stream", true,
-                "additional_messages", List.of(
-                        Map.of(
-                                "content", "hello",
-                                "content_type", "text",
-                                "role", "user",
-                                "type", "question"
-                        )
-                ),
-                "parameters", Map.of()
-        );
+                @Override
+                public void onMessage(String event, String message) {
+                    messages.add(event + ":" + message);
+                }
 
-        String key = System.getenv("COZE_KEY");;
-        Map<String, String> headers = Map.of(
-                "Content-Type", "application/json",
-                "Authorization", "Bearer " + key
-        );
+                @Override
+                public void onClosed() {
+                    lifecycle.add("closed");
+                }
 
-        httpSseClient.stream(url, body, headers, List.of(new ListenerStrategyTest()));
-    }
+                @Override
+                public void onComplete() {
+                    lifecycle.add("complete");
+                }
+            };
 
-    static class ListenerStrategyTest implements SseListenerStrategy {
-        public void onMessage(String event, String msg) {
-            System.out.println(event + ":" +msg);
+            client.stream(
+                    "http://localhost:" + server.getAddress().getPort() + "/events",
+                    Map.of("input", "hello"),
+                    Map.of("Content-Type", "application/json"),
+                    List.of(listener)
+            );
+
+            assertEquals(List.of("chunk:hello"), messages);
+            assertEquals(List.of("open", "closed", "complete"), lifecycle);
+        } finally {
+            server.stop(0);
         }
     }
 }

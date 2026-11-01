@@ -112,8 +112,7 @@ public class HttpStreamClient implements InitializingBean {
                 log.debug("http request open");
                 return JsonUtil.fromJson(response.body().string(), clazz);
             } else {
-                log.error("http request call fail, e:response code: {}, msg:{}", response.code(), response.body() != null ? new String(response.body().bytes()) : "");
-                throw new RuntimeException("Request failed with code: " + response.code());
+                throw failureException(response);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -130,12 +129,29 @@ public class HttpStreamClient implements InitializingBean {
                 log.debug("http request function open");
                 return function.apply(response);
             } else {
-                log.error("http request call function fail, e:response code: {}, msg:{}", response.code(), response.body() != null ? new String(response.body().bytes()) : "");
-                throw new RuntimeException("Request failed with code: " + response.code());
+                throw failureException(response);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Builds the exception thrown for a non-2xx response from the two synchronous
+     * {@code request(...)} overloads above (used by Plan/Execute/Reflect's blocking LLM calls —
+     * see application.yml's comment on why those stay synchronous). Wraps an {@link AiException}
+     * (which already existed and already carries a real status code — see {@link #stream}'s error
+     * path a few lines down) so callers can tell a 402/401 (needs the user to fix something
+     * external — top up billing, fix a key) apart from a 429/500/502/503 (transient, worth
+     * treating like a network blip) apart from a 403/404 (a real config mistake, not worth
+     * retrying) — rather than the flat "Request failed with code: N" string this used to throw,
+     * which lost the status code as soon as it was formatted into a message and buried the
+     * vendor's own error body (e.g. "Insufficient Balance") entirely.
+     */
+    private RuntimeException failureException(Response response) throws IOException {
+        String bodyText = response.body() != null ? response.body().string() : "";
+        log.error("http request call fail, e:response code: {}, msg:{}", response.code(), bodyText);
+        return new RuntimeException(new AiException(response.code(), bodyText));
     }
 
     public <T> void astream(String url, T body, Map<String, String> headers, List<ListenerStrategy> strategyList) {
@@ -204,7 +220,11 @@ public class HttpStreamClient implements InitializingBean {
         if (body instanceof String) {
             bodyJson = (String) body;
         } else {
-            bodyJson = JsonUtil.toJson(body);
+            // Use the strict (non-Long-stringifying) mapper here: this body goes straight to a
+            // third-party LLM vendor, whose strict JSON Schema validation on the `tools` payload
+            // will reject a numeric bound that our normal Long->String convention turned into a
+            // string. See JsonUtil.strictObjectMapper's javadoc for the real incident this fixes.
+            bodyJson = JsonUtil.toJsonStrict(body);
         }
 
         assert bodyJson != null;
@@ -214,7 +234,7 @@ public class HttpStreamClient implements InitializingBean {
                 .post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyJson))
                 .build();
 
-        log.debug("http stream call, url:{}, headers:{}, body:{}", url, headers, JsonUtil.toJson(body));
+        log.debug("http stream call, url:{}, headers:{}, body:{}", url, headers, bodyJson);
 
         return request;
     }

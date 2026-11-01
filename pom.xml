@@ -4,7 +4,7 @@
 
   <groupId>io.github.flower-trees</groupId>
   <artifactId>j-langchain</artifactId>
-  <version>1.0.18</version>
+  <version>1.0.19</version>
   <packaging>jar</packaging>
 
   <name>j-langchain</name>
@@ -43,7 +43,6 @@
     <jsoup.version>1.18.1</jsoup.version>
     <okhttp.version>4.12.0</okhttp.version>
     <commons-text.version>1.12.0</commons-text.version>
-    <jwt.version>0.12.6</jwt.version>
   </properties>
 
   <parent>
@@ -220,30 +219,6 @@
       <version>5.2.3</version>
     </dependency>
 
-    <dependency>
-      <groupId>com.coze</groupId>
-      <artifactId>coze-api</artifactId>
-      <version>0.3.2</version>
-    </dependency>
-
-    <dependency>
-      <groupId>io.jsonwebtoken</groupId>
-      <artifactId>jjwt-api</artifactId>
-      <version>${jwt.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.jsonwebtoken</groupId>
-      <artifactId>jjwt-impl</artifactId>
-      <version>${jwt.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.jsonwebtoken</groupId>
-      <artifactId>jjwt-jackson</artifactId>
-      <version>${jwt.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-
   </dependencies>
 
   <build>
@@ -317,4 +292,33 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <!-- Explicit local regression suite; the default test selection is unchanged. -->
+    <profile>
+      <id>local-tests</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <failIfNoTests>true</failIfNoTests>
+              <includes>
+                <include>**/AgentMemoryUnitTest.java</include>
+                <include>**/HistoryMemoryUnitTest.java</include>
+                <include>**/PeriodicVsRollingCompactionUnitTest.java</include>
+                <include>**/ScriptToolArgSplittingTest.java</include>
+                <include>**/ScriptToolInPlaceExecutionTest.java</include>
+                <include>**/SkillClaudeCompatModeTest.java</include>
+                <include>**/SkillReferencesModeTest.java</include>
+                <include>**/SkillWorkspaceToolsTest.java</include>
+                <include>**/FileSystemSkillConfigLoaderReferencesTest.java</include>
+                <include>**/FileSystemSkillConfigLoaderScriptsTest.java</include>
+              </includes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
