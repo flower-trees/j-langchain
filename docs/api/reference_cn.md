@@ -108,6 +108,28 @@ String fullAnswer    = stream.getContent();
 
 ---
 
+### 2.4 JSON 输出模式与自定义接口（1.0.19）
+
+`BaseChatModel.withJsonMode()` 返回请求 JSON 输出的模型变体；基类默认不改变行为，支持的实现覆盖该方法。能否使用取决于目标服务及模型，不保证统一的 JSON Schema 校验。
+
+```java
+BaseChatModel jsonLlm = ChatAliyun.builder().model("qwen-plus").build().withJsonMode();
+ChatCustom custom = ChatCustom.builder().model("your-model-id").build();
+```
+
+`ChatCustom` 位于 `core.llm.custom`，接入 OpenAI Chat Completions 兼容接口。Spring 配置示例：
+
+```yaml
+models:
+  custom:
+    chat-url: https://your-gateway.example/v1/chat/completions
+    chat-key: ${CUSTOM_KEY}
+```
+
+必须显式设置服务地址；`models.custom.chat-key` 未设置时回退至 `CUSTOM_KEY`。这不是 Coze 专用接口的直接替代。`ChatCoze` 及相关 Coze 接口已在 1.0.19 移除。
+
+---
+
 ## 3. Prompt 模板
 
 ### 3.1 PromptTemplate
@@ -555,6 +577,24 @@ chainActor.builder()
 
 ---
 
+### 1.0.19 会话记忆与摘要接口
+
+`HistoryBase` 及相关记忆 Builder 的 `appId`、`userId`、`sessionId` 均使用 `String`。`ConversationStorage` 的 `loadAll`、`append`、`replace`、`clear` 同步使用字符串 ID；自定义实现须更新签名并重新编译。迁移时保持持久化数据的键转换一致，详见 [迁移指南](../release/pr-1.0.19.md)。
+
+`core.history.memory.periodic` 新增：
+
+| 类 | 用途 |
+|----|------|
+| `PeriodicConversationSummaryMemory` | 组合周期性摘要读取和存储 |
+| `PeriodicConversationSummaryMemoryReader` | 读取已有摘要和未压缩的原始对话 |
+| `PeriodicConversationSummaryMemoryStorer` | 原始对话达到 `maxSize` 时整批摘要并清空缓冲区 |
+
+Builder 支持 `appId`、`userId`、`sessionId`、`storage`；组合类和 Storer 还支持 `maxSize`、`llm`。`maxSize` 在此是整批压缩触发阈值，与逐轮滚动压缩策略不同。
+
+Agent 任务上下文 `core.agent.memory.AgentTaskContext` 新增 `getEarlyStepsSummary()` 和 `restoreSummary(String)`。`SlidingWindowContext` 支持读取和恢复被移出窗口步骤的摘要；调用方须自行持久化摘要和其他任务状态。其他实现默认返回 `null`、恢复操作默认无效果。
+
+---
+
 ## 8. RAG
 
 ### 8.1 文档加载器
@@ -679,6 +719,7 @@ TtsCardChunk audio = tts.stream("你好，欢迎使用 J-LangChain！");
 | `MINIMAX_KEY` | `ChatMinimax` | MiniMax |
 | `LINGYI_KEY` | `ChatLingyi` | 零一万物（Yi） |
 | `STEPFUN_KEY` | `ChatStepfun` | 阶跃星辰 |
+| `CUSTOM_KEY` | `ChatCustom` | 自定义兼容接口密钥（也可设置 `models.custom.chat-key`） |
 | `ALIYUN_TTS_KEY` | `AliyunTts` | 阿里云语音合成 |
 | `DOUBAO_TTS_KEY` | `DoubaoTts` | 豆包语音合成 |
 
@@ -707,3 +748,13 @@ rag:
 ---
 
 **相关链接**: [快速开始](../guide/quickstart_cn.md) · [中文教程系列](../article/001/README.md) · [示例代码](../../src/test/java/org/salt/jlangchain/demo/)
+
+---
+
+## 13. Skill 兼容模式补充（1.0.19）
+
+`core.skill.SkillConfig` 新增 `claudeCompatMode`，代码构造默认 `false`；文件系统及 Classpath 的 Skill 配置加载器启用兼容模式，也可通过 `Skill.Builder.claudeCompatMode(boolean)` 覆盖。在兼容模式且 `allowedTools` 为空时，提供受限工作区文件工具，供 Skill 创建目录、读写文件。
+
+`referencesMode` 默认 `ReferencesMode.INLINE`，将参考文档内联至提示词；`LAZY` 仅提供文件清单和摘要，通过 `read_reference` 读取全文。`ReferenceDoc(filename, content, summary)` 表示单个参考文档。
+
+脚本可在原目录执行并支持 Python 包模块调用，运行环境须自行安装脚本所需依赖；不要将兼容模式理解为任意 Claude Code 插件都能无配置运行。设计细节见 [兼容设计](../design/skill-claude-code-compat.md)。

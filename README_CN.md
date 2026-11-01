@@ -57,13 +57,13 @@ McpAgentExecutor（主 Agent）
 <dependency>
     <groupId>io.github.flower-trees</groupId>
     <artifactId>j-langchain</artifactId>
-    <version>1.0.18</version>
+    <version>1.0.19</version>
 </dependency>
 ```
 
 ```groovy
 // Gradle
-implementation 'io.github.flower-trees:j-langchain:1.0.18'
+implementation 'io.github.flower-trees:j-langchain:1.0.19'
 ```
 
 ### 2. 导入配置
@@ -84,7 +84,7 @@ public class Application {
 export ALIYUN_KEY=sk-xxx...   # 或 CHATGPT_KEY / DEEPSEEK_KEY / OLLAMA_KEY1 ...
 ```
 
-> 全部 18 个环境变量及对应模型类：[API 参考 → 环境变量](./docs/api/reference_cn.md#12-环境变量)
+> 环境变量及对应模型类：[API 参考 → 环境变量](./docs/api/reference_cn.md#12-环境变量)
 
 ```java
 @Autowired ChainActor chainActor;
@@ -249,31 +249,11 @@ PDF / Word / OCR 文档加载 · 智能文本分割 · OpenAI / Ollama / 阿里�
 
 ## 🏗️ 架构
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                     你的 Spring Boot 应用                         │
-└─────────────────────────┬────────────────────────────────────────┘
-                          ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                       J-LangChain Core                           │
-│       ChainActor · PromptTemplate · OutputParser · History       │
-└──────┬────────────┬────────────┬──────────┬──────────────────────┘
-       ▼            ▼            ▼          ▼
-  LLM (13+)       RAG           TTS        MCP
-多厂商对话    加载/分割/嵌入  智能流式    Stdio/SSE
- 工具调用     向量存储查询   自动过滤    HTTP/FC
-       │
-       ▼  Agent 分层体系
-┌──────────────────────────────────────────────────────────────────┐
-│  McpAgentExecutor（主 Agent）                                     │
-│   ├─ Tool          ← 普通函数                                     │
-│   ├─ Skill         ← 子工作流（SKILL.md，三种加载方式）              │
-│   │    └─ SubAgent ← 内嵌轻量代理                                  │
-│   └─ SubAgent      ← 自主代理（自有工具，三层 LLM 策略）              │
-│                                                                  │
-│  stop() → AgentStoppedException → partialContext → 恢复           │
-└──────────────────────────────────────────────────────────────────┘
-```
+<p align="center">
+  <img src="./docs/images/v1.0.19-图1_J-LangChain总体架构.png" alt="J-LangChain 总体架构" width="680">
+</p>
+
+[draw.io 可编辑源文件](./docs/images/v1.0.19-图1_J-LangChain总体架构.drawio)
 
 ---
 

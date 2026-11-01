@@ -57,12 +57,12 @@ Long-running agents are `stop()`-able at any safe checkpoint. `AgentStoppedExcep
 <dependency>
     <groupId>io.github.flower-trees</groupId>
     <artifactId>j-langchain</artifactId>
-    <version>1.0.18</version>
+    <version>1.0.19</version>
 </dependency>
 ```
 ```groovy
 // Gradle
-implementation 'io.github.flower-trees:j-langchain:1.0.18'
+implementation 'io.github.flower-trees:j-langchain:1.0.19'
 ```
 
 ### 2. Import Config
@@ -83,7 +83,7 @@ public class Application {
 export ALIYUN_KEY=sk-xxx...   # or CHATGPT_KEY / DEEPSEEK_KEY / OLLAMA_KEY1 ...
 ```
 
-> All 18 environment variables and their corresponding model classes: [API Reference → Environment Variables](./docs/api/reference.md#12-environment-variables)
+> Environment variables and their corresponding model classes: [API Reference → Environment Variables](./docs/api/reference.md#12-environment-variables)
 
 ```java
 @Autowired ChainActor chainActor;
@@ -247,31 +247,11 @@ Alibaba Cloud · Doubao · Smart sentence splitting · Bracket auto-filter · Re
 
 ## 🏗️ Architecture
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                  Your Spring Boot Application                    │
-└─────────────────────────────┬────────────────────────────────────┘
-                              ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                       J-LangChain Core                           │
-│       ChainActor · PromptTemplate · OutputParser · History       │
-└──────┬────────────┬────────────┬──────────┬──────────────────────┘
-       ▼            ▼            ▼          ▼
-  LLM (13+)       RAG           TTS        MCP
-Multi-vendor   Load/Split   Smart stream  Stdio/SSE
-chat + tools  Embed/Vector   Auto-filter   HTTP/FC
-       │
-       ▼  Agent Layer
-┌──────────────────────────────────────────────────────────────────┐
-│  McpAgentExecutor (master)                                       │
-│   ├─ Tool          ← plain function                              │
-│   ├─ Skill         ← sub-workflow (SKILL.md, 3-mode load)        │
-│   │    └─ SubAgent ← embedded lightweight agent                  │
-│   └─ SubAgent      ← autonomous agent (own tools, 3-tier LLM)   │
-│                                                                  │
-│  stop() → AgentStoppedException → partialContext → resume        │
-└──────────────────────────────────────────────────────────────────┘
-```
+<p align="center">
+  <img src="./docs/images/v1.0.19-fig1_J-LangChain-architecture-en.png" alt="J-LangChain architecture" width="680">
+</p>
+
+[Editable draw.io source](./docs/images/v1.0.19-fig1_J-LangChain-architecture-en.drawio)
 
 ---
 

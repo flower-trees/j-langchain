@@ -4,7 +4,7 @@
 
   <groupId>io.github.flower-trees</groupId>
   <artifactId>j-langchain</artifactId>
-  <version>1.0.19-SNAPSHOT</version>
+  <version>1.0.19</version>
   <packaging>jar</packaging>
 
   <name>j-langchain</name>
@@ -292,4 +292,33 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <!-- Explicit local regression suite; the default test selection is unchanged. -->
+    <profile>
+      <id>local-tests</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <failIfNoTests>true</failIfNoTests>
+              <includes>
+                <include>**/AgentMemoryUnitTest.java</include>
+                <include>**/HistoryMemoryUnitTest.java</include>
+                <include>**/PeriodicVsRollingCompactionUnitTest.java</include>
+                <include>**/ScriptToolArgSplittingTest.java</include>
+                <include>**/ScriptToolInPlaceExecutionTest.java</include>
+                <include>**/SkillClaudeCompatModeTest.java</include>
+                <include>**/SkillReferencesModeTest.java</include>
+                <include>**/SkillWorkspaceToolsTest.java</include>
+                <include>**/FileSystemSkillConfigLoaderReferencesTest.java</include>
+                <include>**/FileSystemSkillConfigLoaderScriptsTest.java</include>
+              </includes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

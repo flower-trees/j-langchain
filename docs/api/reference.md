@@ -108,6 +108,28 @@ String fullAnswer    = stream.getContent();
 
 ---
 
+### 2.4 JSON Output and Custom Endpoints (1.0.19)
+
+`BaseChatModel.withJsonMode()` returns a model variant requesting JSON output. The base implementation is a no-op; supported implementations override it. Support depends on the target server and model and does not guarantee universal JSON Schema validation.
+
+```java
+BaseChatModel jsonLlm = ChatAliyun.builder().model("qwen-plus").build().withJsonMode();
+ChatCustom custom = ChatCustom.builder().model("your-model-id").build();
+```
+
+`ChatCustom` in `core.llm.custom` targets OpenAI Chat Completions-compatible endpoints. Configure Spring properties:
+
+```yaml
+models:
+  custom:
+    chat-url: https://your-gateway.example/v1/chat/completions
+    chat-key: ${CUSTOM_KEY}
+```
+
+An explicit endpoint is required. If `models.custom.chat-key` is unset, it falls back to `CUSTOM_KEY`. This does not directly replace Coze-specific APIs. `ChatCoze` and related Coze APIs are removed in 1.0.19.
+
+---
+
 ## 3. Prompt Templates
 
 ### 3.1 PromptTemplate
@@ -556,6 +578,24 @@ chainActor.builder()
 
 ---
 
+### Conversation Memory and Summaries in 1.0.19
+
+`HistoryBase` and related memory builders use `String` for `appId`, `userId`, and `sessionId`. `ConversationStorage.loadAll`, `append`, `replace`, and `clear` also use string IDs. Update and recompile custom implementations, keeping persistent lookup key conversion consistent. See the [migration guide](../release/pr-1.0.19-en.md).
+
+New classes in `core.history.memory.periodic`:
+
+| Class | Purpose |
+|-------|---------|
+| `PeriodicConversationSummaryMemory` | Combine periodic summary reading and storage |
+| `PeriodicConversationSummaryMemoryReader` | Read the existing summary and uncompressed turns |
+| `PeriodicConversationSummaryMemoryStorer` | Compact the entire raw batch at `maxSize`, then clear the buffer |
+
+Builders accept `appId`, `userId`, `sessionId`, and `storage`; the combined memory and Storer also accept `maxSize` and `llm`. Here `maxSize` is a batch compaction threshold, unlike per-turn rolling compaction.
+
+Agent task context `core.agent.memory.AgentTaskContext` adds `getEarlyStepsSummary()` and `restoreSummary(String)`. `SlidingWindowContext` can retrieve and restore summaries of steps removed from its window. Callers must persist the summary and other task state themselves. Other implementations default to returning `null` and ignoring restoration.
+
+---
+
 ## 8. RAG
 
 ### 8.1 Document Loaders
@@ -680,6 +720,7 @@ Chain building is powered by [salt-function-flow](https://github.com/flower-tree
 | `MINIMAX_KEY` | `ChatMinimax` | MiniMax |
 | `LINGYI_KEY` | `ChatLingyi` | 01.AI (Yi) |
 | `STEPFUN_KEY` | `ChatStepfun` | StepFun |
+| `CUSTOM_KEY` | `ChatCustom` | Custom endpoint key (or set `models.custom.chat-key`) |
 | `ALIYUN_TTS_KEY` | `AliyunTts` | Alibaba Cloud TTS |
 | `DOUBAO_TTS_KEY` | `DoubaoTts` | Doubao TTS |
 
@@ -708,3 +749,13 @@ rag:
 ---
 
 **Related**: [Quick Start](../guide/quickstart.md) · [Tutorial Series](../article/001-en/README.md) · [Sample Code](../../src/test/java/org/salt/jlangchain/demo/)
+
+---
+
+## 13. Skill Compatibility Additions (1.0.19)
+
+`core.skill.SkillConfig.claudeCompatMode` defaults to `false` for code-built skills. Filesystem and Classpath Skill configuration loaders enable compatibility mode; override it through `Skill.Builder.claudeCompatMode(boolean)`. Compatibility mode supplies scoped workspace file tools when `allowedTools` is empty, allowing directory creation and file reads/writes.
+
+`referencesMode` defaults to `ReferencesMode.INLINE`, including full references in the prompt. `LAZY` supplies a filename/summary manifest and a `read_reference` tool for full content. `ReferenceDoc(filename, content, summary)` represents one reference document.
+
+Scripts support execution in their original directory and Python package module invocation. Install script dependencies in the execution environment. Compatibility mode does not imply every Claude Code plugin runs without setup. See the [compatibility design (Chinese)](../design/skill-claude-code-compat.md).
